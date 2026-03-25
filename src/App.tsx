@@ -1,21 +1,49 @@
 /**
- * App.tsx — Root component
+ * App.tsx — Root component and router
  *
  * This is the top-level component that React renders first.
- * As the app grows, this will handle routing between pages
- * (e.g. Home, Card Editor, Card Library).
+ * It defines all the routes (URLs) in the app and maps each
+ * one to the appropriate page component.
  *
- * For now it renders a simple placeholder so we can confirm
- * the dev server and build pipeline are working correctly.
+ * Current routes:
+ * - /          → Placeholder home screen (real screens added later)
+ * - /gallery   → Component gallery (dev tool — not a user-facing screen)
+ *
+ * As new pages are designed and built, import them here and add a
+ * corresponding <Route> inside the <Routes> block.
  */
+
+import { BrowserRouter, Routes, Route, Link } from 'react-router-dom';
+import ComponentGallery from './pages/ComponentGallery';
 
 function App() {
   return (
-    /* Tailwind smoke test — these classes confirm Tailwind is processing correctly */
-    <div className="flex flex-col items-center justify-center min-h-screen bg-gray-950 text-white">
-      <h1 className="text-4xl font-bold mb-2">BattleCards</h1>
-      <p className="text-gray-400">App is running. Ready to build.</p>
-    </div>
+    <BrowserRouter>
+      <Routes>
+
+        {/* ── Home (placeholder until designs are ready) ── */}
+        <Route
+          path="/"
+          element={
+            <div className="flex flex-col items-center justify-center min-h-screen bg-gray-950 text-white gap-4">
+              <h1 className="text-4xl font-bold">BattleCards</h1>
+              <p className="text-gray-400">App is running. Ready to build.</p>
+              {/* Dev-only link — makes it easy to jump to the gallery */}
+              <Link
+                to="/gallery"
+                className="mt-4 text-sm text-blue-400 underline"
+              >
+                → Open Component Gallery
+              </Link>
+            </div>
+          }
+        />
+
+        {/* ── Component Gallery (dev tool) ── */}
+        <Route path="/gallery" element={<ComponentGallery />} />
+
+      </Routes>
+    </BrowserRouter>
   );
 }
 
