@@ -1,0 +1,26 @@
+# ---- Dependencies ----
+node_modules/
+
+# ---- Build output ----
+dist/
+build/
+
+# ---- Capacitor native project build artifacts ----
+android/.gradle/
+android/app/build/
+ios/App/Pods/
+ios/App/build/
+
+# ---- Environment variables (keep secrets out of git) ----
+.env
+.env.local
+.env.*.local
+
+# ---- Editor & OS files ----
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# ---- Vite cache ----
+.vite/
