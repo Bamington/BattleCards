@@ -1,0 +1,38 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm create:*)",
+      "Read(//c/Program Files/**)",
+      "Read(//c/Users/Bam/AppData/Roaming/**)",
+      "Read(//c/Users/Bam/AppData/Local/Programs//**)",
+      "Read(//c/Users/Bam/**)",
+      "Bash(npm --version)",
+      "Bash(npx create-vite@latest . --template react-ts)",
+      "Bash(printf \"y\\\\n\")",
+      "Bash(npm install:*)",
+      "Bash(npx cap:*)",
+      "Bash(npm run:*)",
+      "Bash(git --version)",
+      "Bash(gh --version)",
+      "Bash(git config:*)",
+      "Bash(git init:*)",
+      "Bash(/c/Users/Bam/Documents/BattleCards/.gitignore:*)",
+      "Bash(/c/Users/Bam/Documents/BattleCards/README.md:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git remote:*)",
+      "Bash(git branch:*)",
+      "Bash(git push:*)",
+      "Bash(npx create-vite@latest . --template react-ts -- --force)",
+      "Bash(npx create-vite@latest BattleCardsTemp --template react-ts)",
+      "Bash(mkdir -p /tmp/bctemp)",
+      "Read(//tmp/**)",
+      "Bash(cp /tmp/bctemp/eslint.config.js /c/Users/Bam/Documents/BattleCards/)",
+      "Bash(cp /tmp/bctemp/index.html /c/Users/Bam/Documents/BattleCards/)",
+      "Bash(cp /tmp/bctemp/package.json /c/Users/Bam/Documents/BattleCards/)",
+      "Bash(cp /tmp/bctemp/tsconfig.app.json /c/Users/Bam/Documents/BattleCards/)",
+      "Bash(cp /tmp/bctemp/tsconfig.json /c/Users/Bam/Documents/BattleCards/)",
+      "Bash(git rm:*)"
+    ]
+  }
+}
