@@ -1,0 +1,13 @@
+/*
+ * index.css — Global styles
+ *
+ * This file is the single stylesheet imported by the app.
+ * The @import below pulls in all of Tailwind's utility classes,
+ * making them available everywhere in the project.
+ *
+ * Any global base styles (e.g. font, background colour) can
+ * be added beneath the import using standard CSS or Tailwind's
+ * @layer directive.
+ */
+
+@import "tailwindcss";

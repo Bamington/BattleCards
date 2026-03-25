@@ -11,10 +11,10 @@
 
 function App() {
   return (
-    <div>
-      {/* Placeholder — real screens will be added here once designs are ready */}
-      <h1>BattleCards</h1>
-      <p>App is running. Ready to build.</p>
+    /* Tailwind smoke test — these classes confirm Tailwind is processing correctly */
+    <div className="flex flex-col items-center justify-center min-h-screen bg-gray-950 text-white">
+      <h1 className="text-4xl font-bold mb-2">BattleCards</h1>
+      <p className="text-gray-400">App is running. Ready to build.</p>
     </div>
   );
 }
