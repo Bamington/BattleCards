@@ -34,7 +34,11 @@
       "Bash(cp /tmp/bctemp/tsconfig.json /c/Users/Bam/Documents/BattleCards/)",
       "Bash(git rm:*)",
       "Bash(/c/Users/Bam/Documents/BattleCards/src/index.css:*)",
-      "WebFetch(domain:flowbite.com)"
+      "WebFetch(domain:flowbite.com)",
+      "WebFetch(domain:fonts.googleapis.com)",
+      "WebSearch",
+      "WebFetch(domain:www.fontshare.com)",
+      "WebFetch(domain:www.onlinewebfonts.com)"
     ]
   }
 }

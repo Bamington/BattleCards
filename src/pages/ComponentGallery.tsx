@@ -18,6 +18,7 @@ import Text from '../components/Text';
 import List from '../components/List';
 import TextLink from '../components/TextLink';
 import HR from '../components/HR';
+import { RAW_PALETTE, SEMANTIC_PALETTE, type ColorFamily } from '../data/colors';
 
 // ── Gallery wrapper ───────────────────────────────────────────────────────────
 
@@ -41,6 +42,28 @@ const ComponentGallery = () => {
       </Link>
 
       <HR variant="default" />
+
+      {/* ════════════════════════════════════════════════════════════════
+          COLOUR PALETTE — Raw
+      ════════════════════════════════════════════════════════════════ */}
+      <GallerySection title="Colour Palette / Raw">
+        <div className="w-full space-y-6">
+          {RAW_PALETTE.map((family) => (
+            <ColorRow key={family.name} family={family} />
+          ))}
+        </div>
+      </GallerySection>
+
+      {/* ════════════════════════════════════════════════════════════════
+          COLOUR PALETTE — Semantic Tokens
+      ════════════════════════════════════════════════════════════════ */}
+      <GallerySection title="Colour Palette / Semantic Tokens">
+        <div className="w-full space-y-6">
+          {SEMANTIC_PALETTE.map((family) => (
+            <ColorRow key={family.name} family={family} />
+          ))}
+        </div>
+      </GallerySection>
 
       {/* ════════════════════════════════════════════════════════════════
           TEXT — Headings
@@ -367,6 +390,60 @@ const ComponentGallery = () => {
     </div>
   );
 };
+
+// ── ColorRow ──────────────────────────────────────────────────────────────────
+
+/**
+ * ColorRow — Displays a single color family as a horizontal strip of swatches.
+ *
+ * Each swatch shows:
+ * - The color as a filled block (via inline style)
+ * - The shade number (50 → 900)
+ * - The hex value
+ *
+ * Used only in ComponentGallery — not a reusable app component.
+ */
+const ColorRow = ({ family }: { family: ColorFamily }) => (
+  <div>
+    {/* Family name + example class */}
+    <div className="flex items-baseline gap-3 mb-2">
+      <span className="font-body text-sm font-semibold text-gray-900 dark:text-white">
+        {family.name}
+      </span>
+      <span className="font-body text-xs text-gray-400 dark:text-gray-500">
+        bg-{family.prefix}-500
+      </span>
+    </div>
+
+    {/* Swatch strip */}
+    <div className="flex rounded-lg overflow-hidden">
+      {family.shades.map(({ shade, hex, darkText }) => (
+        <div
+          key={shade}
+          className="flex-1 flex flex-col items-center justify-end py-2 gap-0.5"
+          style={{ backgroundColor: hex }}
+        >
+          {/* Shade number */}
+          <span
+            className={`font-body text-xs font-medium ${
+              darkText ? 'text-gray-900' : 'text-white'
+            }`}
+          >
+            {shade}
+          </span>
+          {/* Hex value */}
+          <span
+            className={`font-body text-xs ${
+              darkText ? 'text-gray-600' : 'text-white/70'
+            }`}
+          >
+            {hex}
+          </span>
+        </div>
+      ))}
+    </div>
+  </div>
+);
 
 // ── GallerySection ────────────────────────────────────────────────────────────
 
