@@ -32,7 +32,9 @@
       "Bash(cp /tmp/bctemp/package.json /c/Users/Bam/Documents/BattleCards/)",
       "Bash(cp /tmp/bctemp/tsconfig.app.json /c/Users/Bam/Documents/BattleCards/)",
       "Bash(cp /tmp/bctemp/tsconfig.json /c/Users/Bam/Documents/BattleCards/)",
-      "Bash(git rm:*)"
+      "Bash(git rm:*)",
+      "Bash(/c/Users/Bam/Documents/BattleCards/src/index.css:*)",
+      "WebFetch(domain:flowbite.com)"
     ]
   }
 }

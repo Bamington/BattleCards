@@ -1,10 +1,22 @@
 <!doctype html>
-<html lang="en">
+<!--
+  The "dark" class on <html> enables Tailwind's dark mode utilities by default.
+  Removing it switches the app to light mode. A toggle can add/remove it at runtime.
+-->
+<html lang="en" class="dark">
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>bctemp</title>
+    <title>BattleCards</title>
+
+    <!-- Google Fonts: Tanker (headings) + Space Grotesk (body) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Tanker&family=Space+Grotesk:wght@300;400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
   </head>
   <body>
     <div id="root"></div>

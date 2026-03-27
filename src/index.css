@@ -2,12 +2,38 @@
  * index.css — Global styles
  *
  * This file is the single stylesheet imported by the app.
- * The @import below pulls in all of Tailwind's utility classes,
- * making them available everywhere in the project.
- *
- * Any global base styles (e.g. font, background colour) can
- * be added beneath the import using standard CSS or Tailwind's
- * @layer directive.
+ * Load order matters here — Google Fonts must come before Tailwind.
  */
 
+/* ── Tailwind v4 ────────────────────────────────────────────────────────────── */
 @import "tailwindcss";
+
+/*
+ * Dark mode strategy: class-based
+ * Tailwind's dark: utilities activate when a .dark class is present on
+ * any ancestor element. We set it on <html> by default (see index.html),
+ * giving us dark mode out of the box with the ability to toggle it.
+ */
+@variant dark (&:is(.dark, .dark *));
+
+/*
+ * Custom theme tokens
+ * These extend Tailwind's default theme. Defining --font-heading and
+ * --font-body here creates font-heading and font-body utility classes
+ * that can be used anywhere in the app.
+ */
+@theme {
+  --font-heading: 'Tanker', serif;
+  --font-body:    'Space Grotesk', sans-serif;
+}
+
+/*
+ * Base styles
+ * Applied globally to every element. Sets Space Grotesk as the default
+ * font so all text falls back to it unless explicitly overridden.
+ */
+@layer base {
+  html {
+    font-family: var(--font-body);
+  }
+}
