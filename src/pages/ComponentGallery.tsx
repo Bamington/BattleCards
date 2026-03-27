@@ -18,6 +18,8 @@ import Text from '../components/Text';
 import List from '../components/List';
 import TextLink from '../components/TextLink';
 import HR from '../components/HR';
+import Navbar from '../components/Navbar';
+import Sidebar from '../components/Sidebar';
 import { RAW_PALETTE, SEMANTIC_PALETTE, type ColorFamily } from '../data/colors';
 
 // ── Icon imports (outline) ────────────────────────────────────────────────────
@@ -83,6 +85,61 @@ const ComponentGallery = () => {
       </Link>
 
       <HR variant="default" />
+
+      {/* ════════════════════════════════════════════════════════════════
+          NAVBAR
+          Responsive top navigation bar. Fixed in production; rendered
+          in a bounded preview container here in the gallery.
+      ════════════════════════════════════════════════════════════════ */}
+      <GallerySection title="Navbar / Default">
+
+        {/* Preview wrapper — simulates a page viewport at reduced size */}
+        <div className="w-full rounded-xl overflow-hidden border border-gray-200 dark:border-gray-700">
+
+          {/* Navbar rendered with fixed=false so it stays inside the preview */}
+          <Navbar fixed={false} />
+
+          {/* Simulated page body beneath the navbar */}
+          <div className="h-24 bg-gray-50 dark:bg-gray-950 flex items-center
+                          justify-center px-4">
+            <p className="font-body text-xs text-gray-400 italic">
+              Page content sits here
+            </p>
+          </div>
+
+        </div>
+      </GallerySection>
+
+      {/* ════════════════════════════════════════════════════════════════
+          SIDEBAR
+          Off-canvas drawer on mobile, persistent panel on desktop.
+          Previewed at fixed width here in the gallery.
+      ════════════════════════════════════════════════════════════════ */}
+      <GallerySection title="Sidebar / Default">
+
+        {/* Preview wrapper — clips the sidebar to a fixed area */}
+        <div className="w-full rounded-xl overflow-hidden border border-gray-200
+                        dark:border-gray-700 flex" style={{ height: 320 }}>
+
+          {/* Sidebar rendered statically (always open) for gallery preview */}
+          <div className="relative shrink-0" style={{ width: 256 }}>
+            <Sidebar
+              isOpen={true}
+              width="w-full"
+              className="relative h-full border-r-0"
+            />
+          </div>
+
+          {/* Simulated page body to the right of the sidebar */}
+          <div className="flex-1 bg-gray-50 dark:bg-gray-950 flex items-center
+                          justify-center px-4">
+            <p className="font-body text-xs text-gray-400 italic">
+              Page content sits here
+            </p>
+          </div>
+
+        </div>
+      </GallerySection>
 
       {/* ════════════════════════════════════════════════════════════════
           ICONS — Outline
