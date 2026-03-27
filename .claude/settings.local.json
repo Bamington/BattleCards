@@ -38,7 +38,13 @@
       "WebFetch(domain:fonts.googleapis.com)",
       "WebSearch",
       "WebFetch(domain:www.fontshare.com)",
-      "WebFetch(domain:www.onlinewebfonts.com)"
+      "WebFetch(domain:www.onlinewebfonts.com)",
+      "WebFetch(domain:www.npmjs.com)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "WebFetch(domain:api.github.com)",
+      "Bash(npm audit:*)",
+      "Bash(node -e \"const s = require\\(''flowbite-react-icons/solid''\\); console.log\\(Object.keys\\(s\\).join\\('', ''\\)\\)\")"
     ]
   }
 }

@@ -20,6 +20,47 @@ import TextLink from '../components/TextLink';
 import HR from '../components/HR';
 import { RAW_PALETTE, SEMANTIC_PALETTE, type ColorFamily } from '../data/colors';
 
+// ── Icon imports (outline) ────────────────────────────────────────────────────
+import {
+  Home, Search, Bell, BellActive, Cog, Star, Bookmark,
+  Plus, Minus, Close, Check, CheckCircle, CloseCircle,
+  Edit, TrashBin, Download, Upload, FloppyDisk, ShareNodes,
+  Filter, DotsHorizontal, DotsVertical, Eye, EyeSlash,
+  Lock, LockOpen, InfoCircle, ExclamationCircle, QuestionCircle,
+  ArrowLeft, ArrowRight, ArrowUp, ArrowDown,
+  ChevronLeft, ChevronRight, ChevronUp, ChevronDown,
+  User, Users, UserAdd, UserCircle,
+  Grid, List as ListIcon, Inbox, Envelope,
+  Image, FileLines, Folder, Clipboard,
+  Play, Pause, Stop, Microphone, VideoCamera,
+  Moon, Sun, Rocket, Shield, Flag, Heart,
+} from 'flowbite-react-icons/outline';
+
+// ── Icon imports (solid) ──────────────────────────────────────────────────────
+// Note: not every outline icon has a solid counterpart — those show null in the grid.
+import {
+  Home as HomeSolid, Search as SearchSolid,
+  Bell as BellSolid, BellActive as BellActiveSolid, Cog as CogSolid,
+  Star as StarSolid, Bookmark as BookmarkSolid, Heart as HeartSolid,
+  Rocket as RocketSolid, Shield as ShieldSolid, Flag as FlagSolid,
+  CheckCircle as CheckCircleSolid, CloseCircle as CloseCircleSolid,
+  InfoCircle as InfoCircleSolid, ExclamationCircle as ExclamationCircleSolid,
+  QuestionCircle as QuestionCircleSolid,
+  Edit as EditSolid, TrashBin as TrashBinSolid,
+  Download as DownloadSolid, Upload as UploadSolid,
+  FloppyDisk as FloppyDiskSolid, ShareNodes as ShareNodesSolid,
+  Filter as FilterSolid, Eye as EyeSolid, EyeSlash as EyeSlashSolid,
+  Lock as LockSolid, LockOpen as LockOpenSolid,
+  User as UserSolid, Users as UsersSolid,
+  UserAdd as UserAddSolid, UserCircle as UserCircleSolid,
+  Grid as GridSolid, Inbox as InboxSolid, Envelope as EnvelopeSolid,
+  Image as ImageSolid, FileLines as FileLinesSolid,
+  Folder as FolderSolid, Clipboard as ClipboardSolid,
+  Play as PlaySolid, Pause as PauseSolid, Stop as StopSolid,
+  Microphone as MicrophoneSolid, VideoCamera as VideoCameraSolid,
+  Moon as MoonSolid, Sun as SunSolid,
+} from 'flowbite-react-icons/solid';
+
 // ── Gallery wrapper ───────────────────────────────────────────────────────────
 
 const ComponentGallery = () => {
@@ -42,6 +83,76 @@ const ComponentGallery = () => {
       </Link>
 
       <HR variant="default" />
+
+      {/* ════════════════════════════════════════════════════════════════
+          ICONS — Outline
+          Flowbite React Icons (flowbite-react-icons/outline)
+          Full library: https://flowbite.com/icons/
+      ════════════════════════════════════════════════════════════════ */}
+      <GallerySection title="Icons / Outline">
+        <IconGrid icons={[
+          { name: 'Home',              outline: <Home />,              solid: <HomeSolid /> },
+          { name: 'Search',            outline: <Search />,            solid: <SearchSolid /> },
+          { name: 'Bell',              outline: <Bell />,              solid: <BellSolid /> },
+          { name: 'BellActive',        outline: <BellActive />,        solid: <BellActiveSolid /> },
+          { name: 'Cog',               outline: <Cog />,               solid: <CogSolid /> },
+          { name: 'Star',              outline: <Star />,              solid: <StarSolid /> },
+          { name: 'Bookmark',          outline: <Bookmark />,          solid: <BookmarkSolid /> },
+          { name: 'Heart',             outline: <Heart />,             solid: <HeartSolid /> },
+          { name: 'Rocket',            outline: <Rocket />,            solid: <RocketSolid /> },
+          { name: 'Shield',            outline: <Shield />,            solid: <ShieldSolid /> },
+          { name: 'Flag',              outline: <Flag />,              solid: <FlagSolid /> },
+          { name: 'Plus',              outline: <Plus />,              solid: null },
+          { name: 'Minus',             outline: <Minus />,             solid: null },
+          { name: 'Close',             outline: <Close />,             solid: null },
+          { name: 'Check',             outline: <Check />,             solid: null },
+          { name: 'CheckCircle',       outline: <CheckCircle />,       solid: <CheckCircleSolid /> },
+          { name: 'CloseCircle',       outline: <CloseCircle />,       solid: <CloseCircleSolid /> },
+          { name: 'InfoCircle',        outline: <InfoCircle />,        solid: <InfoCircleSolid /> },
+          { name: 'ExclamationCircle', outline: <ExclamationCircle />, solid: <ExclamationCircleSolid /> },
+          { name: 'QuestionCircle',    outline: <QuestionCircle />,    solid: <QuestionCircleSolid /> },
+          { name: 'Edit',              outline: <Edit />,              solid: <EditSolid /> },
+          { name: 'TrashBin',          outline: <TrashBin />,          solid: <TrashBinSolid /> },
+          { name: 'Download',          outline: <Download />,          solid: <DownloadSolid /> },
+          { name: 'Upload',            outline: <Upload />,            solid: <UploadSolid /> },
+          { name: 'FloppyDisk',        outline: <FloppyDisk />,        solid: <FloppyDiskSolid /> },
+          { name: 'ShareNodes',        outline: <ShareNodes />,        solid: <ShareNodesSolid /> },
+          { name: 'Filter',            outline: <Filter />,            solid: <FilterSolid /> },
+          { name: 'DotsHorizontal',    outline: <DotsHorizontal />,    solid: null },
+          { name: 'DotsVertical',      outline: <DotsVertical />,      solid: null },
+          { name: 'Eye',               outline: <Eye />,               solid: <EyeSolid /> },
+          { name: 'EyeSlash',          outline: <EyeSlash />,          solid: <EyeSlashSolid /> },
+          { name: 'Lock',              outline: <Lock />,              solid: <LockSolid /> },
+          { name: 'LockOpen',          outline: <LockOpen />,          solid: <LockOpenSolid /> },
+          { name: 'ArrowLeft',         outline: <ArrowLeft />,         solid: null },
+          { name: 'ArrowRight',        outline: <ArrowRight />,        solid: null },
+          { name: 'ArrowUp',           outline: <ArrowUp />,           solid: null },
+          { name: 'ArrowDown',         outline: <ArrowDown />,         solid: null },
+          { name: 'ChevronLeft',       outline: <ChevronLeft />,       solid: null },
+          { name: 'ChevronRight',      outline: <ChevronRight />,      solid: null },
+          { name: 'ChevronUp',         outline: <ChevronUp />,         solid: null },
+          { name: 'ChevronDown',       outline: <ChevronDown />,       solid: null },
+          { name: 'User',              outline: <User />,              solid: <UserSolid /> },
+          { name: 'Users',             outline: <Users />,             solid: <UsersSolid /> },
+          { name: 'UserAdd',           outline: <UserAdd />,           solid: <UserAddSolid /> },
+          { name: 'UserCircle',        outline: <UserCircle />,        solid: <UserCircleSolid /> },
+          { name: 'Grid',              outline: <Grid />,              solid: <GridSolid /> },
+          { name: 'List',              outline: <ListIcon />,          solid: null },
+          { name: 'Inbox',             outline: <Inbox />,             solid: <InboxSolid /> },
+          { name: 'Envelope',          outline: <Envelope />,          solid: <EnvelopeSolid /> },
+          { name: 'Image',             outline: <Image />,             solid: <ImageSolid /> },
+          { name: 'FileLines',         outline: <FileLines />,         solid: <FileLinesSolid /> },
+          { name: 'Folder',            outline: <Folder />,            solid: <FolderSolid /> },
+          { name: 'Clipboard',         outline: <Clipboard />,         solid: <ClipboardSolid /> },
+          { name: 'Play',              outline: <Play />,              solid: <PlaySolid /> },
+          { name: 'Pause',             outline: <Pause />,             solid: <PauseSolid /> },
+          { name: 'Stop',              outline: <Stop />,              solid: <StopSolid /> },
+          { name: 'Microphone',        outline: <Microphone />,        solid: <MicrophoneSolid /> },
+          { name: 'VideoCamera',       outline: <VideoCamera />,       solid: <VideoCameraSolid /> },
+          { name: 'Moon',              outline: <Moon />,              solid: <MoonSolid /> },
+          { name: 'Sun',               outline: <Sun />,               solid: <SunSolid /> },
+        ]} />
+      </GallerySection>
 
       {/* ════════════════════════════════════════════════════════════════
           COLOUR PALETTE — Raw
@@ -390,6 +501,50 @@ const ComponentGallery = () => {
     </div>
   );
 };
+
+// ── IconGrid ──────────────────────────────────────────────────────────────────
+
+/**
+ * IconGrid — Displays a grid of icon previews.
+ *
+ * Each cell shows:
+ * - The outline variant on the left
+ * - The solid variant on the right (or a dash if no solid exists)
+ * - The icon's import name below
+ *
+ * Used only in ComponentGallery — not a reusable app component.
+ */
+interface IconEntry {
+  name: string;
+  outline: React.ReactNode;
+  /** Pass null if no solid variant exists for this icon */
+  solid: React.ReactNode | null;
+}
+
+const IconGrid = ({ icons }: { icons: IconEntry[] }) => (
+  <div className="w-full grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2">
+    {icons.map(({ name, outline, solid }) => (
+      <div
+        key={name}
+        className="flex flex-col items-center gap-2 p-3 rounded-lg bg-gray-100 dark:bg-gray-900"
+      >
+        {/* Outline + Solid side by side */}
+        <div className="flex items-center gap-3 text-gray-900 dark:text-white">
+          {/* Outline variant */}
+          <div title="outline">{outline}</div>
+          {/* Solid variant — greyed out dash if unavailable */}
+          <div title={solid ? 'solid' : 'no solid variant'} className={solid ? '' : 'text-gray-300 dark:text-gray-700'}>
+            {solid ?? '—'}
+          </div>
+        </div>
+        {/* Icon name */}
+        <span className="font-body text-xs text-center text-gray-500 dark:text-gray-400 leading-tight break-all">
+          {name}
+        </span>
+      </div>
+    ))}
+  </div>
+);
 
 // ── ColorRow ──────────────────────────────────────────────────────────────────
 
