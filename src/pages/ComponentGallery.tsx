@@ -12,86 +12,282 @@
  * Navigate to this page at: http://localhost:5173/gallery
  */
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import Text from '../components/Text';
 import List from '../components/List';
 import TextLink from '../components/TextLink';
 import HR from '../components/HR';
 import Navbar from '../components/Navbar';
-import Sidebar from '../components/Sidebar';
+import Sidebar, { SidebarItem } from '../components/Sidebar';
+import Button from '../components/Button';
+import Badge from '../components/Badge';
+import Avatar, { AvatarGroup } from '../components/Avatar';
+import Card, { CardImage, CardBody } from '../components/Card';
+import Dropdown, { DropdownItem, DropdownDivider, DropdownHeader } from '../components/Dropdown';
+import Input from '../components/Input';
+import Select from '../components/Select';
+import Counter from '../components/Counter';
+import UnitListEntry from '../components/UnitListEntry';
+import Checkbox from '../components/Checkbox';
+import StarRating from '../components/StarRating';
+import Tabs from '../components/Tabs';
 import { RAW_PALETTE, SEMANTIC_PALETTE, type ColorFamily } from '../data/colors';
+import heroImage from '../assets/hero.png';
+import BloodBowlCard from '../components/BloodBowlCard';
+import MultiSelectDropdown from '../components/MultiSelectDropdown';
 
-// ── Icon imports (outline) ────────────────────────────────────────────────────
-import {
-  Home, Search, Bell, BellActive, Cog, Star, Bookmark,
-  Plus, Minus, Close, Check, CheckCircle, CloseCircle,
-  Edit, TrashBin, Download, Upload, FloppyDisk, ShareNodes,
-  Filter, DotsHorizontal, DotsVertical, Eye, EyeSlash,
-  Lock, LockOpen, InfoCircle, ExclamationCircle, QuestionCircle,
-  ArrowLeft, ArrowRight, ArrowUp, ArrowDown,
-  ChevronLeft, ChevronRight, ChevronUp, ChevronDown,
-  User, Users, UserAdd, UserCircle,
-  Grid, List as ListIcon, Inbox, Envelope,
-  Image, FileLines, Folder, Clipboard,
-  Play, Pause, Stop, Microphone, VideoCamera,
-  Moon, Sun, Rocket, Shield, Flag, Heart,
-} from 'flowbite-react-icons/outline';
+// ── Icon imports (Solar Linear) ───────────────────────────────────────────────
+import Home             from '../icons/Home';
+import Magnifer         from '../icons/Magnifer';
+import Bell             from '../icons/Bell';
+import BellBing         from '../icons/BellBing';
+import Settings         from '../icons/Settings';
+import Star             from '../icons/Star';
+import Bookmark         from '../icons/Bookmark';
+import Heart            from '../icons/Heart';
+import Rocket           from '../icons/Rocket';
+import Shield           from '../icons/Shield';
+import Flag             from '../icons/Flag';
+import AddCircle        from '../icons/AddCircle';
+import MinusCircle      from '../icons/MinusCircle';
+import CheckCircle      from '../icons/CheckCircle';
+import CloseCircle      from '../icons/CloseCircle';
+import InfoCircle       from '../icons/InfoCircle';
+import DangerCircle     from '../icons/DangerCircle';
+import QuestionCircle   from '../icons/QuestionCircle';
+import Pen2             from '../icons/Pen2';
+import TrashBinMinimalistic  from '../icons/TrashBinMinimalistic';
+import DownloadMinimalistic  from '../icons/DownloadMinimalistic';
+import UploadMinimalistic    from '../icons/UploadMinimalistic';
+import Diskette         from '../icons/Diskette';
+import Share            from '../icons/Share';
+import Filter           from '../icons/Filter';
+import MenuDots         from '../icons/MenuDots';
+import Eye              from '../icons/Eye';
+import EyeClosed        from '../icons/EyeClosed';
+import Lock             from '../icons/Lock';
+import LockUnlocked     from '../icons/LockUnlocked';
+import ArrowLeft        from '../icons/ArrowLeft';
+import ArrowRight       from '../icons/ArrowRight';
+import ArrowUp          from '../icons/ArrowUp';
+import ArrowDown        from '../icons/ArrowDown';
+import AltArrowLeft     from '../icons/AltArrowLeft';
+import AltArrowRight    from '../icons/AltArrowRight';
+import AltArrowUp       from '../icons/AltArrowUp';
+import AltArrowDown     from '../icons/AltArrowDown';
+import UserRounded      from '../icons/UserRounded';
+import UsersGroupRounded from '../icons/UsersGroupRounded';
+import UserPlusRounded  from '../icons/UserPlusRounded';
+import UserCircle       from '../icons/UserCircle';
+import Widget2          from '../icons/Widget2';
+import ListCheck        from '../icons/ListCheck';
+import Inbox            from '../icons/Inbox';
+import Letter           from '../icons/Letter';
+import Gallery          from '../icons/Gallery';
+import FileText         from '../icons/FileText';
+import Folder           from '../icons/Folder';
+import Clipboard        from '../icons/Clipboard';
+import Play             from '../icons/Play';
+import Pause            from '../icons/Pause';
+import Stop             from '../icons/Stop';
+import Microphone       from '../icons/Microphone';
+import Videocamera      from '../icons/Videocamera';
+import Moon             from '../icons/Moon';
+import Sun              from '../icons/Sun';
 
-// ── Icon imports (solid) ──────────────────────────────────────────────────────
-// Note: not every outline icon has a solid counterpart — those show null in the grid.
-import {
-  Home as HomeSolid, Search as SearchSolid,
-  Bell as BellSolid, BellActive as BellActiveSolid, Cog as CogSolid,
-  Star as StarSolid, Bookmark as BookmarkSolid, Heart as HeartSolid,
-  Rocket as RocketSolid, Shield as ShieldSolid, Flag as FlagSolid,
-  CheckCircle as CheckCircleSolid, CloseCircle as CloseCircleSolid,
-  InfoCircle as InfoCircleSolid, ExclamationCircle as ExclamationCircleSolid,
-  QuestionCircle as QuestionCircleSolid,
-  Edit as EditSolid, TrashBin as TrashBinSolid,
-  Download as DownloadSolid, Upload as UploadSolid,
-  FloppyDisk as FloppyDiskSolid, ShareNodes as ShareNodesSolid,
-  Filter as FilterSolid, Eye as EyeSolid, EyeSlash as EyeSlashSolid,
-  Lock as LockSolid, LockOpen as LockOpenSolid,
-  User as UserSolid, Users as UsersSolid,
-  UserAdd as UserAddSolid, UserCircle as UserCircleSolid,
-  Grid as GridSolid, Inbox as InboxSolid, Envelope as EnvelopeSolid,
-  Image as ImageSolid, FileLines as FileLinesSolid,
-  Folder as FolderSolid, Clipboard as ClipboardSolid,
-  Play as PlaySolid, Pause as PauseSolid, Stop as StopSolid,
-  Microphone as MicrophoneSolid, VideoCamera as VideoCameraSolid,
-  Moon as MoonSolid, Sun as SunSolid,
-} from 'flowbite-react-icons/solid';
+// ── Icon imports (Solar Bold) ─────────────────────────────────────────────────
+import HomeBold             from '../icons/bold/Home';
+import MagniferBold         from '../icons/bold/Magnifer';
+import BellBold             from '../icons/bold/Bell';
+import BellBingBold         from '../icons/bold/BellBing';
+import SettingsBold         from '../icons/bold/Settings';
+import StarBold             from '../icons/bold/Star';
+import BookmarkBold         from '../icons/bold/Bookmark';
+import HeartBold            from '../icons/bold/Heart';
+import RocketBold           from '../icons/bold/Rocket';
+import ShieldBold           from '../icons/bold/Shield';
+import FlagBold             from '../icons/bold/Flag';
+import AddCircleBold        from '../icons/bold/AddCircle';
+import MinusCircleBold      from '../icons/bold/MinusCircle';
+import CheckCircleBold      from '../icons/bold/CheckCircle';
+import CloseCircleBold      from '../icons/bold/CloseCircle';
+import InfoCircleBold       from '../icons/bold/InfoCircle';
+import DangerCircleBold     from '../icons/bold/DangerCircle';
+import QuestionCircleBold   from '../icons/bold/QuestionCircle';
+import Pen2Bold             from '../icons/bold/Pen2';
+import TrashBinMinimalisticBold  from '../icons/bold/TrashBinMinimalistic';
+import DownloadMinimalisticBold  from '../icons/bold/DownloadMinimalistic';
+import UploadMinimalisticBold    from '../icons/bold/UploadMinimalistic';
+import DisketteBold         from '../icons/bold/Diskette';
+import ShareBold            from '../icons/bold/Share';
+import FilterBold           from '../icons/bold/Filter';
+import MenuDotsBold         from '../icons/bold/MenuDots';
+import EyeBold              from '../icons/bold/Eye';
+import EyeClosedBold        from '../icons/bold/EyeClosed';
+import LockBold             from '../icons/bold/Lock';
+import LockUnlockedBold     from '../icons/bold/LockUnlocked';
+import UserRoundedBold      from '../icons/bold/UserRounded';
+import UsersGroupRoundedBold from '../icons/bold/UsersGroupRounded';
+import UserPlusRoundedBold  from '../icons/bold/UserPlusRounded';
+import UserCircleBold       from '../icons/bold/UserCircle';
+import Widget2Bold          from '../icons/bold/Widget2';
+import ListCheckBold        from '../icons/bold/ListCheck';
+import InboxBold            from '../icons/bold/Inbox';
+import LetterBold           from '../icons/bold/Letter';
+import GalleryBold          from '../icons/bold/Gallery';
+import FileTextBold         from '../icons/bold/FileText';
+import FolderBold           from '../icons/bold/Folder';
+import ClipboardBold        from '../icons/bold/Clipboard';
+import PlayBold             from '../icons/bold/Play';
+import PauseBold            from '../icons/bold/Pause';
+import StopBold             from '../icons/bold/Stop';
+import MicrophoneBold       from '../icons/bold/Microphone';
+import VideocameraBold      from '../icons/bold/Videocamera';
+import MoonBold             from '../icons/bold/Moon';
+import SunBold              from '../icons/bold/Sun';
+
+// ── InteractiveStarDemo ───────────────────────────────────────────────────────
+
+const InteractiveStarDemo = () => {
+  const [rating, setRating] = useState(0);
+  return (
+    <div className="flex items-center gap-3">
+      <StarRating rating={rating} interactive onChange={setRating} size="lg" />
+      <span className="font-body text-sm text-gray-500 dark:text-gray-400">
+        {rating > 0 ? `${rating} / 5` : 'Click to rate'}
+      </span>
+      {rating > 0 && (
+        <button
+          onClick={() => setRating(0)}
+          className="font-body text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 underline"
+        >
+          Reset
+        </button>
+      )}
+    </div>
+  );
+};
+
+// ── DismissibleBadgeDemo ──────────────────────────────────────────────────────
+
+const DISMISSIBLE_BADGES: { id: number; color: React.ComponentProps<typeof Badge>['color']; label: string }[] = [
+  { id: 1, color: 'primary', label: 'Frontend' },
+  { id: 2, color: 'success', label: 'Ready' },
+  { id: 3, color: 'danger',  label: 'Blocker' },
+  { id: 4, color: 'warning', label: 'Review' },
+  { id: 5, color: 'purple',  label: 'Legendary' },
+];
+
+const DismissibleBadgeDemo = () => {
+  const [visible, setVisible] = useState<number[]>(DISMISSIBLE_BADGES.map((b) => b.id));
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      {DISMISSIBLE_BADGES.filter((b) => visible.includes(b.id)).map((b) => (
+        <Badge
+          key={b.id}
+          color={b.color}
+          onDismiss={() => setVisible((v) => v.filter((id) => id !== b.id))}
+        >
+          {b.label}
+        </Badge>
+      ))}
+      {visible.length < DISMISSIBLE_BADGES.length && (
+        <button
+          onClick={() => setVisible(DISMISSIBLE_BADGES.map((b) => b.id))}
+          className="font-body text-xs text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300 underline"
+        >
+          Reset
+        </button>
+      )}
+    </div>
+  );
+};
 
 // ── Gallery wrapper ───────────────────────────────────────────────────────────
 
+const MULTI_OPTIONS = ['Agility', 'General', 'Mutations', 'Passing', 'Strength', 'Devious'];
+
 const ComponentGallery = () => {
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [counterDefault, setCounterDefault] = useState(1);
+  const [counterSuccess, setCounterSuccess] = useState(3);
+  const [counterError,   setCounterError]   = useState(0);
+  const [multiSelected,  setMultiSelected]  = useState<string[]>([]);
+  const [multiSelected2, setMultiSelected2] = useState<string[]>([]);
   return (
     // The gallery uses Tailwind's light/dark bg so components are previewed
     // against the correct background colour in both modes.
-    <div className="min-h-screen bg-white dark:bg-gray-950 px-10 py-12">
+    <div className="min-h-screen bg-white dark:bg-gray-950">
 
-      {/* ── Page header ────────────────────────────────────────────── */}
-      <div className="mb-2">
-        <h1 className="font-heading text-3xl font-bold text-gray-900 dark:text-white">
-          Component Gallery
-        </h1>
-        <p className="font-body text-sm text-gray-500 dark:text-gray-400 mt-1">
-          A reference for every UI component used in BattleCards.
-        </p>
-      </div>
-      <Link to="/" className="font-body text-xs text-blue-500 hover:underline">
-        ← Back to app
-      </Link>
+      {/* ── Gallery navigation sidebar ──────────────────────────────────
+          Provides anchor-link navigation to every component section.
+          On desktop it is always visible; on mobile it slides in when
+          sidebarOpen=true (toggled by the hamburger button below).
+      ────────────────────────────────────────────────────────────────── */}
+      <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)}>
+        <SidebarItem href="#nav-navbar"     icon={<Home className="w-5 h-5" />}              label="Navbar"      />
+        <SidebarItem href="#nav-sidebar"    icon={<ListCheck className="w-5 h-5" />}         label="Sidebar"     />
+        <SidebarItem href="#nav-icons"      icon={<Widget2 className="w-5 h-5" />}           label="Icons"       />
+        <SidebarItem href="#nav-colours"    icon={<Gallery className="w-5 h-5" />}           label="Colours"     />
+        <SidebarItem href="#nav-text"       icon={<FileText className="w-5 h-5" />}          label="Text"        />
+        <SidebarItem href="#nav-lists"      icon={<Clipboard className="w-5 h-5" />}         label="Lists"       />
+        <SidebarItem href="#nav-links"      icon={<ArrowRight className="w-5 h-5" />}        label="Links"       />
+        <SidebarItem href="#nav-hr"         icon={<MinusCircle className="w-5 h-5" />}       label="HR"          />
+        <SidebarItem href="#nav-buttons"    icon={<Rocket className="w-5 h-5" />}            label="Buttons"     />
+        <SidebarItem href="#nav-counter"    icon={<AddCircle className="w-5 h-5" />}         label="Counter"     />
+        <SidebarItem href="#nav-badges"     icon={<Shield className="w-5 h-5" />}            label="Badges"      />
+        <SidebarItem href="#nav-avatars"    icon={<UserRounded className="w-5 h-5" />}       label="Avatars"     />
+        <SidebarItem href="#nav-cards"      icon={<Bookmark className="w-5 h-5" />}          label="Cards"       />
+        <SidebarItem href="#nav-dropdowns"  icon={<AltArrowDown className="w-5 h-5" />}      label="Dropdowns"   />
+        <SidebarItem href="#nav-inputs"     icon={<Inbox className="w-5 h-5" />}             label="Inputs"      />
+        <SidebarItem href="#nav-select"     icon={<AltArrowDown className="w-5 h-5" />}      label="Select"      />
+        <SidebarItem href="#nav-checkboxes" icon={<CheckCircle className="w-5 h-5" />}       label="Checkboxes"  />
+        <SidebarItem href="#nav-stars"      icon={<Star className="w-5 h-5" />}              label="Star Rating" />
+        <SidebarItem href="#nav-tabs"       icon={<Filter className="w-5 h-5" />}            label="Tabs"        />
+        <SidebarItem href="#nav-bb-card"      icon={<Shield className="w-5 h-5" />}            label="BB Card"     />
+        <SidebarItem href="#nav-multi-select" icon={<CheckCircle className="w-5 h-5" />}        label="Multi-Select" />
+      </Sidebar>
 
-      <HR variant="default" />
+      {/* ── Main content — offset on desktop to clear the sidebar ──────── */}
+      <div className="sm:ml-64 px-10 py-12">
+
+        {/* ── Page header ────────────────────────────────────────────── */}
+        <div className="mb-2 flex items-center gap-3">
+
+          {/* Hamburger — mobile only */}
+          <button
+            className="sm:hidden shrink-0 p-1.5 rounded-lg
+                       text-gray-500 dark:text-gray-400
+                       hover:bg-gray-100 dark:hover:bg-gray-800"
+            onClick={() => setSidebarOpen(true)}
+            aria-label="Open navigation"
+          >
+            <ListCheck className="w-5 h-5" />
+          </button>
+
+          <div>
+            <h1 className="font-heading text-3xl font-bold text-gray-900 dark:text-white">
+              Component Gallery
+            </h1>
+            <p className="font-body text-sm text-gray-500 dark:text-gray-400 mt-1">
+              A reference for every UI component used in BattleCards.
+            </p>
+          </div>
+
+        </div>
+        <Link to="/" className="font-body text-xs text-blue-500 hover:underline">
+          ← Back to app
+        </Link>
+
+        <HR variant="default" />
 
       {/* ════════════════════════════════════════════════════════════════
           NAVBAR
           Responsive top navigation bar. Fixed in production; rendered
           in a bounded preview container here in the gallery.
       ════════════════════════════════════════════════════════════════ */}
-      <GallerySection title="Navbar / Default">
+      <GallerySection id="nav-navbar" title="Navbar / Default">
 
         {/* Preview wrapper — simulates a page viewport at reduced size */}
         <div className="w-full rounded-xl overflow-hidden border border-gray-200 dark:border-gray-700">
@@ -115,7 +311,7 @@ const ComponentGallery = () => {
           Off-canvas drawer on mobile, persistent panel on desktop.
           Previewed at fixed width here in the gallery.
       ════════════════════════════════════════════════════════════════ */}
-      <GallerySection title="Sidebar / Default">
+      <GallerySection id="nav-sidebar" title="Sidebar / Default">
 
         {/* Preview wrapper — clips the sidebar to a fixed area */}
         <div className="w-full rounded-xl overflow-hidden border border-gray-200
@@ -142,79 +338,76 @@ const ComponentGallery = () => {
       </GallerySection>
 
       {/* ════════════════════════════════════════════════════════════════
-          ICONS — Outline
-          Flowbite React Icons (flowbite-react-icons/outline)
-          Full library: https://flowbite.com/icons/
+          ICONS — Solar Icon Set
+          Solar Linear (linear) + Solar Bold (bold)
+          GitHub: https://github.com/480-Design/Solar-Icon-Set
       ════════════════════════════════════════════════════════════════ */}
-      <GallerySection title="Icons / Outline">
+      <GallerySection id="nav-icons" title="Icons / Solar Linear">
         <IconGrid icons={[
-          { name: 'Home',              outline: <Home />,              solid: <HomeSolid /> },
-          { name: 'Search',            outline: <Search />,            solid: <SearchSolid /> },
-          { name: 'Bell',              outline: <Bell />,              solid: <BellSolid /> },
-          { name: 'BellActive',        outline: <BellActive />,        solid: <BellActiveSolid /> },
-          { name: 'Cog',               outline: <Cog />,               solid: <CogSolid /> },
-          { name: 'Star',              outline: <Star />,              solid: <StarSolid /> },
-          { name: 'Bookmark',          outline: <Bookmark />,          solid: <BookmarkSolid /> },
-          { name: 'Heart',             outline: <Heart />,             solid: <HeartSolid /> },
-          { name: 'Rocket',            outline: <Rocket />,            solid: <RocketSolid /> },
-          { name: 'Shield',            outline: <Shield />,            solid: <ShieldSolid /> },
-          { name: 'Flag',              outline: <Flag />,              solid: <FlagSolid /> },
-          { name: 'Plus',              outline: <Plus />,              solid: null },
-          { name: 'Minus',             outline: <Minus />,             solid: null },
-          { name: 'Close',             outline: <Close />,             solid: null },
-          { name: 'Check',             outline: <Check />,             solid: null },
-          { name: 'CheckCircle',       outline: <CheckCircle />,       solid: <CheckCircleSolid /> },
-          { name: 'CloseCircle',       outline: <CloseCircle />,       solid: <CloseCircleSolid /> },
-          { name: 'InfoCircle',        outline: <InfoCircle />,        solid: <InfoCircleSolid /> },
-          { name: 'ExclamationCircle', outline: <ExclamationCircle />, solid: <ExclamationCircleSolid /> },
-          { name: 'QuestionCircle',    outline: <QuestionCircle />,    solid: <QuestionCircleSolid /> },
-          { name: 'Edit',              outline: <Edit />,              solid: <EditSolid /> },
-          { name: 'TrashBin',          outline: <TrashBin />,          solid: <TrashBinSolid /> },
-          { name: 'Download',          outline: <Download />,          solid: <DownloadSolid /> },
-          { name: 'Upload',            outline: <Upload />,            solid: <UploadSolid /> },
-          { name: 'FloppyDisk',        outline: <FloppyDisk />,        solid: <FloppyDiskSolid /> },
-          { name: 'ShareNodes',        outline: <ShareNodes />,        solid: <ShareNodesSolid /> },
-          { name: 'Filter',            outline: <Filter />,            solid: <FilterSolid /> },
-          { name: 'DotsHorizontal',    outline: <DotsHorizontal />,    solid: null },
-          { name: 'DotsVertical',      outline: <DotsVertical />,      solid: null },
-          { name: 'Eye',               outline: <Eye />,               solid: <EyeSolid /> },
-          { name: 'EyeSlash',          outline: <EyeSlash />,          solid: <EyeSlashSolid /> },
-          { name: 'Lock',              outline: <Lock />,              solid: <LockSolid /> },
-          { name: 'LockOpen',          outline: <LockOpen />,          solid: <LockOpenSolid /> },
-          { name: 'ArrowLeft',         outline: <ArrowLeft />,         solid: null },
-          { name: 'ArrowRight',        outline: <ArrowRight />,        solid: null },
-          { name: 'ArrowUp',           outline: <ArrowUp />,           solid: null },
-          { name: 'ArrowDown',         outline: <ArrowDown />,         solid: null },
-          { name: 'ChevronLeft',       outline: <ChevronLeft />,       solid: null },
-          { name: 'ChevronRight',      outline: <ChevronRight />,      solid: null },
-          { name: 'ChevronUp',         outline: <ChevronUp />,         solid: null },
-          { name: 'ChevronDown',       outline: <ChevronDown />,       solid: null },
-          { name: 'User',              outline: <User />,              solid: <UserSolid /> },
-          { name: 'Users',             outline: <Users />,             solid: <UsersSolid /> },
-          { name: 'UserAdd',           outline: <UserAdd />,           solid: <UserAddSolid /> },
-          { name: 'UserCircle',        outline: <UserCircle />,        solid: <UserCircleSolid /> },
-          { name: 'Grid',              outline: <Grid />,              solid: <GridSolid /> },
-          { name: 'List',              outline: <ListIcon />,          solid: null },
-          { name: 'Inbox',             outline: <Inbox />,             solid: <InboxSolid /> },
-          { name: 'Envelope',          outline: <Envelope />,          solid: <EnvelopeSolid /> },
-          { name: 'Image',             outline: <Image />,             solid: <ImageSolid /> },
-          { name: 'FileLines',         outline: <FileLines />,         solid: <FileLinesSolid /> },
-          { name: 'Folder',            outline: <Folder />,            solid: <FolderSolid /> },
-          { name: 'Clipboard',         outline: <Clipboard />,         solid: <ClipboardSolid /> },
-          { name: 'Play',              outline: <Play />,              solid: <PlaySolid /> },
-          { name: 'Pause',             outline: <Pause />,             solid: <PauseSolid /> },
-          { name: 'Stop',              outline: <Stop />,              solid: <StopSolid /> },
-          { name: 'Microphone',        outline: <Microphone />,        solid: <MicrophoneSolid /> },
-          { name: 'VideoCamera',       outline: <VideoCamera />,       solid: <VideoCameraSolid /> },
-          { name: 'Moon',              outline: <Moon />,              solid: <MoonSolid /> },
-          { name: 'Sun',               outline: <Sun />,               solid: <SunSolid /> },
+          { name: 'Home',                   outline: <Home />,                   solid: <HomeBold /> },
+          { name: 'Magnifer',               outline: <Magnifer />,               solid: <MagniferBold /> },
+          { name: 'Bell',                   outline: <Bell />,                   solid: <BellBold /> },
+          { name: 'BellBing',               outline: <BellBing />,               solid: <BellBingBold /> },
+          { name: 'Settings',               outline: <Settings />,               solid: <SettingsBold /> },
+          { name: 'Star',                   outline: <Star />,                   solid: <StarBold /> },
+          { name: 'Bookmark',               outline: <Bookmark />,               solid: <BookmarkBold /> },
+          { name: 'Heart',                  outline: <Heart />,                  solid: <HeartBold /> },
+          { name: 'Rocket',                 outline: <Rocket />,                 solid: <RocketBold /> },
+          { name: 'Shield',                 outline: <Shield />,                 solid: <ShieldBold /> },
+          { name: 'Flag',                   outline: <Flag />,                   solid: <FlagBold /> },
+          { name: 'AddCircle',              outline: <AddCircle />,              solid: <AddCircleBold /> },
+          { name: 'MinusCircle',            outline: <MinusCircle />,            solid: <MinusCircleBold /> },
+          { name: 'CheckCircle',            outline: <CheckCircle />,            solid: <CheckCircleBold /> },
+          { name: 'CloseCircle',            outline: <CloseCircle />,            solid: <CloseCircleBold /> },
+          { name: 'InfoCircle',             outline: <InfoCircle />,             solid: <InfoCircleBold /> },
+          { name: 'DangerCircle',           outline: <DangerCircle />,           solid: <DangerCircleBold /> },
+          { name: 'QuestionCircle',         outline: <QuestionCircle />,         solid: <QuestionCircleBold /> },
+          { name: 'Pen2',                   outline: <Pen2 />,                   solid: <Pen2Bold /> },
+          { name: 'TrashBinMinimalistic',   outline: <TrashBinMinimalistic />,   solid: <TrashBinMinimalisticBold /> },
+          { name: 'DownloadMinimalistic',   outline: <DownloadMinimalistic />,   solid: <DownloadMinimalisticBold /> },
+          { name: 'UploadMinimalistic',     outline: <UploadMinimalistic />,     solid: <UploadMinimalisticBold /> },
+          { name: 'Diskette',               outline: <Diskette />,               solid: <DisketteBold /> },
+          { name: 'Share',                  outline: <Share />,                  solid: <ShareBold /> },
+          { name: 'Filter',                 outline: <Filter />,                 solid: <FilterBold /> },
+          { name: 'MenuDots',               outline: <MenuDots />,               solid: <MenuDotsBold /> },
+          { name: 'Eye',                    outline: <Eye />,                    solid: <EyeBold /> },
+          { name: 'EyeClosed',              outline: <EyeClosed />,              solid: <EyeClosedBold /> },
+          { name: 'Lock',                   outline: <Lock />,                   solid: <LockBold /> },
+          { name: 'LockUnlocked',           outline: <LockUnlocked />,           solid: <LockUnlockedBold /> },
+          { name: 'ArrowLeft',              outline: <ArrowLeft />,              solid: null },
+          { name: 'ArrowRight',             outline: <ArrowRight />,             solid: null },
+          { name: 'ArrowUp',               outline: <ArrowUp />,                solid: null },
+          { name: 'ArrowDown',              outline: <ArrowDown />,              solid: null },
+          { name: 'AltArrowLeft',           outline: <AltArrowLeft />,           solid: null },
+          { name: 'AltArrowRight',          outline: <AltArrowRight />,          solid: null },
+          { name: 'AltArrowUp',             outline: <AltArrowUp />,             solid: null },
+          { name: 'AltArrowDown',           outline: <AltArrowDown />,           solid: null },
+          { name: 'UserRounded',            outline: <UserRounded />,            solid: <UserRoundedBold /> },
+          { name: 'UsersGroupRounded',      outline: <UsersGroupRounded />,      solid: <UsersGroupRoundedBold /> },
+          { name: 'UserPlusRounded',        outline: <UserPlusRounded />,        solid: <UserPlusRoundedBold /> },
+          { name: 'UserCircle',             outline: <UserCircle />,             solid: <UserCircleBold /> },
+          { name: 'Widget2',                outline: <Widget2 />,                solid: <Widget2Bold /> },
+          { name: 'ListCheck',              outline: <ListCheck />,              solid: <ListCheckBold /> },
+          { name: 'Inbox',                  outline: <Inbox />,                  solid: <InboxBold /> },
+          { name: 'Letter',                 outline: <Letter />,                 solid: <LetterBold /> },
+          { name: 'Gallery',                outline: <Gallery />,                solid: <GalleryBold /> },
+          { name: 'FileText',               outline: <FileText />,               solid: <FileTextBold /> },
+          { name: 'Folder',                 outline: <Folder />,                 solid: <FolderBold /> },
+          { name: 'Clipboard',              outline: <Clipboard />,              solid: <ClipboardBold /> },
+          { name: 'Play',                   outline: <Play />,                   solid: <PlayBold /> },
+          { name: 'Pause',                  outline: <Pause />,                  solid: <PauseBold /> },
+          { name: 'Stop',                   outline: <Stop />,                   solid: <StopBold /> },
+          { name: 'Microphone',             outline: <Microphone />,             solid: <MicrophoneBold /> },
+          { name: 'Videocamera',            outline: <Videocamera />,            solid: <VideocameraBold /> },
+          { name: 'Moon',                   outline: <Moon />,                   solid: <MoonBold /> },
+          { name: 'Sun',                    outline: <Sun />,                    solid: <SunBold /> },
         ]} />
       </GallerySection>
 
       {/* ════════════════════════════════════════════════════════════════
           COLOUR PALETTE — Raw
       ════════════════════════════════════════════════════════════════ */}
-      <GallerySection title="Colour Palette / Raw">
+      <GallerySection id="nav-colours" title="Colour Palette / Raw">
         <div className="w-full space-y-6">
           {RAW_PALETTE.map((family) => (
             <ColorRow key={family.name} family={family} />
@@ -236,7 +429,7 @@ const ComponentGallery = () => {
       {/* ════════════════════════════════════════════════════════════════
           TEXT — Headings
       ════════════════════════════════════════════════════════════════ */}
-      <GallerySection title="Text / Headings">
+      <GallerySection id="nav-text" title="Text / Headings">
         <div className="w-full space-y-4">
           <Text variant="h1">H1 — The Battle Begins</Text>
           <Text variant="h2">H2 — Choose Your Forces</Text>
@@ -435,7 +628,7 @@ const ComponentGallery = () => {
       {/* ════════════════════════════════════════════════════════════════
           LISTS
       ════════════════════════════════════════════════════════════════ */}
-      <GallerySection title="Lists / Unordered">
+      <GallerySection id="nav-lists" title="Lists / Unordered">
         <List
           variant="unordered"
           items={['Heavy Infantry', 'Mounted Archers', 'Siege Engineers', 'Scout Raiders']}
@@ -476,9 +669,38 @@ const ComponentGallery = () => {
       </GallerySection>
 
       {/* ════════════════════════════════════════════════════════════════
+          LISTS — Units
+      ════════════════════════════════════════════════════════════════ */}
+      <GallerySection title="Lists / Units">
+        <div className="w-full max-w-sm space-y-4">
+
+          {/* Default state — all statuses */}
+          <div>
+            <p className="font-body text-xs text-gray-400 dark:text-gray-500 mb-2">Default</p>
+            <div className="space-y-1">
+              <UnitListEntry status="blank" />
+              <UnitListEntry status="complete" unitName="Jane-664"        unitType="Spartan ZVEZDA" />
+              <UnitListEntry status="pending"  unitName="Mk. VII Warrior" unitType="UNSC Marine"   />
+            </div>
+          </div>
+
+          {/* Active state — all statuses */}
+          <div>
+            <p className="font-body text-xs text-gray-400 dark:text-gray-500 mb-2">Active</p>
+            <div className="space-y-1">
+              <UnitListEntry status="blank"    active />
+              <UnitListEntry status="complete" active unitName="Jane-664"        unitType="Spartan ZVEZDA" />
+              <UnitListEntry status="pending"  active unitName="Mk. VII Warrior" unitType="UNSC Marine"   />
+            </div>
+          </div>
+
+        </div>
+      </GallerySection>
+
+      {/* ════════════════════════════════════════════════════════════════
           LINKS
       ════════════════════════════════════════════════════════════════ */}
-      <GallerySection title="Links / Variants">
+      <GallerySection id="nav-links" title="Links / Variants">
         <div className="w-full space-y-4">
 
           <div className="flex items-center gap-2">
@@ -525,9 +747,1129 @@ const ComponentGallery = () => {
       </GallerySection>
 
       {/* ════════════════════════════════════════════════════════════════
+          BUTTON — Filled
+      ════════════════════════════════════════════════════════════════ */}
+      <GallerySection id="nav-buttons" title="Button / Filled">
+        <div className="flex flex-wrap gap-3">
+          <Button color="primary">Primary</Button>
+          <Button color="secondary">Secondary</Button>
+          <Button color="success">Success</Button>
+          <Button color="danger">Danger</Button>
+          <Button color="warning">Warning</Button>
+          <Button color="dark">Dark</Button>
+        </div>
+      </GallerySection>
+
+      {/* ════════════════════════════════════════════════════════════════
+          BUTTON — Outlined
+      ════════════════════════════════════════════════════════════════ */}
+      <GallerySection title="Button / Outlined">
+        <div className="flex flex-wrap gap-3">
+          <Button variant="outline" color="primary">Primary</Button>
+          <Button variant="outline" color="secondary">Secondary</Button>
+          <Button variant="outline" color="success">Success</Button>
+          <Button variant="outline" color="danger">Danger</Button>
+          <Button variant="outline" color="warning">Warning</Button>
+          <Button variant="outline" color="dark">Dark</Button>
+        </div>
+      </GallerySection>
+
+      {/* ════════════════════════════════════════════════════════════════
+          BUTTON — Ghost
+      ════════════════════════════════════════════════════════════════ */}
+      <GallerySection title="Button / Ghost">
+        <div className="flex flex-wrap gap-3">
+          <Button variant="ghost" color="primary">Primary</Button>
+          <Button variant="ghost" color="secondary">Secondary</Button>
+          <Button variant="ghost" color="success">Success</Button>
+          <Button variant="ghost" color="danger">Danger</Button>
+          <Button variant="ghost" color="warning">Warning</Button>
+          <Button variant="ghost" color="dark">Dark</Button>
+        </div>
+      </GallerySection>
+
+      {/* ════════════════════════════════════════════════════════════════
+          BUTTON — Sizes & Shapes
+      ════════════════════════════════════════════════════════════════ */}
+      <GallerySection title="Button / Sizes & Shapes">
+        <div className="flex flex-wrap items-center gap-3 mb-4">
+          <Button size="xs">Extra Small</Button>
+          <Button size="sm">Small</Button>
+          <Button size="base">Base</Button>
+          <Button size="lg">Large</Button>
+          <Button size="xl">Extra Large</Button>
+        </div>
+        <div className="flex flex-wrap items-center gap-3">
+          <Button shape="rounded">Rounded</Button>
+          <Button shape="pill">Pill</Button>
+          <Button variant="outline" shape="rounded">Rounded outlined</Button>
+          <Button variant="outline" shape="pill">Pill outlined</Button>
+        </div>
+      </GallerySection>
+
+      {/* ════════════════════════════════════════════════════════════════
+          BUTTON — Icons
+      ════════════════════════════════════════════════════════════════ */}
+      <GallerySection title="Button / With Icons">
+        <div className="flex flex-wrap items-center gap-3">
+          <Button leftIcon={<AddCircle className="w-4 h-4" />}>Add Unit</Button>
+          <Button rightIcon={<ArrowRight className="w-4 h-4" />} variant="outline">
+            View Details
+          </Button>
+          <Button leftIcon={<DownloadMinimalistic className="w-4 h-4" />} color="success">
+            Export
+          </Button>
+          <Button leftIcon={<TrashBinMinimalistic className="w-4 h-4" />} color="danger" variant="outline">
+            Delete
+          </Button>
+        </div>
+      </GallerySection>
+
+      {/* ════════════════════════════════════════════════════════════════
+          BUTTON — States
+      ════════════════════════════════════════════════════════════════ */}
+      <GallerySection title="Button / States">
+        <div className="flex flex-wrap items-center gap-3">
+          <Button>Default</Button>
+          <Button loading>Loading</Button>
+          <Button disabled>Disabled</Button>
+          <Button variant="outline" loading>Loading outline</Button>
+          <Button variant="outline" disabled>Disabled outline</Button>
+        </div>
+      </GallerySection>
+
+      {/* ════════════════════════════════════════════════════════════════
+          COUNTER
+      ════════════════════════════════════════════════════════════════ */}
+      <GallerySection id="nav-counter" title="Counter">
+        <div className="space-y-6">
+
+          {/* Base stepper — no label */}
+          <div>
+            <p className="font-body text-xs text-gray-400 dark:text-gray-500 mb-3">Base stepper</p>
+            <div className="flex flex-wrap items-start gap-6">
+              <Counter value={counterDefault} onChange={setCounterDefault} />
+              <Counter value={counterDefault} onChange={setCounterDefault} min={counterDefault} />
+              <Counter value={counterDefault} onChange={setCounterDefault} max={counterDefault} />
+            </div>
+          </div>
+
+          {/* With label, required, and helper text — all states */}
+          <div>
+            <p className="font-body text-xs text-gray-400 dark:text-gray-500 mb-3">With label &amp; states</p>
+            <div className="flex flex-wrap items-start gap-6">
+              <Counter
+                label="Counter Label"
+                required
+                helperText="This is a helper message."
+                value={counterDefault}
+                onChange={setCounterDefault}
+              />
+              <Counter
+                label="Counter Label"
+                required
+                state="success"
+                helperText="This is a helper message."
+                value={counterSuccess}
+                onChange={setCounterSuccess}
+              />
+              <Counter
+                label="Counter Label"
+                required
+                state="error"
+                helperText="This is a helper message."
+                value={counterError}
+                onChange={setCounterError}
+                min={1}
+              />
+            </div>
+          </div>
+
+        </div>
+      </GallerySection>
+
+      {/* ════════════════════════════════════════════════════════════════
+          BADGE — Solid
+      ════════════════════════════════════════════════════════════════ */}
+      <GallerySection id="nav-badges" title="Badge / Solid">
+        <div className="flex flex-wrap items-center gap-2">
+          <Badge color="primary">Primary</Badge>
+          <Badge color="gray">Gray</Badge>
+          <Badge color="success">Success</Badge>
+          <Badge color="danger">Danger</Badge>
+          <Badge color="warning">Warning</Badge>
+          <Badge color="purple">Purple</Badge>
+        </div>
+      </GallerySection>
+
+      {/* ════════════════════════════════════════════════════════════════
+          BADGE — Outline
+      ════════════════════════════════════════════════════════════════ */}
+      <GallerySection title="Badge / Outline">
+        <div className="flex flex-wrap items-center gap-2">
+          <Badge variant="outline" color="primary">Primary</Badge>
+          <Badge variant="outline" color="gray">Gray</Badge>
+          <Badge variant="outline" color="success">Success</Badge>
+          <Badge variant="outline" color="danger">Danger</Badge>
+          <Badge variant="outline" color="warning">Warning</Badge>
+          <Badge variant="outline" color="purple">Purple</Badge>
+        </div>
+      </GallerySection>
+
+      {/* ════════════════════════════════════════════════════════════════
+          BADGE — Sizes & Shapes
+      ════════════════════════════════════════════════════════════════ */}
+      <GallerySection title="Badge / Sizes & Shapes">
+        <div className="flex flex-wrap items-center gap-2">
+          <Badge size="sm">Small rounded</Badge>
+          <Badge size="lg">Large rounded</Badge>
+          <Badge size="sm" shape="pill">Small pill</Badge>
+          <Badge size="lg" shape="pill">Large pill</Badge>
+          <Badge size="lg" variant="outline" shape="pill">Large outline pill</Badge>
+        </div>
+      </GallerySection>
+
+      {/* ════════════════════════════════════════════════════════════════
+          BADGE — Dot & Icon
+      ════════════════════════════════════════════════════════════════ */}
+      <GallerySection title="Badge / Dot & Icon">
+        <div className="flex flex-wrap items-center gap-2">
+          <Badge dot color="success">Online</Badge>
+          <Badge dot color="danger">Busy</Badge>
+          <Badge dot color="warning">Away</Badge>
+          <Badge dot color="gray">Offline</Badge>
+          <Badge icon={<Star className="w-3 h-3" />} color="warning" size="lg">Legendary</Badge>
+          <Badge icon={<Shield className="w-3 h-3" />} color="primary" size="lg">Verified</Badge>
+        </div>
+      </GallerySection>
+
+      {/* ════════════════════════════════════════════════════════════════
+          BADGE — Dismissible
+          Uses local state to demonstrate removing a badge.
+      ════════════════════════════════════════════════════════════════ */}
+      <GallerySection title="Badge / Dismissible">
+        <DismissibleBadgeDemo />
+      </GallerySection>
+
+      {/* ════════════════════════════════════════════════════════════════
+          AVATAR — Sizes
+      ════════════════════════════════════════════════════════════════ */}
+      <GallerySection id="nav-avatars" title="Avatar / Sizes">
+        <div className="flex flex-wrap items-end gap-3">
+          <Avatar size="xs"  initials="XS" />
+          <Avatar size="sm"  initials="SM" />
+          <Avatar size="base" initials="BS" />
+          <Avatar size="lg"  initials="LG" />
+          <Avatar size="xl"  initials="XL" />
+          <Avatar size="2xl" initials="2X" />
+        </div>
+      </GallerySection>
+
+      {/* ════════════════════════════════════════════════════════════════
+          AVATAR — Shapes & Colours
+      ════════════════════════════════════════════════════════════════ */}
+      <GallerySection title="Avatar / Shapes & Colours">
+        <div className="flex flex-wrap items-center gap-3">
+          {/* Circle (default) with each color */}
+          <Avatar initials="PR" color="primary" />
+          <Avatar initials="GR" color="gray" />
+          <Avatar initials="OK" color="success" />
+          <Avatar initials="NO" color="danger" />
+          <Avatar initials="AW" color="warning" />
+          <Avatar initials="LG" color="purple" />
+          {/* Rounded shape */}
+          <Avatar initials="RD" shape="rounded" color="primary" />
+          {/* Placeholder icon (no initials) */}
+          <Avatar color="gray" />
+          <Avatar color="primary" shape="rounded" />
+        </div>
+      </GallerySection>
+
+      {/* ════════════════════════════════════════════════════════════════
+          AVATAR — Bordered & Status
+      ════════════════════════════════════════════════════════════════ */}
+      <GallerySection title="Avatar / Bordered & Status">
+        <div className="flex flex-wrap items-center gap-3">
+          <Avatar initials="BD" bordered />
+          <Avatar initials="ON" status="online" />
+          <Avatar initials="BS" status="busy" color="danger" />
+          <Avatar initials="AW" status="away" color="warning" />
+          <Avatar initials="OF" status="offline" color="gray" />
+          <Avatar initials="AL" bordered status="online" size="lg" />
+        </div>
+      </GallerySection>
+
+      {/* ════════════════════════════════════════════════════════════════
+          AVATAR — Stacked Group
+      ════════════════════════════════════════════════════════════════ */}
+      <GallerySection title="Avatar / Stacked Group">
+        <div className="flex flex-col gap-4">
+
+          <div>
+            <p className="font-body text-xs text-gray-400 dark:text-gray-500 mb-2">No overflow</p>
+            <AvatarGroup>
+              <Avatar initials="JL" color="primary"  bordered />
+              <Avatar initials="AM" color="success"  bordered />
+              <Avatar initials="RK" color="purple"   bordered />
+              <Avatar initials="TB" color="warning"  bordered />
+            </AvatarGroup>
+          </div>
+
+          <div>
+            <p className="font-body text-xs text-gray-400 dark:text-gray-500 mb-2">With overflow (max=3)</p>
+            <AvatarGroup max={3}>
+              <Avatar initials="JL" color="primary"  bordered />
+              <Avatar initials="AM" color="success"  bordered />
+              <Avatar initials="RK" color="purple"   bordered />
+              <Avatar initials="TB" color="warning"  bordered />
+              <Avatar initials="CM" color="danger"   bordered />
+            </AvatarGroup>
+          </div>
+
+        </div>
+      </GallerySection>
+
+      {/* ════════════════════════════════════════════════════════════════
+          AVATAR — With Text (composition pattern)
+      ════════════════════════════════════════════════════════════════ */}
+      <GallerySection title="Avatar / With Text (composition)">
+        <div className="flex flex-col gap-4">
+          <div className="flex items-center gap-3">
+            <Avatar initials="JL" color="primary" size="lg" />
+            <div>
+              <Text variant="paragraph" weight="semibold">Jane Lee</Text>
+              <Text variant="paragraph" size="sm">Commander — 3rd Battalion</Text>
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            <Avatar color="gray" status="online" />
+            <div>
+              <Text variant="paragraph" weight="semibold">Unknown Soldier</Text>
+              <Text variant="paragraph" size="sm">Online now</Text>
+            </div>
+          </div>
+        </div>
+      </GallerySection>
+
+      {/* ════════════════════════════════════════════════════════════════
+          CARD — Default & With Button & With Link
+          Simple text-only cards with increasing interaction.
+      ════════════════════════════════════════════════════════════════ */}
+      <GallerySection id="nav-cards" title="Card / Default, Button & Link">
+        <div className="flex flex-wrap gap-4 items-start">
+
+          {/* 1. Default */}
+          <Card className="max-w-xs w-full">
+            <CardBody>
+              <Text variant="h5" className="mb-2">Default Card</Text>
+              <Text variant="paragraph">
+                Use this as a starting point for any card that just needs a
+                title and supporting description.
+              </Text>
+            </CardBody>
+          </Card>
+
+          {/* 2. With Button */}
+          <Card className="max-w-xs w-full">
+            <CardBody className="flex flex-col gap-3">
+              <Text variant="h5">Card with Button</Text>
+              <Text variant="paragraph">
+                Pair a description with a primary action to guide the user
+                toward the next step.
+              </Text>
+              <Button rightIcon={<ArrowRight className="w-4 h-4" />}>
+                Read more
+              </Button>
+            </CardBody>
+          </Card>
+
+          {/* 3. With Link */}
+          <Card className="max-w-xs w-full">
+            <CardBody className="flex flex-col gap-3">
+              <Rocket className="w-8 h-8 text-blue-600 dark:text-blue-400" />
+              <Text variant="h5">Card with Link</Text>
+              <Text variant="paragraph">
+                Use an icon to give the card instant visual context, then
+                point users to related content with a text link.
+              </Text>
+              <TextLink variant="icon" href="https://example.com"
+                icon={<ArrowRight className="w-4 h-4" />}>
+                Learn more
+              </TextLink>
+            </CardBody>
+          </Card>
+
+        </div>
+      </GallerySection>
+
+      {/* ════════════════════════════════════════════════════════════════
+          CARD — With Image (top image variants)
+      ════════════════════════════════════════════════════════════════ */}
+      <GallerySection title="Card / With Image">
+        <div className="flex flex-wrap gap-4 items-start">
+
+          {/* 4. Image + badge + button */}
+          <Card className="max-w-xs w-full">
+            <CardImage src={heroImage} alt="Unit card" className="h-44" />
+            <CardBody className="flex flex-col gap-3">
+              <Badge color="purple" shape="pill">Legendary</Badge>
+              <Text variant="h5">Heavy Infantry</Text>
+              <Button className="w-full">Deploy unit</Button>
+            </CardBody>
+          </Card>
+
+          {/* 5. Image + description + button */}
+          <Card className="max-w-xs w-full">
+            <CardImage src={heroImage} alt="Unit card" className="h-44" />
+            <CardBody className="flex flex-col gap-3">
+              <Text variant="h5">Mounted Archers</Text>
+              <Text variant="paragraph">
+                Fast-moving cavalry archers that harass enemy flanks and
+                withdraw before retaliation.
+              </Text>
+              <Button variant="outline">View stats</Button>
+            </CardBody>
+          </Card>
+
+        </div>
+      </GallerySection>
+
+      {/* ════════════════════════════════════════════════════════════════
+          CARD — Horizontal
+      ════════════════════════════════════════════════════════════════ */}
+      <GallerySection title="Card / Horizontal">
+        <Card horizontal className="max-w-xl w-full">
+          <CardImage
+            src={heroImage}
+            alt="Unit"
+            className="h-48 md:h-auto md:w-48 shrink-0"
+          />
+          <CardBody className="flex flex-col justify-center gap-3">
+            <Text variant="h5">Siege Engineers</Text>
+            <Text variant="paragraph">
+              Specialist troops that construct and operate heavy siege
+              equipment. Slow to deploy but devastating once in position.
+            </Text>
+            <Button variant="outline" size="sm" rightIcon={<ArrowRight className="w-4 h-4" />}>
+              Read more
+            </Button>
+          </CardBody>
+        </Card>
+      </GallerySection>
+
+      {/* ════════════════════════════════════════════════════════════════
+          CARD — User Profile
+      ════════════════════════════════════════════════════════════════ */}
+      <GallerySection title="Card / User Profile">
+        <Card className="max-w-xs w-full relative">
+          {/* Options dropdown — absolute top-right */}
+          <div className="absolute top-3 right-3">
+            <Dropdown
+              trigger={
+                <Button variant="ghost" color="secondary" size="xs">
+                  <MenuDots className="w-5 h-5" />
+                </Button>
+              }
+              align="right"
+            >
+              <DropdownItem icon={<Pen2 className="w-4 h-4" />}>Edit</DropdownItem>
+              <DropdownItem icon={<DownloadMinimalistic className="w-4 h-4" />}>Export</DropdownItem>
+              <DropdownDivider />
+              <DropdownItem icon={<TrashBinMinimalistic className="w-4 h-4" />}>Delete</DropdownItem>
+            </Dropdown>
+          </div>
+
+          <CardBody className="flex flex-col items-center text-center gap-2 pt-8">
+            <Avatar initials="JL" color="primary" size="xl" />
+            <Text variant="h5" className="mt-1">Jane Lee</Text>
+            <Text variant="paragraph" size="sm">Commander — 3rd Battalion</Text>
+            <div className="flex gap-2 mt-2">
+              <Button size="sm">Add friend</Button>
+              <Button size="sm" variant="outline">Message</Button>
+            </div>
+          </CardBody>
+        </Card>
+      </GallerySection>
+
+      {/* ════════════════════════════════════════════════════════════════
+          CARD — With Form
+      ════════════════════════════════════════════════════════════════ */}
+      <GallerySection title="Card / With Form">
+        <Card className="max-w-sm w-full">
+          <CardBody className="flex flex-col gap-4">
+            <Text variant="h5">Sign in to BattleCards</Text>
+            <Input label="Email" type="email" placeholder="name@battlecards.app" leftIcon={<Letter className="w-4 h-4" />} />
+            <Input label="Password" type="password" placeholder="••••••••" leftIcon={<Lock className="w-4 h-4" />} />
+            <div className="flex items-center justify-between">
+              <Checkbox label="Remember me" />
+              <TextLink variant="paragraph" href="#">Lost password?</TextLink>
+            </div>
+            <Button type="submit" className="w-full">Sign in</Button>
+            <Text variant="paragraph" size="sm" align="center">
+              No account?{' '}
+              <TextLink variant="paragraph" href="#">Create one</TextLink>
+            </Text>
+          </CardBody>
+        </Card>
+      </GallerySection>
+
+      {/* ════════════════════════════════════════════════════════════════
+          CARD — E-commerce (unit shop)
+      ════════════════════════════════════════════════════════════════ */}
+      <GallerySection title="Card / E-commerce">
+        <Card className="max-w-xs w-full">
+          <CardImage src={heroImage} alt="Heavy Infantry" className="h-44" />
+          <CardBody className="flex flex-col gap-2">
+            <StarRating rating={4} count={73} size="sm" />
+            <Text variant="h5">Heavy Infantry Pack</Text>
+            <div className="flex items-center justify-between mt-1">
+              <Text variant="h5">$9.99</Text>
+              <Button size="sm" leftIcon={<AddCircle className="w-4 h-4" />}>Add to cart</Button>
+            </div>
+          </CardBody>
+        </Card>
+      </GallerySection>
+
+      {/* ════════════════════════════════════════════════════════════════
+          CARD — Call to Action
+      ════════════════════════════════════════════════════════════════ */}
+      <GallerySection title="Card / Call to Action">
+        <Card className="max-w-sm w-full">
+          <CardBody className="flex flex-col items-center text-center gap-4">
+            <Rocket className="w-10 h-10 text-blue-600 dark:text-blue-400" />
+            <Text variant="h5">Take BattleCards mobile</Text>
+            <Text variant="paragraph">
+              Manage your decks, track battles, and challenge opponents
+              from anywhere with the BattleCards app.
+            </Text>
+            <div className="flex flex-col gap-2 w-full">
+              <Button leftIcon={<DownloadMinimalistic className="w-4 h-4" />}>
+                App Store
+              </Button>
+              <Button variant="outline" leftIcon={<DownloadMinimalistic className="w-4 h-4" />}>
+                Google Play
+              </Button>
+            </div>
+          </CardBody>
+        </Card>
+      </GallerySection>
+
+      {/* ════════════════════════════════════════════════════════════════
+          CARD — Nav Tabs (underline + default style)
+      ════════════════════════════════════════════════════════════════ */}
+      <GallerySection title="Card / Nav Tabs">
+        <div className="flex flex-wrap gap-4 items-start">
+
+          {/* Underline tabs inside a card */}
+          <Card className="max-w-md w-full">
+            <Tabs
+              variant="underline"
+              panelClassName="border-0 rounded-none"
+              tabs={[
+                { id: 'stats',     label: 'Stats',     icon: <Star className="w-4 h-4" />,   content: <Text variant="paragraph">Attack: 8 · Defence: 12 · Movement: 4 · Morale: 9</Text> },
+                { id: 'abilities', label: 'Abilities', icon: <Shield className="w-4 h-4" />, content: <Text variant="paragraph">Shield Wall — Reduces incoming damage by 2 when adjacent to a friendly unit.</Text> },
+                { id: 'lore',      label: 'Lore',      icon: <FileText className="w-4 h-4" />, content: <Text variant="paragraph">Forged in the northern campaigns, Heavy Infantry are the backbone of any great army.</Text> },
+              ]}
+            />
+          </Card>
+
+          {/* Full-width tabs inside a card */}
+          <Card className="max-w-md w-full">
+            <Tabs
+              variant="fullWidth"
+              panelClassName="border-0 rounded-none"
+              tabs={[
+                { id: 'stats',     label: 'Stats',     content: <Text variant="paragraph">Attack: 8 · Defence: 12 · Movement: 4 · Morale: 9</Text> },
+                { id: 'abilities', label: 'Abilities', content: <Text variant="paragraph">Shield Wall — Reduces incoming damage by 2 when adjacent to a friendly unit.</Text> },
+                { id: 'lore',      label: 'Lore',      content: <Text variant="paragraph">Forged in the northern campaigns, Heavy Infantry are the backbone of any great army.</Text> },
+              ]}
+            />
+          </Card>
+
+        </div>
+      </GallerySection>
+
+      {/* ════════════════════════════════════════════════════════════════
+          CARD — With List
+      ════════════════════════════════════════════════════════════════ */}
+      <GallerySection title="Card / With List">
+        <Card className="max-w-md w-full">
+          <CardBody>
+            <div className="flex items-center justify-between mb-4">
+              <Text variant="h5">Recent Battles</Text>
+              <TextLink variant="paragraph" href="#">View all</TextLink>
+            </div>
+            <div className="space-y-4">
+              {[
+                { initials: 'JL', color: 'primary' as const, name: 'Jane Lee',    detail: 'Commander',  value: '+2,400 pts' },
+                { initials: 'AM', color: 'success' as const, name: 'Alex Marsh',  detail: 'Captain',    value: '+800 pts'   },
+                { initials: 'RK', color: 'purple'  as const, name: 'Raj Kumar',   detail: 'Lieutenant', value: '−1,200 pts' },
+                { initials: 'TC', color: 'warning' as const, name: 'Tara Chen',   detail: 'Sergeant',   value: '+540 pts'   },
+              ].map((item) => (
+                <div key={item.name} className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <Avatar initials={item.initials} color={item.color} />
+                    <div>
+                      <Text variant="paragraph" weight="medium">{item.name}</Text>
+                      <Text variant="paragraph" size="sm">{item.detail}</Text>
+                    </div>
+                  </div>
+                  <Text variant="paragraph" weight="semibold">{item.value}</Text>
+                </div>
+              ))}
+            </div>
+          </CardBody>
+        </Card>
+      </GallerySection>
+
+      {/* ════════════════════════════════════════════════════════════════
+          CARD — Pricing (three tiers)
+      ════════════════════════════════════════════════════════════════ */}
+      <GallerySection title="Card / Pricing">
+        <div className="flex flex-wrap gap-4 items-start">
+
+          {/* Free */}
+          <Card className="max-w-xs w-full">
+            <CardBody className="flex flex-col gap-4">
+              <div>
+                <Badge color="gray">Free</Badge>
+                <div className="mt-3 flex items-baseline gap-1">
+                  <span className="font-heading text-4xl font-bold text-gray-900 dark:text-white">$0</span>
+                  <span className="font-body text-sm text-gray-500 dark:text-gray-400">/month</span>
+                </div>
+              </div>
+              <ul className="space-y-2">
+                {[
+                  { text: '2 deck slots',       ok: true  },
+                  { text: 'Up to 50 cards',     ok: true  },
+                  { text: 'Battle analytics',   ok: false },
+                  { text: 'Custom card art',    ok: false },
+                  { text: 'Priority support',   ok: false },
+                ].map(({ text, ok }) => (
+                  <li key={text} className="flex items-center gap-2">
+                    <CheckCircle className={`w-4 h-4 shrink-0 ${ok ? 'text-green-500' : 'text-gray-300 dark:text-gray-600'}`} />
+                    <Text variant="paragraph" size="sm" strikethrough={!ok}>{text}</Text>
+                  </li>
+                ))}
+              </ul>
+              <Button variant="outline" className="w-full">Get started</Button>
+            </CardBody>
+          </Card>
+
+          {/* Standard */}
+          <Card className="max-w-xs w-full">
+            <CardBody className="flex flex-col gap-4">
+              <div>
+                <Badge color="primary">Standard</Badge>
+                <div className="mt-3 flex items-baseline gap-1">
+                  <span className="font-heading text-4xl font-bold text-gray-900 dark:text-white">$9</span>
+                  <span className="font-body text-sm text-gray-500 dark:text-gray-400">/month</span>
+                </div>
+              </div>
+              <ul className="space-y-2">
+                {[
+                  { text: '10 deck slots',      ok: true  },
+                  { text: 'Up to 500 cards',    ok: true  },
+                  { text: 'Battle analytics',   ok: true  },
+                  { text: 'Custom card art',    ok: false },
+                  { text: 'Priority support',   ok: false },
+                ].map(({ text, ok }) => (
+                  <li key={text} className="flex items-center gap-2">
+                    <CheckCircle className={`w-4 h-4 shrink-0 ${ok ? 'text-green-500' : 'text-gray-300 dark:text-gray-600'}`} />
+                    <Text variant="paragraph" size="sm" strikethrough={!ok}>{text}</Text>
+                  </li>
+                ))}
+              </ul>
+              <Button className="w-full">Get started</Button>
+            </CardBody>
+          </Card>
+
+          {/* Pro */}
+          <Card className="max-w-xs w-full">
+            <CardBody className="flex flex-col gap-4">
+              <div>
+                <Badge color="purple">Pro</Badge>
+                <div className="mt-3 flex items-baseline gap-1">
+                  <span className="font-heading text-4xl font-bold text-gray-900 dark:text-white">$29</span>
+                  <span className="font-body text-sm text-gray-500 dark:text-gray-400">/month</span>
+                </div>
+              </div>
+              <ul className="space-y-2">
+                {[
+                  { text: 'Unlimited decks',    ok: true },
+                  { text: 'Unlimited cards',    ok: true },
+                  { text: 'Battle analytics',   ok: true },
+                  { text: 'Custom card art',    ok: true },
+                  { text: 'Priority support',   ok: true },
+                ].map(({ text, ok }) => (
+                  <li key={text} className="flex items-center gap-2">
+                    <CheckCircle className={`w-4 h-4 shrink-0 ${ok ? 'text-green-500' : 'text-gray-300 dark:text-gray-600'}`} />
+                    <Text variant="paragraph" size="sm">{text}</Text>
+                  </li>
+                ))}
+              </ul>
+              <Button color="dark" className="w-full">Get started</Button>
+            </CardBody>
+          </Card>
+
+        </div>
+      </GallerySection>
+
+      {/* ════════════════════════════════════════════════════════════════
+          CARD — Testimonial
+      ════════════════════════════════════════════════════════════════ */}
+      <GallerySection title="Card / Testimonial">
+        <div className="flex flex-wrap gap-4 items-start">
+
+          {[
+            { initials: 'JL', color: 'primary' as const, name: 'Jane Lee',   role: 'Commander, 3rd Battalion', quote: 'BattleCards completely changed how I plan my campaigns. The card system is intuitive and endlessly customisable.' },
+            { initials: 'RK', color: 'purple'  as const, name: 'Raj Kumar',  role: 'Tournament Organiser',     quote: 'Running a league of 40+ players used to be chaos. Now every deck is tracked, every battle logged — flawless.' },
+            { initials: 'AM', color: 'success' as const, name: 'Alex Marsh', role: 'Competitive Player',       quote: 'The stats on every card tell me exactly where my army is weak. I\'ve won three tournaments since switching.' },
+          ].map(({ initials, color, name, role, quote }) => (
+            <Card key={name} className="max-w-xs w-full">
+              <CardBody>
+                <figure>
+                  <svg
+                    className="w-8 h-8 mb-3 text-gray-400 dark:text-gray-600"
+                    aria-hidden="true"
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="currentColor"
+                    viewBox="0 0 18 14"
+                  >
+                    <path d="M6 0H2a2 2 0 0 0-2 2v4a2 2 0 0 0 2 2h4v1a3 3 0 0 1-3 3H2a1 1 0 0 0 0 2h1a5.006 5.006 0 0 0 5-5V2a2 2 0 0 0-2-2Zm10 0h-4a2 2 0 0 0-2 2v4a2 2 0 0 0 2 2h4v1a3 3 0 0 1-3 3h-1a1 1 0 0 0 0 2h1a5.006 5.006 0 0 0 5-5V2a2 2 0 0 0-2-2Z" />
+                  </svg>
+                  <blockquote>
+                    <Text variant="paragraph" italic className="mb-4">"{quote}"</Text>
+                  </blockquote>
+                  <figcaption className="flex items-center gap-3 mt-4">
+                    <Avatar initials={initials} color={color} />
+                    <div>
+                      <Text variant="paragraph" weight="semibold">{name}</Text>
+                      <Text variant="paragraph" size="sm">{role}</Text>
+                    </div>
+                  </figcaption>
+                </figure>
+              </CardBody>
+            </Card>
+          ))}
+
+        </div>
+      </GallerySection>
+
+      {/* ════════════════════════════════════════════════════════════════
+          DROPDOWN — Basic
+      ════════════════════════════════════════════════════════════════ */}
+      <GallerySection id="nav-dropdowns" title="Dropdown / Basic">
+        {/* min-h gives the section space so the open menu doesn't clip */}
+        <div className="flex flex-wrap gap-4" style={{ minHeight: 200 }}>
+
+          <Dropdown trigger={<Button rightIcon={<AltArrowDown className="w-4 h-4" />}>Options</Button>}>
+            <DropdownItem>Dashboard</DropdownItem>
+            <DropdownItem>Settings</DropdownItem>
+            <DropdownItem>Earnings</DropdownItem>
+            <DropdownItem>Sign out</DropdownItem>
+          </Dropdown>
+
+          <Dropdown
+            trigger={<Button variant="outline" rightIcon={<AltArrowDown className="w-4 h-4" />}>With icons</Button>}
+          >
+            <DropdownItem icon={<Pen2 className="w-4 h-4" />}>Edit</DropdownItem>
+            <DropdownItem icon={<DownloadMinimalistic className="w-4 h-4" />}>Export</DropdownItem>
+            <DropdownDivider />
+            <DropdownItem icon={<TrashBinMinimalistic className="w-4 h-4" />} onClick={() => {}}>Delete</DropdownItem>
+          </Dropdown>
+
+          <Dropdown
+            trigger={<Button variant="ghost" color="secondary" rightIcon={<AltArrowDown className="w-4 h-4" />}>With header</Button>}
+            align="right"
+          >
+            <DropdownHeader>
+              <p className="font-semibold">Jane Lee</p>
+              <p className="text-gray-500 dark:text-gray-400">jane@battlecards.app</p>
+            </DropdownHeader>
+            <DropdownDivider />
+            <DropdownItem>Profile</DropdownItem>
+            <DropdownItem>Settings</DropdownItem>
+            <DropdownItem disabled>Admin panel</DropdownItem>
+            <DropdownDivider />
+            <DropdownItem>Sign out</DropdownItem>
+          </Dropdown>
+
+        </div>
+      </GallerySection>
+
+      {/* ════════════════════════════════════════════════════════════════
+          INPUT — Sizes
+      ════════════════════════════════════════════════════════════════ */}
+      <GallerySection id="nav-inputs" title="Input / Sizes">
+        <div className="w-full max-w-sm space-y-3">
+          <Input
+            size="sm"
+            placeholder="Small input"
+            leftIcon={<UserRounded className="w-4 h-4" />}
+            rightElement={<CloseCircle className="w-4 h-4 text-gray-400 dark:text-gray-500" />}
+          />
+          <Input
+            size="base"
+            placeholder="Base input"
+            leftIcon={<UserRounded className="w-4 h-4" />}
+            rightElement={<CloseCircle className="w-4 h-4 text-gray-400 dark:text-gray-500" />}
+          />
+          <Input
+            size="lg"
+            placeholder="Large input"
+            leftIcon={<UserRounded className="w-5 h-5" />}
+            rightElement={<CloseCircle className="w-5 h-5 text-gray-400 dark:text-gray-500" />}
+          />
+        </div>
+      </GallerySection>
+
+      {/* ════════════════════════════════════════════════════════════════
+          INPUT — States
+      ════════════════════════════════════════════════════════════════ */}
+      <GallerySection title="Input / States">
+        <div className="w-full max-w-sm space-y-3">
+          <Input
+            label="Input Label"
+            required
+            placeholder="Value"
+            leftIcon={<UserRounded className="w-4 h-4" />}
+            rightElement={<CloseCircle className="w-4 h-4 text-gray-400 dark:text-gray-500" />}
+            helperText="This is a helper message."
+          />
+          <Input
+            label="Input Label"
+            required
+            placeholder="Value"
+            value="Filled value"
+            leftIcon={<UserRounded className="w-4 h-4" />}
+            rightElement={<CloseCircle className="w-4 h-4 text-gray-400 dark:text-gray-500" />}
+            helperText="This is a helper message."
+            readOnly
+          />
+          <Input
+            label="Input Label"
+            required
+            placeholder="Value"
+            leftIcon={<UserRounded className="w-4 h-4" />}
+            rightElement={<CloseCircle className="w-4 h-4 text-gray-400 dark:text-gray-500" />}
+            helperText="This is a helper message."
+            disabled
+          />
+          <Input
+            label="Input Label"
+            required
+            placeholder="Value"
+            leftIcon={<UserRounded className="w-4 h-4" />}
+            rightElement={<CloseCircle className="w-4 h-4 text-gray-400 dark:text-gray-500" />}
+            helperText="This is a helper message."
+            readOnly
+          />
+          <Input
+            label="Input Label"
+            required
+            state="success"
+            placeholder="Value"
+            value="Valid value"
+            leftIcon={<UserRounded className="w-4 h-4" />}
+            rightElement={<CheckCircle className="w-4 h-4 text-green-500" />}
+            helperText="This is a helper message."
+          />
+          <Input
+            label="Input Label"
+            required
+            state="error"
+            placeholder="Value"
+            leftIcon={<UserRounded className="w-4 h-4" />}
+            rightElement={<CloseCircle className="w-4 h-4 text-red-500" />}
+            helperText="This is a helper message."
+          />
+        </div>
+      </GallerySection>
+
+      {/* ════════════════════════════════════════════════════════════════
+          INPUT — With icons
+      ════════════════════════════════════════════════════════════════ */}
+      <GallerySection title="Input / With Icons">
+        <div className="w-full max-w-sm space-y-3">
+          <Input
+            label="Search"
+            placeholder="Search units..."
+            leftIcon={<Magnifer className="w-4 h-4" />}
+          />
+          <Input
+            label="Password"
+            type="password"
+            placeholder="••••••••"
+            leftIcon={<Lock className="w-4 h-4" />}
+            rightElement={<Eye className="w-4 h-4 text-gray-500 dark:text-gray-400" />}
+          />
+          <Input
+            label="Email"
+            type="email"
+            placeholder="name@battlecards.app"
+            leftIcon={<Letter className="w-4 h-4" />}
+          />
+        </div>
+      </GallerySection>
+
+      {/* ════════════════════════════════════════════════════════════════
+          SELECT — Sizes
+      ════════════════════════════════════════════════════════════════ */}
+      <GallerySection id="nav-select" title="Select / Sizes">
+        <div className="w-full max-w-sm space-y-3">
+          <Select size="sm" defaultValue="">
+            <option value="" disabled>Small select</option>
+            <option value="infantry">Infantry</option>
+            <option value="cavalry">Cavalry</option>
+          </Select>
+          <Select size="base" defaultValue="">
+            <option value="" disabled>Base select</option>
+            <option value="infantry">Infantry</option>
+            <option value="cavalry">Cavalry</option>
+          </Select>
+          <Select size="lg" defaultValue="">
+            <option value="" disabled>Large select</option>
+            <option value="infantry">Infantry</option>
+            <option value="cavalry">Cavalry</option>
+          </Select>
+        </div>
+      </GallerySection>
+
+      {/* ════════════════════════════════════════════════════════════════
+          SELECT — States
+      ════════════════════════════════════════════════════════════════ */}
+      <GallerySection title="Select / States">
+        <div className="w-full max-w-sm space-y-3">
+          <Select
+            label="Select Label"
+            required
+            helperText="This is a helper message."
+            defaultValue=""
+          >
+            <option value="" disabled>Select option</option>
+            <option value="unsc">UNSC</option>
+            <option value="covenant">Covenant</option>
+          </Select>
+          <Select
+            label="Select Label"
+            required
+            helperText="This is a helper message."
+            value="unsc"
+            readOnly
+            onChange={() => {}}
+          >
+            <option value="unsc">UNSC</option>
+          </Select>
+          <Select
+            label="Select Label"
+            required
+            helperText="This is a helper message."
+            defaultValue=""
+            disabled
+          >
+            <option value="" disabled>Select option</option>
+            <option value="unsc">UNSC</option>
+          </Select>
+          <Select
+            label="Select Label"
+            required
+            state="success"
+            helperText="This is a helper message."
+            defaultValue="unsc"
+          >
+            <option value="unsc">UNSC</option>
+            <option value="covenant">Covenant</option>
+          </Select>
+          <Select
+            label="Select Label"
+            required
+            state="error"
+            helperText="This is a helper message."
+            defaultValue=""
+          >
+            <option value="" disabled>Select option</option>
+            <option value="unsc">UNSC</option>
+          </Select>
+        </div>
+      </GallerySection>
+
+      {/* ════════════════════════════════════════════════════════════════
+          SELECT — With Icon
+      ════════════════════════════════════════════════════════════════ */}
+      <GallerySection title="Select / With Icon">
+        <div className="w-full max-w-sm space-y-3">
+          <Select
+            label="Faction"
+            leftIcon={<Flag className="w-4 h-4" />}
+            defaultValue=""
+          >
+            <option value="" disabled>Choose faction…</option>
+            <option value="unsc">UNSC</option>
+            <option value="covenant">Covenant</option>
+            <option value="flood">Flood</option>
+          </Select>
+          <Select
+            label="Unit Type"
+            leftIcon={<Shield className="w-4 h-4" />}
+            defaultValue=""
+          >
+            <option value="" disabled>Choose type…</option>
+            <option value="infantry">Infantry</option>
+            <option value="vehicle">Vehicle</option>
+            <option value="air">Air Support</option>
+          </Select>
+        </div>
+      </GallerySection>
+
+      {/* ════════════════════════════════════════════════════════════════
+          CHECKBOX — Colors
+      ════════════════════════════════════════════════════════════════ */}
+      <GallerySection id="nav-checkboxes" title="Checkbox / Colors">
+        <div className="flex flex-wrap gap-6">
+          <Checkbox color="primary" label="Primary"  defaultChecked />
+          <Checkbox color="red"     label="Red"      defaultChecked />
+          <Checkbox color="green"   label="Green"    defaultChecked />
+          <Checkbox color="purple"  label="Purple"   defaultChecked />
+          <Checkbox color="teal"    label="Teal"     defaultChecked />
+          <Checkbox color="yellow"  label="Yellow"   defaultChecked />
+        </div>
+      </GallerySection>
+
+      {/* ════════════════════════════════════════════════════════════════
+          CHECKBOX — States
+      ════════════════════════════════════════════════════════════════ */}
+      <GallerySection title="Checkbox / States">
+        <div className="space-y-4 max-w-sm">
+          <Checkbox
+            label="Default unchecked"
+          />
+          <Checkbox
+            label="Default checked"
+            defaultChecked
+          />
+          <Checkbox
+            indeterminate
+            label="Indeterminate (select all)"
+          />
+          <Checkbox
+            label="Disabled"
+            disabled
+          />
+          <Checkbox
+            label="Disabled checked"
+            disabled
+            defaultChecked
+          />
+          <Checkbox
+            label="Deploy units to the front line"
+            helperText="Requires at least one unit in reserve."
+            color="primary"
+          />
+        </div>
+      </GallerySection>
+
+      {/* ════════════════════════════════════════════════════════════════
+          STAR RATING — Display
+      ════════════════════════════════════════════════════════════════ */}
+      <GallerySection id="nav-stars" title="Star Rating / Display">
+        <div className="flex flex-col gap-3">
+          <StarRating rating={5} />
+          <StarRating rating={4} />
+          <StarRating rating={3} />
+          <StarRating rating={4} showLabel />
+          <StarRating rating={4} count={128} />
+          <StarRating rating={4} showLabel count={128} />
+        </div>
+      </GallerySection>
+
+      {/* ════════════════════════════════════════════════════════════════
+          STAR RATING — Sizes
+      ════════════════════════════════════════════════════════════════ */}
+      <GallerySection title="Star Rating / Sizes">
+        <div className="flex flex-col gap-3">
+          <StarRating rating={4} size="sm"   />
+          <StarRating rating={4} size="base" />
+          <StarRating rating={4} size="lg"   />
+        </div>
+      </GallerySection>
+
+      {/* ════════════════════════════════════════════════════════════════
+          STAR RATING — Interactive
+      ════════════════════════════════════════════════════════════════ */}
+      <GallerySection title="Star Rating / Interactive">
+        <InteractiveStarDemo />
+      </GallerySection>
+
+      {/* ════════════════════════════════════════════════════════════════
+          TABS — Default (background highlight)
+      ════════════════════════════════════════════════════════════════ */}
+      <GallerySection id="nav-tabs" title="Tabs / Default">
+        <div className="w-full max-w-lg">
+          <Tabs
+            tabs={[
+              { id: 'profile',   label: 'Profile',   content: <Text variant="paragraph">This is the Profile tab content.</Text> },
+              { id: 'dashboard', label: 'Dashboard', content: <Text variant="paragraph">This is the Dashboard tab content.</Text> },
+              { id: 'settings',  label: 'Settings',  content: <Text variant="paragraph">This is the Settings tab content.</Text> },
+              { id: 'disabled',  label: 'Disabled',  content: <></>, disabled: true },
+            ]}
+          />
+        </div>
+      </GallerySection>
+
+      {/* ════════════════════════════════════════════════════════════════
+          TABS — Underline
+      ════════════════════════════════════════════════════════════════ */}
+      <GallerySection title="Tabs / Underline">
+        <div className="w-full max-w-lg">
+          <Tabs
+            variant="underline"
+            tabs={[
+              { id: 'profile',   label: 'Profile',   content: <Text variant="paragraph">This is the Profile tab content.</Text> },
+              { id: 'dashboard', label: 'Dashboard', content: <Text variant="paragraph">This is the Dashboard tab content.</Text> },
+              { id: 'settings',  label: 'Settings',  content: <Text variant="paragraph">This is the Settings tab content.</Text> },
+              { id: 'contacts',  label: 'Contacts',  content: <Text variant="paragraph">This is the Contacts tab content.</Text> },
+            ]}
+          />
+        </div>
+      </GallerySection>
+
+      {/* ════════════════════════════════════════════════════════════════
+          TABS — Pills
+      ════════════════════════════════════════════════════════════════ */}
+      <GallerySection title="Tabs / Pills">
+        <div className="w-full max-w-lg">
+          <Tabs
+            variant="pills"
+            tabs={[
+              { id: 'stats',     label: 'Stats',     icon: <Star className="w-4 h-4" />,   content: <Text variant="paragraph">Unit statistics breakdown.</Text> },
+              { id: 'abilities', label: 'Abilities', icon: <Shield className="w-4 h-4" />, content: <Text variant="paragraph">Active and passive abilities.</Text> },
+              { id: 'lore',      label: 'Lore',      icon: <FileText className="w-4 h-4" />, content: <Text variant="paragraph">Background lore for this unit.</Text> },
+            ]}
+          />
+        </div>
+      </GallerySection>
+
+      {/* ════════════════════════════════════════════════════════════════
+          TABS — Full Width
+      ════════════════════════════════════════════════════════════════ */}
+      <GallerySection title="Tabs / Full Width">
+        <div className="w-full max-w-lg">
+          <Tabs
+            variant="fullWidth"
+            tabs={[
+              { id: 'stats',     label: 'Stats',     content: <Text variant="paragraph">Unit statistics breakdown.</Text> },
+              { id: 'abilities', label: 'Abilities', content: <Text variant="paragraph">Active and passive abilities.</Text> },
+              { id: 'lore',      label: 'Lore',      content: <Text variant="paragraph">Background lore for this unit.</Text> },
+            ]}
+          />
+        </div>
+      </GallerySection>
+
+      {/* ════════════════════════════════════════════════════════════════
           HORIZONTAL RULES
       ════════════════════════════════════════════════════════════════ */}
-      <GallerySection title="HR / Variants">
+      <GallerySection id="nav-hr" title="HR / Variants">
         <div className="w-full space-y-2">
 
           <p className="font-body text-xs text-gray-400 dark:text-gray-500">Default</p>
@@ -555,6 +1897,121 @@ const ComponentGallery = () => {
         </div>
       </GallerySection>
 
+      {/* ── Blood Bowl Card ────────────────────────────────────────────── */}
+      <GallerySection id="nav-bb-card" title="Blood Bowl Card / Default">
+        <div className="flex flex-wrap gap-8 items-start">
+
+          {/* Empty / placeholder state */}
+          <div className="flex flex-col gap-2 items-center">
+            <p className="font-body text-xs text-gray-400 dark:text-gray-500">
+              Empty state (default props)
+            </p>
+            <div className="relative overflow-hidden shrink-0" style={{ width: 278, height: Math.round(779 * (278 / 556)) }}>
+              <div style={{ transform: `scale(${278 / 556})`, transformOrigin: 'top left', position: 'absolute', top: 0, left: 0 }}>
+                <BloodBowlCard />
+              </div>
+            </div>
+          </div>
+
+          {/* Filled state */}
+          <div className="flex flex-col gap-2 items-center">
+            <p className="font-body text-xs text-gray-400 dark:text-gray-500">
+              Filled state
+            </p>
+            <div className="relative overflow-hidden shrink-0" style={{ width: 278, height: Math.round(779 * (278 / 556)) }}>
+              <div style={{ transform: `scale(${278 / 556})`, transformOrigin: 'top left', position: 'absolute', top: 0, left: 0 }}>
+                <BloodBowlCard
+                  teamName="Imperial Nobility"
+                  unitName="Noble Blitzer"
+                  cost={90}
+                  ma={6}
+                  st={3}
+                  ag={3}
+                  pa={4}
+                  av={9}
+                  skills="Block, Catch, Dump-Off"
+                  primaryAttribute="Passing"
+                  secondaryAttribute="Agility"
+                />
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </GallerySection>
+
+      {/* ── Multi-Select Dropdown ──────────────────────────────────── */}
+      <GallerySection id="nav-multi-select" title="Multi-Select / Default">
+        <div className="flex flex-wrap gap-8 items-start">
+
+          <div className="flex flex-col gap-2 w-52">
+            <p className="font-body text-xs text-gray-400 dark:text-gray-500">Empty</p>
+            <MultiSelectDropdown
+              label="Primary Attributes"
+              required
+              options={MULTI_OPTIONS}
+              selected={[]}
+              onChange={() => {}}
+            />
+          </div>
+
+          <div className="flex flex-col gap-2 w-52">
+            <p className="font-body text-xs text-gray-400 dark:text-gray-500">With values</p>
+            <MultiSelectDropdown
+              label="Primary Attributes"
+              required
+              options={MULTI_OPTIONS}
+              selected={['Agility', 'Passing']}
+              onChange={() => {}}
+            />
+          </div>
+
+          <div className="flex flex-col gap-2 w-52">
+            <p className="font-body text-xs text-gray-400 dark:text-gray-500">With disabled options</p>
+            <MultiSelectDropdown
+              label="Secondary Attributes"
+              required
+              options={MULTI_OPTIONS}
+              selected={['General']}
+              disabledOptions={['Agility', 'Passing']}
+              onChange={() => {}}
+            />
+          </div>
+
+        </div>
+      </GallerySection>
+
+      <GallerySection title="Multi-Select / Interactive (mutual exclusion)">
+        <div className="flex flex-wrap gap-4 items-start">
+
+          <div className="w-52">
+            <MultiSelectDropdown
+              label="Primary Attributes"
+              required
+              helperText="Used for league progression."
+              options={MULTI_OPTIONS}
+              selected={multiSelected}
+              disabledOptions={multiSelected2}
+              onChange={setMultiSelected}
+            />
+          </div>
+
+          <div className="w-52">
+            <MultiSelectDropdown
+              label="Secondary Attributes"
+              required
+              helperText="Used for league progression."
+              options={MULTI_OPTIONS}
+              selected={multiSelected2}
+              disabledOptions={multiSelected}
+              onChange={setMultiSelected2}
+            />
+          </div>
+
+        </div>
+      </GallerySection>
+
+      </div>{/* end sm:ml-64 content wrapper */}
     </div>
   );
 };
@@ -671,13 +2128,15 @@ const ColorRow = ({ family }: { family: ColorFamily }) => (
  */
 const GallerySection = ({
   title,
+  id,
   children,
 }: {
   title: string;
+  id?: string;
   children: React.ReactNode;
 }) => {
   return (
-    <section className="mb-14">
+    <section id={id} className="mb-14">
 
       {/* Section title + divider */}
       <div className="flex items-center gap-4 mb-6">

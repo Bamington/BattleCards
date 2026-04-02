@@ -6,8 +6,11 @@
  * one to the appropriate page component.
  *
  * Current routes:
- * - /          → Placeholder home screen (real screens added later)
- * - /gallery   → Component gallery (dev tool — not a user-facing screen)
+ * - /                       → Placeholder home screen (real screens added later)
+ * - /gallery                → Component gallery (dev tool — not a user-facing screen)
+ * - /app                    → App home (placeholder until designed)
+ * - /app/login              → Pre-login screen (sign in / continue as guest)
+ * - /app/builder/blood-bowl → Blood Bowl card builder
  *
  * As new pages are designed and built, import them here and add a
  * corresponding <Route> inside the <Routes> block.
@@ -15,6 +18,8 @@
 
 import { BrowserRouter, Routes, Route, Link } from 'react-router-dom';
 import ComponentGallery from './pages/ComponentGallery';
+import CardBuilderBloodBowl from './pages/CardBuilderBloodBowl';
+import Login from './pages/Login';
 
 function App() {
   return (
@@ -41,6 +46,15 @@ function App() {
 
         {/* ── Component Gallery (dev tool) ── */}
         <Route path="/gallery" element={<ComponentGallery />} />
+
+        {/* ── App home (placeholder until designed) ── */}
+        <Route path="/app" element={<div className="flex items-center justify-center min-h-screen bg-gray-950 text-white"><p className="text-gray-400">App home coming soon.</p></div>} />
+
+        {/* ── Login ── */}
+        <Route path="/app/login" element={<Login />} />
+
+        {/* ── Card Builder — Blood Bowl ── */}
+        <Route path="/app/builder/blood-bowl" element={<CardBuilderBloodBowl />} />
 
       </Routes>
     </BrowserRouter>

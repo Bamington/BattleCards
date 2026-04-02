@@ -1,0 +1,19 @@
+interface Props {
+  className?: string;
+}
+
+const HamburgerMenu = ({ className }: Props) => (
+  <svg
+    viewBox="0 0 24 24"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+    className={className}
+    aria-hidden="true"
+  >
+    <path d="M20 7L4 7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+<path d="M20 12L4 12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+<path d="M20 17L4 17" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+  </svg>
+);
+
+export default HamburgerMenu;

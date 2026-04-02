@@ -34,10 +34,29 @@
  * violet, pink) is already built into Tailwind v4 and does not need to
  * be redefined here.
  */
+/*
+ * Game-specific fonts
+ * Brothers Regular — used by the Blood Bowl card template.
+ * The .woff file lives in src/assets/games/fonts/ (not served from /public)
+ * so Vite will hash and bundle it automatically.
+ */
+@font-face {
+  font-family: 'Brothers';
+  src: url('./assets/games/fonts/brothers-regular.woff') format('woff');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
 @theme {
   /* ── Fonts ────────────────────────────────────────────────────────────── */
-  --font-heading: 'Tanker', serif;
-  --font-body:    'Space Grotesk', sans-serif;
+  --font-heading:  'Tanker', serif;
+  --font-body:     'Space Grotesk', sans-serif;
+  --font-brothers: 'Brothers', serif;
+
+  /* ── Base ────────────────────────────────────────────────────────────────── */
+  --color-white: #ffffff;
+  --color-black: #000000;
 
   /* ── Primary (Blue — placeholder, swap hex values to rebrand) ─────────── */
   --color-primary-50:  #eff6ff;
@@ -50,6 +69,7 @@
   --color-primary-700: #1d4ed8;
   --color-primary-800: #1e40af;
   --color-primary-900: #1e3a8a;
+  --color-primary-950: #172554;
 
   /* ── Danger (Red) ─────────────────────────────────────────────────────── */
   --color-danger-50:  #fef2f2;
@@ -62,6 +82,7 @@
   --color-danger-700: #b91c1c;
   --color-danger-800: #991b1b;
   --color-danger-900: #7f1d1d;
+  --color-danger-950: #450a0a;
 
   /* ── Success (Emerald) ────────────────────────────────────────────────── */
   --color-success-50:  #ecfdf5;
@@ -74,6 +95,7 @@
   --color-success-700: #047857;
   --color-success-800: #065f46;
   --color-success-900: #064e3b;
+  --color-success-950: #022c22;
 
   /* ── Warning (Amber) ──────────────────────────────────────────────────── */
   --color-warning-50:  #fffbeb;
@@ -86,6 +108,7 @@
   --color-warning-700: #b45309;
   --color-warning-800: #92400e;
   --color-warning-900: #78350f;
+  --color-warning-950: #431407;
 
   /* ── Info (Indigo) ────────────────────────────────────────────────────── */
   --color-info-50:  #eef2ff;
@@ -98,6 +121,7 @@
   --color-info-700: #4338ca;
   --color-info-800: #3730a3;
   --color-info-900: #312e81;
+  --color-info-950: #1e1b4b;
 
   /* ── Neutral (Gray) ───────────────────────────────────────────────────── */
   --color-neutral-50:  #f9fafb;
@@ -110,6 +134,7 @@
   --color-neutral-700: #374151;
   --color-neutral-800: #1f2937;
   --color-neutral-900: #111827;
+  --color-neutral-950: #030712;
 }
 
 /*

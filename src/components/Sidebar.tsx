@@ -26,7 +26,8 @@
  * - className: Extra Tailwind classes on the <aside> element
  */
 
-import { Close } from 'flowbite-react-icons/outline';
+import React from 'react';
+import CloseCircle from '../icons/CloseCircle';
 
 interface SidebarProps {
   /** Whether the sidebar drawer is open on mobile */
@@ -37,6 +38,11 @@ interface SidebarProps {
   width?: string;
   /** Extra Tailwind classes on the <aside> element */
   className?: string;
+  /**
+   * Nav items to render inside the sidebar.
+   * Pass <SidebarItem> elements; when omitted a placeholder is shown.
+   */
+  children?: React.ReactNode;
 }
 
 const Sidebar = ({
@@ -44,6 +50,7 @@ const Sidebar = ({
   onClose,
   width = 'w-64',
   className = '',
+  children,
 }: SidebarProps) => {
   return (
     <>
@@ -101,7 +108,7 @@ const Sidebar = ({
             onClick={onClose}
             aria-label="Close sidebar"
           >
-            <Close />
+            <CloseCircle className="w-4 h-4" />
           </button>
 
         </div>
@@ -114,10 +121,11 @@ const Sidebar = ({
               <SidebarItem href="/editor" icon={<Edit />} label="Card Editor" />
         ──────────────────────────────────────────────────────────────── */}
         <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-1">
-          {/* Nav items go here */}
-          <p className="font-body text-xs text-gray-400 dark:text-gray-500 italic px-2">
-            No items yet
-          </p>
+          {children ?? (
+            <p className="font-body text-xs text-gray-400 dark:text-gray-500 italic px-2">
+              No items yet
+            </p>
+          )}
         </nav>
 
         {/* ── Footer slot ───────────────────────────────────────────────
