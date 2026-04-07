@@ -35,7 +35,30 @@ import Tabs from '../components/Tabs';
 import { RAW_PALETTE, SEMANTIC_PALETTE, type ColorFamily } from '../data/colors';
 import heroImage from '../assets/hero.png';
 import BloodBowlCard from '../components/BloodBowlCard';
+import HaloFlashpointCard from '../components/HaloFlashpointCard';
+import Card3DWrapper from '../components/Card3DWrapper';
 import MultiSelectDropdown from '../components/MultiSelectDropdown';
+import VR from '../components/VR';
+import Banner from '../components/Banner';
+import Callout from '../components/Callout';
+import logoBloodBowl from '../assets/games/logo-blood-bowl.png';
+import logoHaloFlashpoint from '../assets/games/logo-halo-flashpoint.png';
+import DeckListItem from '../components/DeckListItem';
+import AddonListItem from '../components/AddonListItem';
+import AddAddonModal, { type AddonFormProps } from '../components/AddAddonModal';
+import AddKeywordModal from '../components/AddKeywordModal';
+import KeywordInfoModal from '../components/KeywordInfoModal';
+import WeaponInfoModal from '../components/WeaponInfoModal';
+import BlogEntryPreview from '../components/BlogEntryPreview';
+import Modal from '../components/Modal';
+import UploadPhotoModal from '../components/UploadPhotoModal';
+import GamePickerItem from '../components/GamePickerItem';
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore — path contains spaces, TS path resolver struggles but Vite handles fine
+import iconBloodBowl from '../assets/games/card assets/blood-bowl/icon.png';
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore
+import iconHalo from '../assets/games/card assets/halo/icon.png';
 
 // ── Icon imports (Solar Linear) ───────────────────────────────────────────────
 import Home             from '../icons/Home';
@@ -215,6 +238,14 @@ const ComponentGallery = () => {
   const [counterError,   setCounterError]   = useState(0);
   const [multiSelected,  setMultiSelected]  = useState<string[]>([]);
   const [multiSelected2, setMultiSelected2] = useState<string[]>([]);
+  const [modalOpen,          setModalOpen]          = useState(false);
+  const [uploadPhotoOpen,    setUploadPhotoOpen]    = useState(false);
+  const [addonModalOpen,     setAddonModalOpen]     = useState(false);
+  const [keywordModalOpen,   setKeywordModalOpen]   = useState(false);
+  const [keywordInfoOpen,    setKeywordInfoOpen]    = useState(false);
+  const [weaponInfoOpen,     setWeaponInfoOpen]     = useState(false);
+  const [selectedAddonId,    setSelectedAddonId]    = useState<string | null>(null);
+  const [pickedGame,     setPickedGame]     = useState<string | null>(null);
   return (
     // The gallery uses Tailwind's light/dark bg so components are previewed
     // against the correct background colour in both modes.
@@ -247,6 +278,15 @@ const ComponentGallery = () => {
         <SidebarItem href="#nav-tabs"       icon={<Filter className="w-5 h-5" />}            label="Tabs"        />
         <SidebarItem href="#nav-bb-card"      icon={<Shield className="w-5 h-5" />}            label="BB Card"     />
         <SidebarItem href="#nav-multi-select" icon={<CheckCircle className="w-5 h-5" />}        label="Multi-Select" />
+        <SidebarItem href="#nav-vr"           icon={<MinusCircle className="w-5 h-5" />}        label="VR"           />
+        <SidebarItem href="#nav-banner"       icon={<Bell className="w-5 h-5" />}               label="Banner"       />
+        <SidebarItem href="#nav-callout"      icon={<InfoCircle className="w-5 h-5" />}         label="Callout"      />
+        <SidebarItem href="#nav-game-logos"       icon={<Gallery className="w-5 h-5" />}            label="Game Logos"       />
+        <SidebarItem href="#nav-deck-list-item"    icon={<Gallery className="w-5 h-5" />}            label="Deck List Item"   />
+        <SidebarItem href="#nav-blog-entry-preview" icon={<Gallery className="w-5 h-5" />}           label="Blog Entry Preview" />
+        <SidebarItem href="#nav-modal"              icon={<Gallery className="w-5 h-5" />}            label="Modal"            />
+        <SidebarItem href="#nav-upload-photo-modal" icon={<Gallery className="w-5 h-5" />}            label="Upload Photo Modal" />
+        <SidebarItem href="#nav-game-picker-item"   icon={<Gallery className="w-5 h-5" />}            label="Game Picker Item" />
       </Sidebar>
 
       {/* ── Main content — offset on desktop to clear the sidebar ──────── */}
@@ -1940,6 +1980,123 @@ const ComponentGallery = () => {
         </div>
       </GallerySection>
 
+      {/* ── Halo Flashpoint Card ──────────────────────────────────────── */}
+      <GallerySection id="nav-halo-card" title="Halo Flashpoint Card / Default">
+        <div className="flex flex-wrap gap-8 items-start">
+
+          {/* Empty / placeholder state */}
+          <div className="flex flex-col gap-2 items-center">
+            <p className="font-body text-xs text-gray-400 dark:text-gray-500">
+              Empty state (default props)
+            </p>
+            <div className="relative overflow-hidden shrink-0" style={{ width: 508, height: Math.round(890 * (508 / 1270)) }}>
+              <div style={{ transform: `scale(${508 / 1270})`, transformOrigin: 'top left', position: 'absolute', top: 0, left: 0 }}>
+                <HaloFlashpointCard />
+              </div>
+            </div>
+          </div>
+
+          {/* Filled state */}
+          <div className="flex flex-col gap-2 items-center">
+            <p className="font-body text-xs text-gray-400 dark:text-gray-500">
+              Filled state
+            </p>
+            <div className="relative overflow-hidden shrink-0" style={{ width: 508, height: Math.round(890 * (508 / 1270)) }}>
+              <div style={{ transform: `scale(${508 / 1270})`, transformOrigin: 'top left', position: 'absolute', top: 0, left: 0 }}>
+                <HaloFlashpointCard
+                  unitName="Spartan Zvezda"
+                  keywords="Energy Shield (2), Scout"
+                  ra={4}
+                  fi={5}
+                  sv={4}
+                  advanceValue={1}
+                  sprintValue={3}
+                  ar={2}
+                  hp={4}
+                  weapons={[
+                    { type: 'Close Combat', name: 'Fists',           range: 'CC', ap: '-', keywords: '-'                        },
+                    { type: 'Ranged',       name: 'BR55 Battle Rifle', range: 'R5', ap: '1', keywords: 'Optics, Weight of Fire (1)' },
+                  ]}
+                />
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </GallerySection>
+
+      {/* ── Card 3D Wrapper ───────────────────────────────────────── */}
+      <GallerySection id="nav-card-3d" title="Card 3D Wrapper">
+        <p className="font-body text-sm text-gray-500 dark:text-gray-400 mb-6">
+          Hover over each card to see the 3D tilt effect.
+        </p>
+        <div className="flex flex-wrap gap-12 items-start">
+
+          {/* Blood Bowl */}
+          <div className="flex flex-col gap-2 items-center">
+            <p className="font-body text-xs text-gray-400 dark:text-gray-500">Blood Bowl</p>
+            <Card3DWrapper
+              style={{
+                width:    278,
+                height:   Math.round(779 * (278 / 556)),
+                position: 'relative',
+                flexShrink: 0,
+                filter:   'drop-shadow(0 5.571px 75.215px #1E1F6E)',
+              }}
+            >
+              <div style={{ transform: `scale(${278 / 556})`, transformOrigin: 'top left', position: 'absolute', top: 0, left: 0 }}>
+                <BloodBowlCard
+                  teamName="Imperial Nobility"
+                  unitName="Noble Blitzer"
+                  cost={90}
+                  ma={6}
+                  st={3}
+                  ag={3}
+                  pa={4}
+                  av={9}
+                  skills="Block, Catch, Dump-Off"
+                  primaryAttribute="Passing"
+                  secondaryAttribute="Agility"
+                />
+              </div>
+            </Card3DWrapper>
+          </div>
+
+          {/* Halo Flashpoint */}
+          <div className="flex flex-col gap-2 items-center">
+            <p className="font-body text-xs text-gray-400 dark:text-gray-500">Halo Flashpoint</p>
+            <Card3DWrapper
+              style={{
+                width:    508,
+                height:   Math.round(890 * (508 / 1270)),
+                position: 'relative',
+                flexShrink: 0,
+                filter:   'drop-shadow(0 5.571px 75.215px #1E1F6E)',
+              }}
+            >
+              <div style={{ transform: `scale(${508 / 1270})`, transformOrigin: 'top left', position: 'absolute', top: 0, left: 0 }}>
+                <HaloFlashpointCard
+                  unitName="Spartan Zvezda"
+                  keywords="Energy Shield (2), Scout"
+                  ra={4}
+                  fi={5}
+                  sv={4}
+                  advanceValue={1}
+                  sprintValue={3}
+                  ar={2}
+                  hp={4}
+                  weapons={[
+                    { type: 'Close Combat', name: 'Fists',             range: 'CC', ap: '-', keywords: '-'                        },
+                    { type: 'Ranged',       name: 'BR55 Battle Rifle', range: 'R5', ap: '1', keywords: 'Optics, Weight of Fire (1)' },
+                  ]}
+                />
+              </div>
+            </Card3DWrapper>
+          </div>
+
+        </div>
+      </GallerySection>
+
       {/* ── Multi-Select Dropdown ──────────────────────────────────── */}
       <GallerySection id="nav-multi-select" title="Multi-Select / Default">
         <div className="flex flex-wrap gap-8 items-start">
@@ -2006,6 +2163,544 @@ const ComponentGallery = () => {
               disabledOptions={multiSelected}
               onChange={setMultiSelected2}
             />
+          </div>
+
+        </div>
+      </GallerySection>
+
+      {/* ════════════════════════════════════════════════════════════════
+          VR — Vertical Rule
+      ════════════════════════════════════════════════════════════════ */}
+      <GallerySection id="nav-vr" title="VR / Variants">
+        <div className="flex flex-wrap gap-10 items-start">
+
+          <div className="flex flex-col gap-2 items-center">
+            <p className="font-body text-xs text-gray-400 dark:text-gray-500">Default</p>
+            <div className="h-32 flex">
+              <VR />
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-2 items-center">
+            <p className="font-body text-xs text-gray-400 dark:text-gray-500">Default + indented</p>
+            <div className="h-32 flex">
+              <VR indented />
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-2 items-center">
+            <p className="font-body text-xs text-gray-400 dark:text-gray-500">Or</p>
+            <div className="h-32 flex">
+              <VR style="or" />
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-2 items-center">
+            <p className="font-body text-xs text-gray-400 dark:text-gray-500">Or + indented</p>
+            <div className="h-32 flex">
+              <VR style="or" indented />
+            </div>
+          </div>
+
+        </div>
+      </GallerySection>
+
+      {/* ════════════════════════════════════════════════════════════════
+          BANNER
+      ════════════════════════════════════════════════════════════════ */}
+      <GallerySection id="nav-banner" title="Banner">
+        <div className="w-full space-y-3">
+
+          <p className="font-body text-xs text-gray-400 dark:text-gray-500">Default (no icon, no dismiss)</p>
+          <Banner>
+            Scheduled maintenance on Sunday at 2 am UTC. Expect up to 30 minutes of downtime.
+          </Banner>
+
+          <p className="font-body text-xs text-gray-400 dark:text-gray-500">With icon</p>
+          <Banner icon={<InfoCircle className="w-4 h-4" />}>
+            A new version of BattleCards is available — refresh to update.
+          </Banner>
+
+          <p className="font-body text-xs text-gray-400 dark:text-gray-500">With icon + dismiss</p>
+          <Banner
+            icon={<Bell className="w-4 h-4" />}
+            onDismiss={() => {}}
+          >
+            Your roster export is ready to download.
+          </Banner>
+
+        </div>
+      </GallerySection>
+
+      {/* ════════════════════════════════════════════════════════════════
+          CALLOUT
+      ════════════════════════════════════════════════════════════════ */}
+      <GallerySection id="nav-callout" title="Callout">
+        <div className="w-full max-w-2xl space-y-3">
+
+          <p className="font-body text-xs text-gray-400 dark:text-gray-500">Default</p>
+          <Callout>
+            This is a default callout. Use it for neutral, informational messages.
+          </Callout>
+
+          <p className="font-body text-xs text-gray-400 dark:text-gray-500">Good</p>
+          <Callout flavour="good">
+            Unit added successfully to your roster.
+          </Callout>
+
+          <p className="font-body text-xs text-gray-400 dark:text-gray-500">Warning</p>
+          <Callout flavour="warning">
+            You're approaching your roster point limit — only 30 pts remaining.
+          </Callout>
+
+          <p className="font-body text-xs text-gray-400 dark:text-gray-500">Bad</p>
+          <Callout flavour="bad">
+            Failed to save your card. Check your connection and try again.
+          </Callout>
+
+          <p className="font-body text-xs text-gray-400 dark:text-gray-500">With dismiss</p>
+          <Callout flavour="good" onDismiss={() => {}}>
+            Card exported successfully.
+          </Callout>
+
+          <p className="font-body text-xs text-gray-400 dark:text-gray-500">No leading icon</p>
+          <Callout flavour="warning" leadingIcon={false}>
+            This action cannot be undone.
+          </Callout>
+
+        </div>
+      </GallerySection>
+
+      {/* ════════════════════════════════════════════════════════════════
+          GAME LOGOS
+      ════════════════════════════════════════════════════════════════ */}
+      <GallerySection id="nav-game-logos" title="Game Logos">
+        <div className="w-full space-y-6">
+
+          <div className="flex flex-col gap-2">
+            <p className="font-body text-xs text-gray-400 dark:text-gray-500">Blood Bowl</p>
+            <div className="bg-gray-900 rounded-lg p-4 flex items-center justify-center">
+              <img
+                src={logoBloodBowl}
+                alt="Blood Bowl"
+                className="h-16 object-contain"
+              />
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <p className="font-body text-xs text-gray-400 dark:text-gray-500">Halo Flashpoint</p>
+            <div className="bg-gray-900 rounded-lg p-4 flex items-center justify-center">
+              <img
+                src={logoHaloFlashpoint}
+                alt="Halo Flashpoint"
+                className="h-16 object-contain"
+              />
+            </div>
+          </div>
+
+        </div>
+      </GallerySection>
+
+      {/* ════════════════════════════════════════════════════════════════
+          DECK LIST ITEM
+      ════════════════════════════════════════════════════════════════ */}
+      <GallerySection id="nav-deck-list-item" title="Deck List Item">
+        <div className="w-full space-y-6">
+
+          <div className="flex flex-col gap-2">
+            <p className="font-body text-xs text-gray-400 dark:text-gray-500">With game icon thumbnail</p>
+            <DeckListItem
+              name="Imperial Nobility 11's Team"
+              cardCount={3}
+              thumbnailBg="bg-[#15417e]"
+              thumbnail={<img src={iconBloodBowl} alt="" className="size-full object-cover" />}
+            />
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <p className="font-body text-xs text-gray-400 dark:text-gray-500">With gradient thumbnail</p>
+            <DeckListItem
+              name="250 Point Spartans"
+              cardCount={5}
+              thumbnailBg="bg-gradient-to-b from-[#252525] to-[#181d24]"
+              thumbnail={<img src={iconHalo} alt="" className="size-full object-cover" />}
+            />
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <p className="font-body text-xs text-gray-400 dark:text-gray-500">No thumbnail (colour background only)</p>
+            <DeckListItem
+              name="Space Marines 500pt Crusade List"
+              cardCount={10}
+              thumbnailBg="bg-gradient-to-b from-[#141c22] to-[#34566b]"
+            />
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <p className="font-body text-xs text-gray-400 dark:text-gray-500">Single card</p>
+            <DeckListItem
+              name="Solo Test Deck"
+              cardCount={1}
+              thumbnailBg="bg-gray-700"
+            />
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <p className="font-body text-xs text-gray-400 dark:text-gray-500">With delete action (⋯ menu)</p>
+            <DeckListItem
+              name="Deletable Deck"
+              cardCount={4}
+              thumbnailBg="bg-[#15417e]"
+              thumbnail={<img src={iconBloodBowl} alt="" className="size-full object-cover" />}
+              onDelete={() => {}}
+            />
+          </div>
+
+        </div>
+      </GallerySection>
+
+      {/* ════════════════════════════════════════════════════════════════
+          ADDON LIST ITEM
+      ════════════════════════════════════════════════════════════════ */}
+      <GallerySection id="nav-addon-list-item" title="Addon List Item">
+        <div className="w-full space-y-6">
+
+          <div className="flex flex-col gap-2">
+            <p className="font-body text-xs text-gray-400 dark:text-gray-500">Default (unselected)</p>
+            <AddonListItem
+              name="BR55 Battle Rifle"
+              subtitle="Ranged, R5, AP 1, Optics, Weight of Fire (1)"
+              addonTypeName="Weapon"
+              onSelect={() => {}}
+              onEdit={() => {}}
+              onDelete={() => {}}
+            />
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <p className="font-body text-xs text-gray-400 dark:text-gray-500">Selected</p>
+            <AddonListItem
+              name="M6 Magnum"
+              subtitle="Ranged, R3, AP 0, Pistol"
+              selected
+              addonTypeName="Weapon"
+              onSelect={() => {}}
+              onEdit={() => {}}
+              onDelete={() => {}}
+            />
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <p className="font-body text-xs text-gray-400 dark:text-gray-500">Skill (description subtitle)</p>
+            <AddonListItem
+              name="Tackle"
+              subtitle="Opposing players who are standing in any of this player's tackle zones are not allowed to use their Dodge skill."
+              addonTypeName="Skill"
+              onSelect={() => {}}
+              onEdit={() => {}}
+              onDelete={() => {}}
+            />
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <p className="font-body text-xs text-gray-400 dark:text-gray-500">Selectable — click to toggle</p>
+            <AddonListItem
+              name="Energy Sword"
+              subtitle="Melee, R0, AP 3, Energy"
+              selected={selectedAddonId === 'demo'}
+              addonTypeName="Weapon"
+              onSelect={() => setSelectedAddonId(selectedAddonId === 'demo' ? null : 'demo')}
+              onEdit={() => {}}
+              onDelete={() => {}}
+            />
+          </div>
+
+        </div>
+      </GallerySection>
+
+      {/* ════════════════════════════════════════════════════════════════
+          ADD ADDON MODAL
+      ════════════════════════════════════════════════════════════════ */}
+      <GallerySection id="nav-add-addon-modal" title="Add Addon Modal">
+        <div className="w-full space-y-4">
+
+          <p className="font-body text-sm text-gray-400">
+            Two-step wizard. Step 1 shows existing eligible addons (fetched from Supabase).
+            Step 2 renders the game-specific create/edit form. Opens connected to the
+            Blood Bowl skills addon type.
+          </p>
+
+          <Button onClick={() => setAddonModalOpen(true)}>
+            Open Add Skill Modal (Blood Bowl)
+          </Button>
+
+          {/* Demo skill form — used only within the gallery */}
+          {(() => {
+            const DemoSkillForm = ({ editingAddon, onSave, onCancel, saving }: AddonFormProps) => {
+              const [name, setName] = useState(editingAddon?.name ?? '');
+              const [desc, setDesc] = useState(editingAddon?.description ?? '');
+              const canSave = name.trim() !== '' && desc.trim() !== '' && !saving;
+              return (
+                <div className="p-5 flex flex-col gap-3">
+                  <h5 className="font-heading text-xl text-white">
+                    {editingAddon ? 'Edit Skill' : 'Create Skill'}
+                  </h5>
+                  <p className="font-body text-sm text-gray-300">
+                    Once created, you can add this skill to other units from the same game.
+                  </p>
+                  <Input label="Skill Name" required placeholder="Tackle, Stunty, etc." value={name} onChange={e => setName(e.target.value)} />
+                  <div className="flex flex-col gap-1">
+                    <div className="flex gap-0.5 items-center font-body text-sm font-medium text-gray-100">
+                      <span>Skill Description</span><span className="text-red-600">*</span>
+                    </div>
+                    <textarea
+                      rows={3}
+                      placeholder="Copy from the rules, or enter a brief description."
+                      value={desc}
+                      onChange={e => setDesc(e.target.value)}
+                      className="w-full px-3 py-2.5 rounded-lg bg-gray-700 border border-gray-600 font-body text-sm text-white placeholder-gray-400 focus:outline-none focus:border-blue-500 resize-none"
+                    />
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <Button disabled={!canSave} loading={saving} onClick={() => onSave(name.trim(), desc.trim(), {})}>
+                      {editingAddon ? 'Update Skill' : 'Save Skill'}
+                    </Button>
+                    <Button variant="ghost" color="danger" onClick={onCancel} disabled={saving}>Cancel</Button>
+                  </div>
+                </div>
+              );
+            };
+            return (
+              <AddAddonModal
+                open={addonModalOpen}
+                onClose={() => setAddonModalOpen(false)}
+                gameSlug="blood-bowl"
+                addonTypeSlug="skills"
+                addonTypeName="Skill"
+                excludeAddonIds={[]}
+                onAdd={() => setAddonModalOpen(false)}
+                onDeleted={() => {}}
+                getSubtitle={addon => addon.description?.trim() || addon.name}
+                CreateFormComponent={DemoSkillForm}
+              />
+            );
+          })()}
+
+        </div>
+      </GallerySection>
+
+      {/* ════════════════════════════════════════════════════════════════
+          ADD KEYWORD MODAL
+      ════════════════════════════════════════════════════════════════ */}
+      <GallerySection id="nav-add-keyword-modal" title="Add Keyword Modal">
+        <div className="w-full space-y-4">
+
+          <p className="font-body text-sm text-gray-400">
+            Three-step keyword wizard. Step 1 picks an existing keyword or creates a new one.
+            Step 2 is the create-keyword form. Step 3 sets the parameter value (if applicable).
+            Opens connected to the Halo Flashpoint game.
+          </p>
+
+          <Button onClick={() => setKeywordModalOpen(true)}>
+            Open Add Keyword Modal (Halo Flashpoint)
+          </Button>
+
+          <AddKeywordModal
+            open={keywordModalOpen}
+            onClose={() => setKeywordModalOpen(false)}
+            gameSlug="halo-flashpoint"
+            onKeywordSelected={() => setKeywordModalOpen(false)}
+            excludeKeywordIds={[]}
+          />
+
+        </div>
+      </GallerySection>
+
+      {/* ════════════════════════════════════════════════════════════════
+          KEYWORD INFO MODAL
+      ════════════════════════════════════════════════════════════════ */}
+      <GallerySection id="nav-keyword-info-modal" title="Keyword Info Modal">
+        <div className="w-full space-y-4">
+
+          <p className="font-body text-sm text-gray-400">
+            Read-only modal showing a keyword's name and description.
+            Opened by clicking a keyword link (blue underlined text).
+          </p>
+
+          <Button onClick={() => setKeywordInfoOpen(true)}>
+            Open Keyword Info Modal
+          </Button>
+
+          <KeywordInfoModal
+            open={keywordInfoOpen}
+            onClose={() => setKeywordInfoOpen(false)}
+            name="Optics"
+            description={"A weapon with the Optics keyword adds a +1 die modifier to Shoot actions. Headshots occur on rolls of 7 and 8.\n\nThis keyword may not be used when using the Rapid Fire keyword to make a Blaze Away Shoot action."}
+          />
+
+        </div>
+      </GallerySection>
+
+      {/* ════════════════════════════════════════════════════════════════
+          WEAPON INFO MODAL
+      ════════════════════════════════════════════════════════════════ */}
+      <GallerySection id="nav-weapon-info-modal" title="Weapon Info Modal">
+        <div className="w-full space-y-4">
+
+          <p className="font-body text-sm text-gray-400">
+            Read-only modal showing a weapon's properties: type, range, AP, points cost,
+            and clickable keyword chips. Includes an "Edit Weapon" button.
+          </p>
+
+          <Button onClick={() => setWeaponInfoOpen(true)}>
+            Open Weapon Info Modal
+          </Button>
+
+          <WeaponInfoModal
+            open={weaponInfoOpen}
+            onClose={() => setWeaponInfoOpen(false)}
+            weapon={{
+              name: 'M6H2 Magnum',
+              type: 'Ranged',
+              range: '3',
+              ap: '0',
+              pointsCost: '15',
+              weaponKeywords: [
+                { keywordId: 'demo-1', keywordName: 'Optics', description: 'A weapon with the Optics keyword adds a +1 die modifier to Shoot actions.', hasParams: false, paramValue: null },
+              ],
+            }}
+            onEdit={() => setWeaponInfoOpen(false)}
+            onKeywordClick={() => {}}
+          />
+
+        </div>
+      </GallerySection>
+
+      {/* ════════════════════════════════════════════════════════════════
+          BLOG ENTRY PREVIEW
+      ════════════════════════════════════════════════════════════════ */}
+      <GallerySection id="nav-blog-entry-preview" title="Blog Entry Preview">
+        <div className="w-full space-y-6">
+
+          <div className="flex flex-col gap-2">
+            <p className="font-body text-xs text-gray-400 dark:text-gray-500">With "Read Update" button</p>
+            <BlogEntryPreview
+              title="Example Release Note"
+              body="This is a placeholder release note. It has a maximum of 3 lines, after which the text will be truncated. But don't worry, there's a button to view the full update!"
+              onRead={() => {}}
+            />
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <p className="font-body text-xs text-gray-400 dark:text-gray-500">Body clamped to 3 lines (long text)</p>
+            <BlogEntryPreview
+              title="v1.2 — New Card Builder"
+              body="This release ships the updated Blood Bowl card builder with full support for all 26 team rosters. We've also improved the export pipeline so cards render at 300 DPI by default, and fixed a crash that occurred when switching between game types mid-session. Additionally, the Halo Flashpoint builder now supports multi-select for unit abilities."
+              onRead={() => {}}
+            />
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <p className="font-body text-xs text-gray-400 dark:text-gray-500">Without "Read Update" button (onRead omitted)</p>
+            <BlogEntryPreview
+              title="Maintenance Notice"
+              body="Scheduled maintenance on Sunday at 2 am UTC. The app will be unavailable for approximately 30 minutes."
+            />
+          </div>
+
+        </div>
+      </GallerySection>
+
+      {/* ════════════════════════════════════════════════════════════════
+          MODAL
+      ════════════════════════════════════════════════════════════════ */}
+      <GallerySection id="nav-modal" title="Modal">
+        <div className="w-full space-y-6">
+
+          <div className="flex flex-col gap-2">
+            <p className="font-body text-xs text-gray-400 dark:text-gray-500">Click to open a modal overlay</p>
+            <Button onClick={() => setModalOpen(true)}>Open Modal</Button>
+            <Modal open={modalOpen} onClose={() => setModalOpen(false)}>
+              <div className="p-5 flex flex-col gap-4">
+                <h2 className="font-heading text-xl text-white">Example Modal</h2>
+                <p className="font-body text-sm text-gray-300">
+                  Click the backdrop or the button below to close.
+                </p>
+                <div className="flex justify-end">
+                  <Button variant="outline" color="danger" onClick={() => setModalOpen(false)}>
+                    Close
+                  </Button>
+                </div>
+              </div>
+            </Modal>
+          </div>
+
+        </div>
+      </GallerySection>
+
+      {/* ════════════════════════════════════════════════════════════════
+          UPLOAD PHOTO MODAL
+      ════════════════════════════════════════════════════════════════ */}
+      <GallerySection id="nav-upload-photo-modal" title="Upload Photo Modal">
+        <div className="w-full space-y-6">
+
+          <div className="flex flex-col gap-2">
+            <p className="font-body text-xs text-gray-400 dark:text-gray-500">
+              First step of the unit photo upload flow — choose camera or file upload
+            </p>
+            <Button onClick={() => setUploadPhotoOpen(true)}>Open Upload Photo Modal</Button>
+            <UploadPhotoModal
+              open={uploadPhotoOpen}
+              onClose={() => setUploadPhotoOpen(false)}
+              game="halo-flashpoint"
+              cardDbId={null}
+              onImageUploaded={(url, _style) => console.log('Portrait:', url)}
+              onAvatarUploaded={url => console.log('Avatar:', url)}
+            />
+          </div>
+
+        </div>
+      </GallerySection>
+
+      {/* ════════════════════════════════════════════════════════════════
+          GAME PICKER ITEM
+      ════════════════════════════════════════════════════════════════ */}
+      <GallerySection id="nav-game-picker-item" title="Game Picker Item">
+        <div className="w-full space-y-6">
+
+          <div className="flex flex-col gap-2">
+            <p className="font-body text-xs text-gray-400 dark:text-gray-500">Default (unselected)</p>
+            <div className="flex flex-col gap-1.5 max-w-lg">
+              <GamePickerItem logoSrc={logoHaloFlashpoint} logoAlt="Halo: Flashpoint" />
+              <GamePickerItem logoSrc={logoBloodBowl} logoAlt="Blood Bowl" />
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <p className="font-body text-xs text-gray-400 dark:text-gray-500">Selected state</p>
+            <div className="flex flex-col gap-1.5 max-w-lg">
+              <GamePickerItem logoSrc={logoHaloFlashpoint} logoAlt="Halo: Flashpoint" selected />
+              <GamePickerItem logoSrc={logoBloodBowl} logoAlt="Blood Bowl" />
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <p className="font-body text-xs text-gray-400 dark:text-gray-500">Interactive (single-select)</p>
+            <div className="flex flex-col gap-1.5 max-w-lg">
+              <GamePickerItem
+                logoSrc={logoHaloFlashpoint}
+                logoAlt="Halo: Flashpoint"
+                selected={pickedGame === 'halo-flashpoint'}
+                onClick={() => setPickedGame('halo-flashpoint')}
+              />
+              <GamePickerItem
+                logoSrc={logoBloodBowl}
+                logoAlt="Blood Bowl"
+                selected={pickedGame === 'blood-bowl'}
+                onClick={() => setPickedGame('blood-bowl')}
+              />
+            </div>
           </div>
 
         </div>

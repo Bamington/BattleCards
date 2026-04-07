@@ -150,7 +150,7 @@ const Dropdown = ({
     <div ref={containerRef} className={`relative inline-block ${className}`}>
 
       {/* Trigger — wrapped in a div to capture clicks without overriding the trigger element */}
-      <div onClick={() => setIsOpen((o) => !o)}>
+      <div className="cursor-pointer" onClick={() => setIsOpen((o) => !o)}>
         {trigger}
       </div>
 

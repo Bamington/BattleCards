@@ -10,9 +10,9 @@ const HamburgerMenu = ({ className }: Props) => (
     className={className}
     aria-hidden="true"
   >
-    <path d="M20 7L4 7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-<path d="M20 12L4 12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-<path d="M20 17L4 17" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+    <path d="M20 7L4 7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+    <path d="M20 12L4 12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+    <path d="M20 17L4 17" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
   </svg>
 );
 

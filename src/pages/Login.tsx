@@ -1,13 +1,15 @@
 /**
  * Login.tsx — Pre-login screen
  *
- * Landing page for unauthenticated users. Presents two paths:
+ * Landing page for unauthenticated users. Presents three paths:
  *   1. Sign in with an email address and password
- *   2. Continue as a guest (data saved to browser only)
+ *   2. Create a new account with email and password
+ *   3. Continue with Google (OAuth)
+ *   4. Continue as a guest (data saved to browser only)
  *
  * Matches the Figma "App (Pre-Login)" frame (node 170:1730).
  *
- * Route: /app/login
+ * Route: /login
  */
 
 import { useState } from 'react';
@@ -19,8 +21,6 @@ import Button from '../components/Button';
 import Checkbox from '../components/Checkbox';
 
 // ── Inline icons ──────────────────────────────────────────────────────────────
-// Small SVG icons used inside the form inputs. Defined locally since they are
-// specific to this page and not part of the shared icon library.
 
 const EmailIcon = () => (
   <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -36,31 +36,83 @@ const LockIcon = () => (
   </svg>
 );
 
+const GoogleIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+    <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />
+    <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
+    <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05" />
+    <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
+  </svg>
+);
+
 // ── Page ──────────────────────────────────────────────────────────────────────
+
+type Mode = 'signin' | 'signup';
 
 export default function Login() {
   const navigate = useNavigate();
 
   // ── Form state ──────────────────────────────────────────────────────────────
-  const [email,    setEmail]    = useState('');
-  const [password, setPassword] = useState('');
-  const [loading,  setLoading]  = useState(false);
-  const [error,    setError]    = useState<string | null>(null);
+  const [mode,            setMode]            = useState<Mode>('signin');
+  const [email,           setEmail]           = useState('');
+  const [password,        setPassword]        = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [loading,         setLoading]         = useState(false);
+  const [error,           setError]           = useState<string | null>(null);
+  const [success,         setSuccess]         = useState<string | null>(null);
+
+  // ── Mode switching ───────────────────────────────────────────────────────────
+
+  function switchMode(next: Mode) {
+    setMode(next);
+    setError(null);
+    setSuccess(null);
+    setPassword('');
+    setConfirmPassword('');
+  }
 
   // ── Handlers ─────────────────────────────────────────────────────────────────
 
-  async function handleSignIn(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
     setError(null);
 
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    if (mode === 'signin') {
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) {
+        setError(error.message);
+        setLoading(false);
+      } else {
+        navigate('/app');
+      }
+    } else {
+      if (password !== confirmPassword) {
+        setError('Passwords do not match.');
+        setLoading(false);
+        return;
+      }
+      const { error } = await supabase.auth.signUp({ email, password });
+      setLoading(false);
+      if (error) {
+        setError(error.message);
+      } else {
+        setSuccess('Account created! Check your email to confirm before signing in.');
+      }
+    }
+  }
 
+  async function handleGoogleSignIn() {
+    setLoading(true);
+    setError(null);
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo },
+    });
+    // signInWithOAuth triggers a browser redirect — if we reach this point it failed.
     if (error) {
       setError(error.message);
       setLoading(false);
-    } else {
-      navigate('/app');
     }
   }
 
@@ -89,6 +141,8 @@ export default function Login() {
 
   // ── Render ───────────────────────────────────────────────────────────────────
 
+  const isSignIn = mode === 'signin';
+
   return (
     <div className="min-h-screen flex flex-col bg-gray-950">
 
@@ -98,87 +152,154 @@ export default function Login() {
       {/* ── Body ──────────────────────────────────────────────────────── */}
       <div className="flex-1 flex flex-col items-center justify-center gap-2.5 p-3">
 
-        {/* Card container — fills remaining space and centres the card */}
         <div className="flex-1 flex items-center justify-center w-full">
 
-          {/* ── Login card ──────────────────────────────────────────────
-              Two-column layout: Sign in form | OR divider | Guest signin
-          ─────────────────────────────────────────────────────────────── */}
-          <div className="bg-gray-800 border border-gray-700 rounded-lg shadow-md flex overflow-hidden">
+          {/* ── Login card ──────────────────────────────────────────────── */}
+          <div className="bg-gray-800 border border-gray-700 rounded-lg shadow-md flex flex-col md:flex-row overflow-hidden w-full md:w-auto">
 
-            {/* ── Left column: Sign in form ── */}
-            <form
-              className="w-[450px] p-5 flex flex-col gap-4"
-              onSubmit={handleSignIn}
-            >
+            {/* ── Left column: Auth form ── */}
+            {success ? (
 
-              <h1 className="font-heading text-white text-[19.8px] leading-7 tracking-[-0.5px]">
-                Sign in to BattleCards
-              </h1>
-
-              <Input
-                label="Email"
-                type="email"
-                placeholder="name@battlecards.app"
-                leftIcon={<EmailIcon />}
-                value={email}
-                onChange={e => setEmail(e.target.value)}
-                state={error ? 'error' : 'default'}
-                required
-              />
-
-              <Input
-                label="Password"
-                type="password"
-                placeholder="••••••••"
-                leftIcon={<LockIcon />}
-                value={password}
-                onChange={e => setPassword(e.target.value)}
-                state={error ? 'error' : 'default'}
-                helperText={error ?? undefined}
-                required
-              />
-
-              {/* Remember me + Lost password row */}
-              <div className="flex items-center justify-between w-full">
-                <Checkbox label="Remember me" />
-                <a
-                  href="#"
-                  className="font-body font-medium text-base text-blue-400 underline"
-                  onClick={handleForgotPassword}
+              /* ── Success state (shown after email sign-up) ── */
+              <div className="w-full md:w-[450px] p-5 flex flex-col gap-4 justify-center">
+                <h1 className="font-heading text-white text-[19.8px] leading-7 tracking-[-0.5px]">
+                  Check your email
+                </h1>
+                <p className="font-body text-base text-gray-300 leading-6">
+                  {success}
+                </p>
+                <Button
+                  className="w-full"
+                  variant="outline"
+                  color="secondary"
+                  type="button"
+                  onClick={() => switchMode('signin')}
                 >
-                  Lost password?
-                </a>
+                  Back to sign in
+                </Button>
               </div>
 
-              <Button className="w-full" type="submit" disabled={loading}>
-                {loading ? 'Signing in…' : 'Sign in'}
-              </Button>
+            ) : (
 
-              {/* No account prompt */}
-              <p className="font-body text-sm text-center text-[#d1d5dc]">
-                No account?{' '}
-                <a
-                  href="#"
-                  className="font-medium text-[#51a2ff] underline"
+              <form
+                className="w-full md:w-[450px] p-5 flex flex-col gap-4"
+                onSubmit={handleSubmit}
+              >
+
+                <h1 className="font-heading text-white text-[19.8px] leading-7 tracking-[-0.5px]">
+                  {isSignIn ? 'Sign in to BattleCards' : 'Create your account'}
+                </h1>
+
+                <Input
+                  label="Email"
+                  type="email"
+                  placeholder="name@battlecards.app"
+                  leftIcon={<EmailIcon />}
+                  value={email}
+                  onChange={e => setEmail(e.target.value)}
+                  state={error ? 'error' : 'default'}
+                  required
+                />
+
+                <Input
+                  label="Password"
+                  type="password"
+                  placeholder="••••••••"
+                  leftIcon={<LockIcon />}
+                  value={password}
+                  onChange={e => setPassword(e.target.value)}
+                  state={error ? 'error' : 'default'}
+                  helperText={isSignIn && error ? error : undefined}
+                  required
+                />
+
+                {!isSignIn && (
+                  <Input
+                    label="Confirm password"
+                    type="password"
+                    placeholder="••••••••"
+                    leftIcon={<LockIcon />}
+                    value={confirmPassword}
+                    onChange={e => setConfirmPassword(e.target.value)}
+                    state={error ? 'error' : 'default'}
+                    helperText={error ?? undefined}
+                    required
+                  />
+                )}
+
+                {/* Remember me + Lost password — sign in only */}
+                {isSignIn && (
+                  <div className="flex items-center justify-between w-full">
+                    <Checkbox label="Remember me" />
+                    <a
+                      href="#"
+                      className="font-body font-medium text-base text-blue-400 underline"
+                      onClick={handleForgotPassword}
+                    >
+                      Lost password?
+                    </a>
+                  </div>
+                )}
+
+                <Button className="w-full" type="submit" disabled={loading}>
+                  {loading
+                    ? (isSignIn ? 'Signing in…' : 'Creating account…')
+                    : (isSignIn ? 'Sign in'    : 'Create account')}
+                </Button>
+
+                <Button
+                  className="w-full"
+                  variant="outline"
+                  color="secondary"
+                  type="button"
+                  leftIcon={<GoogleIcon />}
+                  disabled={loading}
+                  onClick={handleGoogleSignIn}
                 >
-                  Create one
-                </a>
-              </p>
+                  Continue with Google
+                </Button>
 
-            </form>
+                <p className="font-body text-sm text-center text-[#d1d5dc]">
+                  {isSignIn ? (
+                    <>
+                      No account?{' '}
+                      <a
+                        href="#"
+                        className="font-medium text-[#51a2ff] underline"
+                        onClick={e => { e.preventDefault(); switchMode('signup'); }}
+                      >
+                        Create one
+                      </a>
+                    </>
+                  ) : (
+                    <>
+                      Already have an account?{' '}
+                      <a
+                        href="#"
+                        className="font-medium text-[#51a2ff] underline"
+                        onClick={e => { e.preventDefault(); switchMode('signin'); }}
+                      >
+                        Sign in
+                      </a>
+                    </>
+                  )}
+                </p>
+
+              </form>
+
+            )}
 
             {/* ── OR divider ── */}
-            <div className="flex flex-col items-center justify-center gap-1.5 py-2.5 self-stretch">
-              <div className="flex-1 w-px bg-gray-700" />
-              <span className="font-body font-bold text-base text-gray-500 uppercase px-px shrink-0">
+            <div className="flex flex-row items-center md:flex-col md:justify-center md:gap-1.5 md:py-2.5 md:self-stretch">
+              <div className="flex-1 h-px bg-gray-700 md:h-auto md:w-px" />
+              <span className="font-body font-bold text-base text-gray-500 uppercase px-3 md:px-px shrink-0">
                 OR
               </span>
-              <div className="flex-1 w-px bg-gray-700" />
+              <div className="flex-1 h-px bg-gray-700 md:h-auto md:w-px" />
             </div>
 
             {/* ── Right column: Continue as guest ── */}
-            <div className="w-[450px] p-5 flex flex-col gap-4 justify-center">
+            <div className="w-full md:w-[450px] p-5 flex flex-col gap-4 justify-center">
 
               <h2 className="font-heading text-white text-[19.8px] leading-7 tracking-[-0.5px]">
                 Continue as guest
@@ -198,9 +319,7 @@ export default function Login() {
           </div>
         </div>
 
-        {/* ── Version footer ────────────────────────────────────────────
-            Sits at the bottom of the body column. Very muted — intentional.
-        ─────────────────────────────────────────────────────────────── */}
+        {/* ── Version footer ──────────────────────────────────────────── */}
         <div className="shrink-0 flex items-center gap-3 font-body font-bold text-xs text-gray-800 tracking-[1.2px] uppercase">
           <div className="flex items-center gap-1">
             <span>BattleCards version</span>

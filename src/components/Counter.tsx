@@ -4,6 +4,10 @@
  * A [−] value [+] control for integer inputs, with an optional label,
  * required marker, helper message, and validation state.
  *
+ * Double-click the value to type a number directly. The edit commits on
+ * blur or Enter; Escape cancels without saving. The result is clamped
+ * to the min/max range.
+ *
  * USAGE EXAMPLES:
  *   <Counter value={count} onChange={setCount} />
  *   <Counter value={count} onChange={setCount} min={0} max={10} />
@@ -17,6 +21,7 @@
  *   <Counter state="error" helperText="Value out of range." value={0} onChange={setCount} />
  */
 
+import { useState, useRef } from 'react';
 import MinusCircle from '../icons/MinusCircle';
 import AddCircle from '../icons/AddCircle';
 
@@ -69,6 +74,37 @@ const Counter = ({
   const canDecrement = min === undefined || value > min;
   const canIncrement = max === undefined || value < max;
 
+  // ── Inline edit state ───────────────────────────────────────────────────
+  const [editing, setEditing]   = useState(false);
+  const [editVal, setEditVal]   = useState('');
+  const inputRef                = useRef<HTMLInputElement>(null);
+
+  const startEdit = () => {
+    setEditVal(String(value));
+    setEditing(true);
+    // Focus after React renders the input
+    requestAnimationFrame(() => inputRef.current?.select());
+  };
+
+  const commitEdit = () => {
+    setEditing(false);
+    const parsed = parseInt(editVal, 10);
+    if (isNaN(parsed)) return; // discard invalid input
+    let clamped = parsed;
+    if (min !== undefined && clamped < min) clamped = min;
+    if (max !== undefined && clamped > max) clamped = max;
+    if (clamped !== value) onChange(clamped);
+  };
+
+  const cancelEdit = () => {
+    setEditing(false);
+  };
+
+  const onKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') { e.preventDefault(); commitEdit(); }
+    if (e.key === 'Escape') { e.preventDefault(); cancelEdit(); }
+  };
+
   const btnBase =
     'flex items-center justify-center w-7 h-7 rounded-full ' +
     'bg-primary-600 text-white transition-colors ' +
@@ -99,12 +135,26 @@ const Counter = ({
           <MinusCircle className="w-3.5 h-3.5" />
         </button>
 
-        <span
-          className="min-w-[1.5rem] text-center text-sm font-medium font-body text-gray-900 dark:text-white"
-          aria-live="polite"
-        >
-          {value}
-        </span>
+        {editing ? (
+          <input
+            ref={inputRef}
+            type="number"
+            value={editVal}
+            onChange={e => setEditVal(e.target.value)}
+            onBlur={commitEdit}
+            onKeyDown={onKeyDown}
+            className="w-12 text-center text-sm font-medium font-body text-gray-900 dark:text-white bg-transparent border-b border-gray-400 dark:border-gray-500 outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+          />
+        ) : (
+          <span
+            className="min-w-[1.5rem] text-center text-sm font-medium font-body text-gray-900 dark:text-white cursor-text select-none"
+            aria-live="polite"
+            onDoubleClick={startEdit}
+            title="Double-click to edit"
+          >
+            {value}
+          </span>
+        )}
 
         <button
           type="button"
