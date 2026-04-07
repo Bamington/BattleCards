@@ -13,6 +13,11 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import './index.css'; // Global styles — includes Tailwind
 import App from './App.tsx';
+import { preloadAssets } from './lib/preloadAssets';
+
+// Kick off background preloading of all static assets (images + fonts)
+// so they're cached before the user navigates to a card builder.
+preloadAssets();
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

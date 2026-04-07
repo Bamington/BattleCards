@@ -48,6 +48,37 @@
   font-display: swap;
 }
 
+/*
+ * Aller — used by the Halo Flashpoint card template.
+ * Regular (400) and Bold (700) weights.
+ */
+@font-face {
+  font-family: 'Aller';
+  src: url('./assets/games/fonts/Aller_Std_Rg.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Aller';
+  src: url('./assets/games/fonts/Aller_Std_Bd.ttf') format('truetype');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+/*
+ * Industry Test Black — used for unit name headings on the Halo Flashpoint card.
+ */
+@font-face {
+  font-family: 'Industry Test';
+  src: url('./assets/games/fonts/IndustryTest-Black.otf') format('opentype');
+  font-weight: 900;
+  font-style: normal;
+  font-display: swap;
+}
+
 @theme {
   /* ── Fonts ────────────────────────────────────────────────────────────── */
   --font-heading:  'Tanker', serif;
@@ -145,5 +176,13 @@
 @layer base {
   html {
     font-family: var(--font-body);
+  }
+
+  button, [role="button"] {
+    cursor: pointer;
+  }
+
+  button:disabled, [role="button"][aria-disabled="true"] {
+    cursor: not-allowed;
   }
 }

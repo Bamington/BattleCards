@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">BattleCards</string>
+    <string name="title_activity_main">BattleCards</string>
+    <string name="package_name">com.bamington.battlecards</string>
+    <string name="custom_url_scheme">com.bamington.battlecards</string>
+</resources>
