@@ -205,6 +205,36 @@ const CardBuilderBloodBowl = () => {
     setCardState(s => ({ cards: [...s.cards, card], activeCardId: card.id }));
   };
 
+  const deleteCard = async (cardId: string) => {
+    const cardToDelete = cards.find(c => c.id === cardId);
+
+    setCardState(s => {
+      if (s.cards.length <= 1) return s;
+
+      const deleteIndex = s.cards.findIndex(c => c.id === cardId);
+      if (deleteIndex === -1) return s;
+
+      const nextCards = s.cards.filter(c => c.id !== cardId);
+      const nextActiveCardId = s.activeCardId === cardId
+        ? nextCards[Math.min(deleteIndex, nextCards.length - 1)].id
+        : s.activeCardId;
+
+      return {
+        cards: nextCards,
+        activeCardId: nextActiveCardId,
+      };
+    });
+
+    dirtyCardsRef.current.delete(cardId);
+
+    if (cardToDelete?.dbId) {
+      const { error } = await supabase.from('cards').delete().eq('id', cardToDelete.dbId);
+      if (error) {
+        console.error('[BattleCards] Failed to delete card:', error);
+      }
+    }
+  };
+
   // ── Deck name inline rename ─────────────────────────────────────────────────
   const startDeckNameEdit = useCallback(() => {
     setEditingDeckName(true);
@@ -446,6 +476,30 @@ const CardBuilderBloodBowl = () => {
   const [photoModalOpen, setPhotoModalOpen]           = useState(false);
   const [deletePortraitConfirm, setDeletePortraitConfirm] = useState(false);
   const [deletingPortrait, setDeletingPortrait]           = useState(false);
+  const [deleteCardConfirmOpen, setDeleteCardConfirmOpen] = useState(false);
+  const [cardPendingDelete, setCardPendingDelete] = useState<BloodBowlCardData | null>(null);
+  const [deletingCard, setDeletingCard] = useState(false);
+
+  const requestDeleteCard = (card: BloodBowlCardData) => {
+    setCardPendingDelete(card);
+    setDeleteCardConfirmOpen(true);
+  };
+
+  const closeDeleteCardConfirm = () => {
+    setDeleteCardConfirmOpen(false);
+    setCardPendingDelete(null);
+  };
+
+  const handleConfirmDeleteCard = async () => {
+    if (!cardPendingDelete) return;
+    setDeletingCard(true);
+    try {
+      await deleteCard(cardPendingDelete.id);
+      closeDeleteCardConfirm();
+    } finally {
+      setDeletingCard(false);
+    }
+  };
 
   const handleDeletePortrait = async () => {
     if (!activeCard.dbId) return;
@@ -1006,6 +1060,21 @@ const CardBuilderBloodBowl = () => {
                       }}
                     />
                   </div>
+                  {editMode && (
+                    <button
+                      type="button"
+                      aria-label={`Delete ${card.unitName || 'unit'}`}
+                      onClick={e => {
+                        e.stopPropagation();
+                        requestDeleteCard(card);
+                      }}
+                      disabled={cards.length <= 1}
+                      className="shrink-0 p-1 rounded text-gray-500 hover:text-red-400 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                      title={cards.length <= 1 ? 'At least one unit is required' : 'Delete unit'}
+                    >
+                      <TrashBinMinimalistic className="w-4 h-4" />
+                    </button>
+                  )}
                 </div>
               ))}
             </nav>
@@ -1151,6 +1220,31 @@ const CardBuilderBloodBowl = () => {
         </div>
       </Modal>
 
+      {/* Delete card confirmation modal */}
+      <Modal
+        open={deleteCardConfirmOpen}
+        onClose={() => !deletingCard && closeDeleteCardConfirm()}
+        className="max-w-sm"
+      >
+        <div className="p-5 flex flex-col gap-3">
+          <TrashBinMinimalistic className="w-8 h-8 text-blue-500" />
+          <h3 className="font-heading text-xl text-white tracking-tight">Delete this unit?</h3>
+          <p className="font-body text-base text-gray-300">
+            This will permanently delete {cardPendingDelete?.unitName ? `“${cardPendingDelete.unitName}”` : 'this unit'}.
+          </p>
+          <div className="flex items-center justify-end gap-3">
+            <Button variant="ghost" size="sm" disabled={deletingCard} onClick={closeDeleteCardConfirm}>
+              Cancel
+            </Button>
+            <Button color="danger" size="sm" rightIcon={<ArrowRight className="w-4 h-4" />}
+              loading={deletingCard} onClick={handleConfirmDeleteCard}
+            >
+              Yes, Delete Unit
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
       {/* Upload Photo modal */}
       <UploadPhotoModal
         open={photoModalOpen}
@@ -1246,6 +1340,21 @@ const CardBuilderBloodBowl = () => {
                     onClick={() => setCardState(s => ({ ...s, activeCardId: card.id }))}
                   />
                 </div>
+                {editMode && (
+                  <button
+                    type="button"
+                    aria-label={`Delete ${card.unitName || 'unit'}`}
+                    onClick={e => {
+                      e.stopPropagation();
+                      requestDeleteCard(card);
+                    }}
+                    disabled={cards.length <= 1}
+                    className="shrink-0 p-1 rounded text-gray-500 hover:text-red-400 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                    title={cards.length <= 1 ? 'At least one unit is required' : 'Delete unit'}
+                  >
+                    <TrashBinMinimalistic className="w-4 h-4" />
+                  </button>
+                )}
               </div>
             ))}
           </nav>
@@ -1549,6 +1658,31 @@ const CardBuilderBloodBowl = () => {
               loading={deletingPortrait} onClick={handleDeletePortrait}
             >
               Yes, Delete this portrait image
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Delete card confirmation modal */}
+      <Modal
+        open={deleteCardConfirmOpen}
+        onClose={() => !deletingCard && closeDeleteCardConfirm()}
+        className="max-w-sm"
+      >
+        <div className="p-5 flex flex-col gap-3">
+          <TrashBinMinimalistic className="w-8 h-8 text-blue-500" />
+          <h3 className="font-heading text-xl text-white tracking-tight">Delete this unit?</h3>
+          <p className="font-body text-base text-gray-300">
+            This will permanently delete {cardPendingDelete?.unitName ? `“${cardPendingDelete.unitName}”` : 'this unit'}.
+          </p>
+          <div className="flex items-center justify-end gap-3">
+            <Button variant="ghost" size="sm" disabled={deletingCard} onClick={closeDeleteCardConfirm}>
+              Cancel
+            </Button>
+            <Button color="danger" size="sm" rightIcon={<ArrowRight className="w-4 h-4" />}
+              loading={deletingCard} onClick={handleConfirmDeleteCard}
+            >
+              Yes, Delete Unit
             </Button>
           </div>
         </div>
