@@ -36,6 +36,8 @@ import { RAW_PALETTE, SEMANTIC_PALETTE, type ColorFamily } from '../data/colors'
 import heroImage from '../assets/hero.png';
 import BloodBowlCard from '../components/BloodBowlCard';
 import HaloFlashpointCard from '../components/HaloFlashpointCard';
+import StarcraftCard from '../components/StarcraftCard';
+import StarcraftPhaseFrame from '../components/StarcraftPhaseFrame';
 import HaloFlashpointRuleCard from '../components/HaloFlashpointRuleCard';
 import Card3DWrapper from '../components/Card3DWrapper';
 import MultiSelectDropdown from '../components/MultiSelectDropdown';
@@ -61,6 +63,10 @@ import GamePickerItem from '../components/GamePickerItem';
 import ModeToggle, { type Mode } from '../components/ModeToggle';
 import PlaySubnav, { type PlayTab } from '../components/PlaySubnav';
 import EditSubnav from '../components/EditSubnav';
+import BuilderShell from '../components/BuilderShell';
+import CardListPanel from '../components/CardListPanel';
+import EditorPanel from '../components/EditorPanel';
+import CenterViewport from '../components/CenterViewport';
 import TokenMenu from '../components/TokenMenu';
 import TokenOverlay from '../components/TokenOverlay';
 import PrintCardGrid from '../components/PrintCardGrid';
@@ -239,6 +245,81 @@ const DismissibleBadgeDemo = () => {
   );
 };
 
+// ── BuilderShellDemo ──────────────────────────────────────────────────────────
+
+/** Inline preview of <BuilderShell> + <CardListPanel> + <EditorPanel> +
+ *  <CenterViewport> composed together. Stateful so the deck-name rename
+ *  and mobile panel toggles are demonstrable. */
+const BuilderShellDemo = () => {
+  const [cardListOpen, setCardListOpen] = React.useState(false);
+  const [editorOpen,   setEditorOpen]   = React.useState(false);
+  const [deckName,     setDeckName]     = React.useState<string | null>('Demo Deck');
+  const [editingName,  setEditingName]  = React.useState(false);
+  const inputRef = React.useRef<HTMLInputElement>(null);
+
+  const startEdit = () => {
+    setEditingName(true);
+    requestAnimationFrame(() => inputRef.current?.select());
+  };
+  const commit = (n: string) => {
+    const trimmed = n.trim();
+    setEditingName(false);
+    if (trimmed) setDeckName(trimmed);
+  };
+
+  return (
+    <div className="w-full h-[600px] rounded-xl overflow-hidden border border-gray-200 dark:border-gray-700 [&>div]:!h-full">
+      <BuilderShell
+        navbar={<Navbar fixed={false} />}
+        topBar={
+          <EditSubnav
+            className="lg:hidden"
+            cardListOpen={cardListOpen}
+            onToggleCardList={() => { setCardListOpen(o => !o); setEditorOpen(false); }}
+            editorOpen={editorOpen}
+            onToggleEditor={() => { setEditorOpen(o => !o); setCardListOpen(false); }}
+          />
+        }
+        leftPanelOpen={cardListOpen}
+        leftPanel={
+          <CardListPanel
+            deckName={deckName}
+            editingDeckName={editingName}
+            inputRef={inputRef}
+            onStartEdit={startEdit}
+            onCommit={commit}
+            onCancelEdit={() => setEditingName(false)}
+            footer={
+              <Button leftIcon={<AddCircle className="w-4 h-4" />} variant="outline" size="sm" className="w-full">
+                Add Unit
+              </Button>
+            }
+          >
+            <UnitListEntry status="complete" unitName="Spartan CQB"     active />
+            <UnitListEntry status="complete" unitName="ODST Demolition"        />
+            <UnitListEntry status="blank"                                      />
+          </CardListPanel>
+        }
+        center={
+          <CenterViewport logo={<img src={logoHaloFlashpoint} alt="Halo Flashpoint" className="h-10 w-auto" />}>
+            <div className="flex-1 min-h-0 w-full flex items-center justify-center text-gray-500 font-body text-sm">
+              {/* Carousel placeholder — real builders mount <CardCarousel> here */}
+              [ CardCarousel ]
+            </div>
+          </CenterViewport>
+        }
+        rightPanelOpen={editorOpen}
+        rightPanel={
+          <EditorPanel title="Edit Card">
+            <Input label="Unit Name" placeholder="e.g. Spartan CQB" value="Spartan CQB" onChange={() => {}} />
+            <Counter label="Hit Points" value={3} onChange={() => {}} />
+          </EditorPanel>
+        }
+      />
+    </div>
+  );
+};
+
 // ── Gallery wrapper ───────────────────────────────────────────────────────────
 
 const MULTI_OPTIONS = ['Agility', 'General', 'Mutations', 'Passing', 'Strength', 'Devious'];
@@ -303,6 +384,8 @@ const ComponentGallery = () => {
         <SidebarItem href="#nav-stars"      icon={<Star className="w-5 h-5" />}              label="Star Rating" />
         <SidebarItem href="#nav-tabs"       icon={<Filter className="w-5 h-5" />}            label="Tabs"        />
         <SidebarItem href="#nav-bb-card"      icon={<Shield className="w-5 h-5" />}            label="BB Card"     />
+        <SidebarItem href="#nav-sc-card"      icon={<Shield className="w-5 h-5" />}            label="SC Card"     />
+        <SidebarItem href="#nav-sc-phase-frame" icon={<Shield className="w-5 h-5" />}          label="SC Phase Frame" />
         <SidebarItem href="#nav-multi-select" icon={<CheckCircle className="w-5 h-5" />}        label="Multi-Select" />
         <SidebarItem href="#nav-vr"           icon={<MinusCircle className="w-5 h-5" />}        label="VR"           />
         <SidebarItem href="#nav-banner"       icon={<Bell className="w-5 h-5" />}               label="Banner"       />
@@ -315,6 +398,7 @@ const ComponentGallery = () => {
         <SidebarItem href="#nav-save-template-modal" icon={<Gallery className="w-5 h-5" />}           label="Save Template Modal" />
         <SidebarItem href="#nav-new-card-modal"     icon={<Gallery className="w-5 h-5" />}            label="New Card Modal" />
         <SidebarItem href="#nav-game-picker-item"   icon={<Gallery className="w-5 h-5" />}            label="Game Picker Item" />
+        <SidebarItem href="#nav-builder-shell"      icon={<Widget2 className="w-5 h-5" />}            label="Builder Shell"   />
       </Sidebar>
 
       {/* ── Main content — offset on desktop to clear the sidebar ──────── */}
@@ -2062,6 +2146,156 @@ const ComponentGallery = () => {
         </div>
       </GallerySection>
 
+      {/* ── Starcraft Card ─────────────────────────────────────────────── */}
+      <GallerySection id="nav-sc-card" title="StarCraft Card / Default">
+        <div className="flex flex-col gap-8 items-start">
+
+          {/* Empty / placeholder state */}
+          <div className="flex flex-col gap-2 items-start">
+            <p className="font-body text-xs text-gray-400 dark:text-gray-500">
+              Empty state (default props) — chrome SVG is transparent for now
+            </p>
+            <div className="relative overflow-hidden shrink-0 bg-gray-100 dark:bg-gray-800" style={{ width: 508, height: Math.round(890 * (508 / 1270)) }}>
+              <div style={{ transform: `scale(${508 / 1270})`, transformOrigin: 'top left', position: 'absolute', top: 0, left: 0 }}>
+                <StarcraftCard />
+              </div>
+            </div>
+          </div>
+
+          {/* Populated — Marine example from the Figma design */}
+          <div className="flex flex-col gap-2 items-start">
+            <p className="font-body text-xs text-gray-400 dark:text-gray-500">
+              Populated — Terran Marine (with parent/child weapons and abilities)
+            </p>
+            <div className="relative overflow-hidden shrink-0 bg-gray-100 dark:bg-gray-800" style={{ width: 760, height: Math.round(890 * (760 / 1270)) }}>
+              <div style={{ transform: `scale(${760 / 1270})`, transformOrigin: 'top left', position: 'absolute', top: 0, left: 0 }}>
+                <StarcraftCard
+                  unitType="Marine"
+                  speed={4}
+                  evade={5}
+                  armour={5}
+                  hitPoints={2}
+                  size={2}
+                  supplyTiers={[
+                    { maxModels: 3, supply: 1 },
+                    { maxModels: 6, supply: 2 },
+                    { maxModels: 9, supply: 3 },
+                  ]}
+                  abilities={[
+                    { id: 'stimpack',    name: 'Stimpack',         phase: 'movement', timing: 'active',   cpCost: 1, description: 'Gain Non-Lethal Damage (3). This unit gains Buff Speed (2) and C-14 Rifle gains Precision (3).' },
+                    { id: 'shield',      name: 'Shield',           phase: 'assault',  timing: 'reaction', cpCost: 1, description: 'Gain Non-Lethal Damage (3). This unit gains Buff Speed (2) and C-14 Rifle gains Precision (3).' },
+                    { id: 'slugthrower', name: 'Slugthrower',      phase: 'assault',  timing: 'passive',             description: 'Gain Non-Lethal Damage (3). This unit gains Buff Speed (2) and C-14 Rifle gains Precision (3).' },
+                    { id: 'grenades',    name: 'Grenades — Frag',  phase: 'assault',  timing: 'passive',             description: 'Gain Non-Lethal Damage (3). This unit gains Buff Speed (2) and C-14 Rifle gains Precision (3).' },
+                  ]}
+                  weapons={[
+                    {
+                      id: 'c14', name: 'C-14 Rifle', phase: 'assault',
+                      range: 12, roa: 2, hit: 3, dmg: 1, surgeType: 'Light', sDice: 'D3',
+                      keywords: [
+                        { keywordId: 'target',     name: 'Target',     description: '', hasValue: true,  value: 'all' },
+                        { keywordId: 'long-range', name: 'Long Range', description: '', hasValue: true,  value: '18"' },
+                      ],
+                    },
+                    {
+                      id: 'agg12', name: 'AGG-12', phase: 'assault',
+                      range: 12, roa: 3, hit: 3, dmg: 1, surgeType: 'Armoured', sDice: 'D3',
+                      parentId: 'c14',
+                      keywords: [
+                        { keywordId: 'target',     name: 'Target',     description: '', hasValue: true, value: 'all' },
+                        { keywordId: 'long-range', name: 'Long Range', description: '', hasValue: true, value: '18"' },
+                        { keywordId: 'specialist', name: 'Specialist', description: '', hasValue: false, value: null },
+                      ],
+                    },
+                    {
+                      id: 'glaunch', name: 'Grenade Launcher', phase: 'assault',
+                      range: 12, roa: 4, hit: 3, dmg: 1, surgeType: 'Light', sDice: 'D3',
+                      keywords: [
+                        { keywordId: 'target',     name: 'Target',     description: '', hasValue: true,  value: 'Ground' },
+                        { keywordId: 'long-range', name: 'Long Range', description: '', hasValue: true,  value: '18"' },
+                        { keywordId: 'specialist', name: 'Specialist', description: '', hasValue: false, value: null },
+                        { keywordId: 'sidearm',    name: 'Sidearm',    description: '', hasValue: false, value: null },
+                      ],
+                    },
+                    { id: 'strike',  name: 'Strike',  phase: 'combat', range: 0, roa: 1, hit: 5, dmg: 1 },
+                    { id: 'bayonet', name: 'Bayonet', phase: 'combat', range: 0, roa: 2, hit: 5, dmg: 1, surgeType: 'Light', sDice: 'D3', parentId: 'strike' },
+                  ]}
+                  tags="Core, Light, Biological, Ground, Terran"
+                />
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </GallerySection>
+
+      {/* ── Starcraft Phase Frame ─────────────────────────────────────── */}
+      <GallerySection id="nav-sc-phase-frame" title="StarCraft Phase Frame / Assault">
+        <div className="flex flex-col gap-4 items-start">
+          <p className="font-body text-xs text-gray-400 dark:text-gray-500">
+            Assault Phase example — C-14 Rifle (parent) with AGG-12 + Grenade Launcher upgrades, plus
+            three abilities (Shield · reaction · 1CP, Slugthrower · passive, Grenades — Frag · passive).
+          </p>
+          <div className="bg-gray-100 dark:bg-gray-800 p-4 rounded">
+            <StarcraftPhaseFrame
+              phaseName="Assault Phase"
+              weapons={[
+                {
+                  id: 'c14', name: 'C-14 Rifle',
+                  range: 12, roa: 2, hit: 3, dmg: 1, surgeType: 'Light', sDice: 'D3',
+                  keywords: [
+                    { keywordId: 'target',     name: 'Target',     description: '', hasValue: true,  value: 'all' },
+                    { keywordId: 'long-range', name: 'Long Range', description: '', hasValue: true,  value: '18"' },
+                  ],
+                },
+                {
+                  id: 'agg12', name: 'AGG-12', parentId: 'c14',
+                  range: 12, roa: 3, hit: 3, dmg: 1, surgeType: 'Armoured', sDice: 'D3',
+                  keywords: [
+                    { keywordId: 'target',     name: 'Target',     description: '', hasValue: true, value: 'all' },
+                    { keywordId: 'long-range', name: 'Long Range', description: '', hasValue: true, value: '18"' },
+                    { keywordId: 'specialist', name: 'Specialist', description: '', hasValue: false, value: null },
+                  ],
+                },
+                {
+                  id: 'glaunch', name: 'Grenade Launcher', parentId: 'c14',
+                  range: 12, roa: 4, hit: 3, dmg: 1, surgeType: 'Light', sDice: 'D3',
+                  keywords: [
+                    { keywordId: 'target',     name: 'Target',     description: '', hasValue: true,  value: 'Ground' },
+                    { keywordId: 'long-range', name: 'Long Range', description: '', hasValue: true,  value: '18"' },
+                    { keywordId: 'specialist', name: 'Specialist', description: '', hasValue: false, value: null },
+                    { keywordId: 'sidearm',    name: 'Sidearm',    description: '', hasValue: false, value: null },
+                  ],
+                },
+              ]}
+              abilities={[
+                {
+                  id:    'shield',
+                  name:  'Shield',
+                  phase: 'assault',
+                  timing: 'reaction',
+                  cpCost: 1,
+                  description: 'Gain Non-Lethal Damage (3). This unit gains Buff Speed (2) and C-14 Rifle gain Precision (3).',
+                },
+                {
+                  id:    'slugthrower',
+                  name:  'Slugthrower',
+                  phase: 'assault',
+                  timing: 'passive',
+                  description: 'Gain Non-Lethal Damage (3). This unit gains Buff Speed (2) and C-14 Rifle gain Precision (3).',
+                },
+                {
+                  id:    'grenades',
+                  name:  'Grenades — Frag',
+                  phase: 'assault',
+                  timing: 'passive',
+                  description: 'Gain Non-Lethal Damage (3). This unit gains Buff Speed (2) and C-14 Rifle gain Precision (3).',
+                },
+              ]}
+            />
+          </div>
+        </div>
+      </GallerySection>
+
       {/* ── Rich Text Editor ────────────────────────────────────────── */}
       <GallerySection id="nav-rich-text-editor" title="Rich Text Editor">
         <div className="max-w-md space-y-4">
@@ -3110,6 +3344,106 @@ const ComponentGallery = () => {
               ]}
             />
           </div>
+        </div>
+      </GallerySection>
+
+      {/* ════════════════════════════════════════════════════════════════
+          BUILDER SHELL — Card-builder layout primitives shared across
+          every game (Halo, Starcraft, Blood Bowl, …). Game pages compose
+          these with `useCardBuilder` instead of duplicating frame markup.
+      ════════════════════════════════════════════════════════════════ */}
+      <GallerySection id="nav-builder-shell" title="Builder Shell / Composed">
+        <BuilderShellDemo />
+      </GallerySection>
+
+      <GallerySection title="Builder Shell / CardListPanel">
+        <div className="w-64 h-[480px] flex flex-col bg-gray-900 rounded-xl overflow-hidden border border-gray-200 dark:border-gray-700">
+          <CardListPanel
+            deckName="UNSC Strike Team"
+            editingDeckName={false}
+            inputRef={{ current: null }}
+            onStartEdit={() => {}}
+            onCommit={() => {}}
+            onCancelEdit={() => {}}
+            footer={
+              <Button leftIcon={<AddCircle className="w-4 h-4" />} variant="outline" size="sm" className="w-full">
+                Add Unit
+              </Button>
+            }
+          >
+            <UnitListEntry status="complete" unitName="Spartan CQB" active />
+            <UnitListEntry status="complete" unitName="ODST Demolition" />
+            <UnitListEntry status="complete" unitName="Marine Squad" />
+            <UnitListEntry status="blank" />
+          </CardListPanel>
+        </div>
+
+        {/* With a header action slot (e.g. edit-mode toggle) */}
+        <div className="w-64 h-[480px] flex flex-col bg-gray-900 rounded-xl overflow-hidden border border-gray-200 dark:border-gray-700">
+          <CardListPanel
+            deckName="Banished Vanguard"
+            editingDeckName={false}
+            inputRef={{ current: null }}
+            onStartEdit={() => {}}
+            onCommit={() => {}}
+            onCancelEdit={() => {}}
+            headerAction={
+              <button className="p-1 rounded hover:bg-gray-700 text-gray-400 hover:text-white" title="Edit deck">
+                <Pen2 className="w-4 h-4" />
+              </button>
+            }
+            footer={
+              <Button leftIcon={<AddCircle className="w-4 h-4" />} variant="outline" size="sm" className="w-full">
+                Add Unit
+              </Button>
+            }
+          >
+            <UnitListEntry status="complete" unitName="Elite Honor Guard" />
+            <UnitListEntry status="complete" unitName="Brute Chieftain" active />
+            <UnitListEntry status="complete" unitName="Jackal Sniper" />
+          </CardListPanel>
+        </div>
+      </GallerySection>
+
+      <GallerySection title="Builder Shell / EditorPanel">
+        <div className="w-64 h-[480px] flex flex-col bg-gray-900 rounded-xl overflow-hidden border border-gray-200 dark:border-gray-700">
+          <EditorPanel title="Edit Card">
+            <Input label="Unit Name" placeholder="e.g. Spartan CQB" value="Spartan CQB" onChange={() => {}} />
+            <Counter label="Hit Points" value={3} onChange={() => {}} />
+            <Counter label="Armour"     value={2} onChange={() => {}} />
+            <Counter label="Points"     value={120} onChange={() => {}} />
+          </EditorPanel>
+        </div>
+
+        <div className="w-64 h-[480px] flex flex-col bg-gray-900 rounded-xl overflow-hidden border border-gray-200 dark:border-gray-700">
+          <EditorPanel title="Edit Rule">
+            <Input label="Rule Title" placeholder="e.g. Assault" value="Energy Shield" onChange={() => {}} />
+            <p className="font-body text-xs text-gray-400">Description and rich-text body would go here in a real builder.</p>
+          </EditorPanel>
+        </div>
+      </GallerySection>
+
+      <GallerySection title="Builder Shell / CenterViewport">
+        <div className="w-full max-w-2xl h-[420px] rounded-xl overflow-hidden border border-gray-200 dark:border-gray-700 flex flex-col bg-gray-950">
+          <CenterViewport
+            logo={<img src={logoHaloFlashpoint} alt="Halo Flashpoint" className="h-10 w-auto" />}
+          >
+            <div className="flex-1 min-h-0 w-full flex items-center justify-center text-gray-500 font-body text-sm">
+              [ CardCarousel ]
+            </div>
+          </CenterViewport>
+        </div>
+
+        {/* mobilePanelOpen=true — logo hides, main collapses to flex-none */}
+        <div className="w-full max-w-2xl h-[420px] rounded-xl overflow-hidden border border-gray-200 dark:border-gray-700 flex flex-col bg-gray-950">
+          <CenterViewport
+            logo={<img src={logoHaloFlashpoint} alt="Halo Flashpoint" className="h-10 w-auto" />}
+            mobilePanelOpen
+          >
+            <div className="w-full h-32 flex items-center justify-center text-gray-500 font-body text-sm border border-dashed border-gray-700 m-3">
+              mobilePanelOpen — logo hidden, main collapsed
+            </div>
+          </CenterViewport>
         </div>
       </GallerySection>
 

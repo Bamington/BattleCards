@@ -17,13 +17,18 @@
  * Route: /app/builder/halo-flashpoint?deckId=<uuid>
  */
 
-import { useState, useRef, useEffect, useLayoutEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { useSearchParams, useNavigate, Link } from 'react-router-dom';
 import Markdown from 'react-markdown';
 import Navbar from '../components/Navbar';
 import ModeToggle, { type Mode } from '../components/ModeToggle';
 import PlaySubnav, { type PlayTab } from '../components/PlaySubnav';
 import EditSubnav from '../components/EditSubnav';
+import BuilderShell from '../components/BuilderShell';
+import CardListPanel from '../components/CardListPanel';
+import EditorPanel from '../components/EditorPanel';
+import CenterViewport from '../components/CenterViewport';
+import { useCardBuilder } from '../hooks/useCardBuilder';
 import Dropdown, { DropdownItem } from '../components/Dropdown';
 import UnitListEntry from '../components/UnitListEntry';
 import Input from '../components/Input';
@@ -32,7 +37,8 @@ import Counter from '../components/Counter';
 import Button from '../components/Button';
 import HR from '../components/HR';
 import HaloFlashpointCard from '../components/HaloFlashpointCard';
-import Card3DWrapper from '../components/Card3DWrapper';
+import CardCarousel from '../components/CardCarousel';
+import AttachedAddonRow from '../components/AttachedAddonRow';
 import Modal from '../components/Modal';
 import AddAddonModal, { type AddonFormProps } from '../components/AddAddonModal';
 import AddKeywordModal from '../components/AddKeywordModal';
@@ -49,7 +55,6 @@ import SaveTemplateModal from '../components/SaveTemplateModal';
 import NewCardModal, { type NewCardModalTemplate } from '../components/NewCardModal';
 import UserRounded from '../icons/UserRounded';
 import AddCircle from '../icons/AddCircle';
-import MinusCircle from '../icons/MinusCircle';
 import CheckCircle from '../icons/CheckCircle';
 import CloseCircle from '../icons/CloseCircle';
 import TrashBinMinimalistic from '../icons/TrashBinMinimalistic';
@@ -71,10 +76,6 @@ import iconHaloFlashpoint from '../assets/games/card assets/halo/icon.png';
 // ── Card native dimensions ────────────────────────────────────────────────────
 const CARD_W = 1270;
 const CARD_H = 890;
-
-// ── Carousel constants ────────────────────────────────────────────────────────
-const ADJACENT_SCALE = 0.7;
-const CARD_GAP       = 40;
 
 // ── Keyword update propagation ────────────────────────────────────────────────
 // Module-scoped ref so HaloWeaponForm (which can't receive extra props via
@@ -482,41 +483,15 @@ const CardBuilderHaloFlashpoint = () => {
 
   // ── Play mode toggle ─────────────────────────────────────────────────────────
   const [appMode, setAppMode] = useState<Mode>('edit');
-  // Tablet/mobile-only panel visibility (slide-in panels on <lg)
-  const [cardListOpen, setCardListOpen] = useState(false);
-  const [editorOpen, setEditorOpen]     = useState(false);
-  // Only one panel open at a time — opening one closes the other.
-  const toggleCardList = useCallback(() => {
-    setCardListOpen(o => !o);
-    setEditorOpen(false);
-  }, []);
-  const toggleEditor = useCallback(() => {
-    setEditorOpen(o => !o);
-    setCardListOpen(false);
-  }, []);
-  // Track whether we're on a mobile viewport (< md, 768px) — affects card
-  // sizing when a panel is open (full-width stacked layout vs. flex-row).
-  const [isMobile, setIsMobile] = useState(() =>
-    typeof window !== 'undefined' && window.matchMedia('(max-width: 767px)').matches,
-  );
-  // Short viewport height (e.g. landscape phone) — hide the game logo and tighten
-  // zoom-row spacing so the active card can fill more vertical space.
-  const [isShortHeight, setIsShortHeight] = useState(() =>
-    typeof window !== 'undefined' && window.matchMedia('(max-height: 700px)').matches,
-  );
-  useEffect(() => {
-    const mqWidth = window.matchMedia('(max-width: 767px)');
-    const mqHeight = window.matchMedia('(max-height: 700px)');
-    const widthHandler = (e: MediaQueryListEvent) => setIsMobile(e.matches);
-    const heightHandler = (e: MediaQueryListEvent) => setIsShortHeight(e.matches);
-    mqWidth.addEventListener('change', widthHandler);
-    mqHeight.addEventListener('change', heightHandler);
-    return () => {
-      mqWidth.removeEventListener('change', widthHandler);
-      mqHeight.removeEventListener('change', heightHandler);
-    };
-  }, []);
-  const mobilePanelOpen = isMobile && (cardListOpen || editorOpen);
+
+  // ── Shared builder chrome (panel toggles, responsive, deck-name) ────────────
+  const builder = useCardBuilder({ deckId });
+  const {
+    cardListOpen, editorOpen, toggleCardList, toggleEditor,
+    isMobile, isShortHeight, mobilePanelOpen,
+    deckName, setDeckName, editingDeckName, setEditingDeckName,
+    deckNameInputRef, startDeckNameEdit,
+  } = builder;
   const [playTab, setPlayTab] = useState<PlayTab>('units');
 
   const [ruleSearchQuery, setRuleSearchQuery] = useState('');
@@ -586,11 +561,6 @@ const CardBuilderHaloFlashpoint = () => {
         handleTokenChangeForCard(c.id, tokenDefId, newValue),
     };
   };
-
-  // ── Deck name ────────────────────────────────────────────────────────────────
-  const [deckName, setDeckName] = useState<string | null>(null);
-  const [editingDeckName, setEditingDeckName] = useState(false);
-  const deckNameInputRef = useRef<HTMLInputElement>(null);
 
   // ── Edit mode (reorder + rename + duplicate + delete) ────────────────────────
   const [editMode, setEditMode] = useState(false);
@@ -1042,23 +1012,12 @@ const CardBuilderHaloFlashpoint = () => {
   }, [propagateKeywordUpdate]);
 
   // ── Deck name inline rename ─────────────────────────────────────────────────
-  const startDeckNameEdit = useCallback(() => {
-    setEditingDeckName(true);
-    requestAnimationFrame(() => deckNameInputRef.current?.select());
-  }, []);
-
-  const commitDeckName = useCallback(async (newName: string) => {
-    const trimmed = newName.trim();
-    if (!trimmed || trimmed === deckName) {
-      setEditingDeckName(false);
-      return;
-    }
-    setDeckName(trimmed);
-    setEditingDeckName(false);
-    if (!editMode && deckId) {
-      await supabase.from('decks').update({ name: trimmed }).eq('id', deckId);
-    }
-  }, [deckName, editMode, deckId]);
+  // `startDeckNameEdit` comes from useCardBuilder. `commitDeckName` skips the
+  // Supabase persist when editMode is on, since editMode batches its own save.
+  const commitDeckName = useCallback(
+    (newName: string) => builder.commitDeckName(newName, { persist: !editMode }),
+    [builder, editMode],
+  );
 
   // ── Drag reorder handlers ──────────────────────────────────────────────────
   const handleDragStart = useCallback((index: number) => {
@@ -1665,172 +1624,16 @@ const CardBuilderHaloFlashpoint = () => {
     }
   };
 
-  // ── Card scaling ─────────────────────────────────────────────────────────────
-  const cardContainerRef = useRef<HTMLDivElement>(null);
-  const [fitScale, setFitScale]   = useState(1);
-  const [zoomLevel, setZoomLevel] = useState(0.7);
-  // On mobile with a panel open, the carousel container is given an explicit
-  // size so the card fits with 16px margins — ignore user zoom in that mode.
-  const cardScale = mobilePanelOpen ? fitScale : fitScale * zoomLevel;
-
-  // Reset zoom on panel toggle or short-height change.
-  // Short viewports default to 1.0 (card fills available space); otherwise 0.7.
-  useEffect(() => {
-    setZoomLevel(isShortHeight ? 1.0 : 0.7);
-  }, [cardListOpen, editorOpen, isShortHeight]);
-
-  useEffect(() => {
-    const el = cardContainerRef.current;
-    if (!el) return;
-    const observer = new ResizeObserver(([entry]) => {
-      const { width, height } = entry.contentRect;
-      containerWidthRef.current = width;
-      setFitScale(Math.min(width / CARD_W, height / CARD_H));
-    });
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, []);
-
-  const zoomOut = () => setZoomLevel(z => Math.max(0.5, parseFloat((z - 0.1).toFixed(1))));
-  const zoomIn  = () => setZoomLevel(z => Math.min(1.0, parseFloat((z + 0.1).toFixed(1))));
-
-  // ── Carousel refs & helpers ───────────────────────────────────────────────────
-  const stripRef          = useRef<HTMLDivElement>(null);
-  const prevCardRef       = useRef<HTMLDivElement>(null);
-  const activeCardRef     = useRef<HTMLDivElement>(null);
-  const nextCardRef       = useRef<HTMLDivElement>(null);
-  const containerWidthRef = useRef(0);
-  const cardScaleRef      = useRef(cardScale);
-  cardScaleRef.current    = cardScale;
-  const cardsLengthRef    = useRef(carouselItems.length);
-  cardsLengthRef.current  = carouselItems.length;
-
-  const phaseRef      = useRef<'idle' | 'transitioning'>('idle');
-  const pendingIdRef  = useRef<string | null>(null);
-  const draggingRef   = useRef(false);
-  const dragStartXRef = useRef(0);
-
-  const getBaseTranslateX = () => {
-    const cs   = cardScaleRef.current;
-    const adjW = CARD_W * cs * ADJACENT_SCALE;
-    return containerWidthRef.current / 2 - adjW - CARD_GAP - CARD_W * cs / 2;
-  };
-
-  const getSlideDistance = () => {
-    const cs = cardScaleRef.current;
-    return CARD_W * cs / 2 + CARD_GAP + CARD_W * cs * ADJACENT_SCALE / 2;
-  };
-
-  const applyStripTransform = (extra: number, animate: boolean) => {
-    const strip = stripRef.current;
-    if (!strip) return;
-    strip.style.transition = animate
-      ? 'transform 0.35s cubic-bezier(0.4, 0, 0.2, 1)'
-      : 'none';
-    strip.style.transform = `translateX(${getBaseTranslateX() + extra}px)`;
-  };
-
-  // Set transform + opacity on all three card containers via refs — no React re-render needed
-  const CARD_TRANS = 'transform 0.35s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.35s cubic-bezier(0.4, 0, 0.2, 1)';
-  const applyCardStyles = (
-    prevS: number, activeS: number, nextS: number,
-    prevO: number, activeO: number, nextO: number,
-    animate: boolean,
-  ) => {
-    const t = animate ? CARD_TRANS : 'none';
-    if (prevCardRef.current)   { prevCardRef.current.style.transition   = t; prevCardRef.current.style.transform   = `scale(${prevS})`; prevCardRef.current.style.opacity   = String(prevO);   }
-    if (activeCardRef.current) { activeCardRef.current.style.transition = t; activeCardRef.current.style.transform = `scale(${activeS})`; activeCardRef.current.style.opacity = String(activeO); }
-    if (nextCardRef.current)   { nextCardRef.current.style.transition   = t; nextCardRef.current.style.transform   = `scale(${nextS})`; nextCardRef.current.style.opacity   = String(nextO);   }
-  };
-
-  const resetCardStyles = (animate: boolean) => {
-    const cs   = cardScaleRef.current;
-    const as   = cs * ADJACENT_SCALE;
-    const adjO = cardsLengthRef.current >= 2 ? 0.5 : 0;
-    applyCardStyles(as, cs, as, adjO, 1, adjO, animate);
-  };
-
-  const navigateCarousel = (targetId: string, direction: 'prev' | 'next') => {
-    if (phaseRef.current !== 'idle') return;
-    setKwFading(true); // fade out keywords in sync with the slide
-    const cs     = cardScaleRef.current;
-    const as     = cs * ADJACENT_SCALE;
-    const offset = direction === 'next' ? -getSlideDistance() : getSlideDistance();
-    phaseRef.current     = 'transitioning';
-    pendingIdRef.current = targetId;
-    // Slide strip + animate scale and opacity simultaneously
-    applyStripTransform(offset, true);
-    if (direction === 'next') {
-      applyCardStyles(as, as, cs, 0.5, 0.5, 1, true); // active dims + shrinks, next brightens + grows
-    } else {
-      applyCardStyles(cs, as, as, 1, 0.5, 0.5, true); // prev brightens + grows, active dims + shrinks
-    }
-  };
-
-  // Flag: when true, the next layout-effect pass should snap the strip and
-  // card styles back to resting position (runs after React commits new content
-  // to the DOM but before the browser paints — eliminates the old-card flash).
-  const needsSnapRef = useRef(false);
-
-  const handleStripTransitionEnd = (e: React.TransitionEvent) => {
-    // Ignore bubbled transitionend events from child card divs — only act on
-    // the strip's own transform transition finishing.
-    if (e.target !== stripRef.current) return;
-    if (phaseRef.current !== 'transitioning' || !pendingIdRef.current) return;
-    const targetId       = pendingIdRef.current;
-    pendingIdRef.current = null;
-    // Hide strip so the old content is invisible while React re-renders
-    const strip = stripRef.current!;
-    strip.style.visibility = 'hidden';
-    // Schedule the snap for the layout-effect pass
-    needsSnapRef.current = true;
-    // Update state — the ensuing re-render + useLayoutEffect will do the snap
-    const targetItem = carouselItems.find(i => i.id === targetId);
-    if (targetItem?.kind === 'rule') {
-      selectRule(targetId);
-    } else {
-      selectCard(targetId);
-    }
-  };
-
-  // Snap strip + card styles after React commits new content, before browser paints
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useLayoutEffect(() => {
-    if (needsSnapRef.current) {
-      needsSnapRef.current = false;
-      phaseRef.current     = 'idle';
-      applyStripTransform(0, false);
-      resetCardStyles(false);
-      const strip = stripRef.current;
-      if (strip) strip.style.visibility = 'visible';
-      return;
-    }
-  });
-
-  // Re-centre strip and reset card styles whenever zoom or layout changes
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useLayoutEffect(() => {
-    if (phaseRef.current !== 'transitioning' && !needsSnapRef.current) { applyStripTransform(0, false); resetCardStyles(false); }
-  }, [cardScale, appMode, playTab, cardListOpen, editorOpen, isMobile, isShortHeight]);
-
-  // When mode or panel state changes, the container size changes (panels hide/show,
-  // mobile breakpoint flips on rotation). Force a re-measure so the carousel fits
-  // the new dimensions immediately.
-  useEffect(() => {
-    const el = cardContainerRef.current;
-    if (!el) return;
-    // Read current size and update refs + state
-    const { width, height } = el.getBoundingClientRect();
-    containerWidthRef.current = width;
-    setFitScale(Math.min(width / CARD_W, height / CARD_H));
-  }, [appMode, playTab, cardListOpen, editorOpen, isMobile, isShortHeight]);
-
-  // Set initial card styles before first paint
-  useLayoutEffect(() => { resetCardStyles(false); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  // ── Card carousel ────────────────────────────────────────────────────────────
+  // All carousel mechanics (scale, drag, snap, zoom) live in <CardCarousel>.
+  // The remaining game-specific concerns — keyword fade timing, mixed
+  // card/rule items, play-mode overlays — are wired in via that component's
+  // props at render time below.
 
   return (
-    <div className="flex flex-col h-screen bg-gray-950 overflow-hidden">
-      <Navbar fixed={false}>
+    <BuilderShell
+      navbar={
+        <Navbar fixed={false}>
           {/* Desktop (lg+): full mode toggle + Print link */}
           <div className="hidden lg:flex items-center gap-3">
             {deckId && (
@@ -1869,10 +1672,11 @@ const CardBuilderHaloFlashpoint = () => {
             )}
           </Dropdown>
         </Navbar>
-        {appMode === 'play' && (
+      }
+      topBar={
+        appMode === 'play' ? (
           <PlaySubnav tab={playTab} onTabChange={setPlayTab} />
-        )}
-        {appMode === 'edit' && (
+        ) : appMode === 'edit' ? (
           <EditSubnav
             className="lg:hidden"
             cardListOpen={cardListOpen}
@@ -1880,48 +1684,22 @@ const CardBuilderHaloFlashpoint = () => {
             editorOpen={editorOpen}
             onToggleEditor={toggleEditor}
           />
-        )}
-
-      {/* ── Page body ────────────────────────────────────────────────────── */}
-      <div
-        className="flex flex-col md:flex-row flex-1 overflow-hidden"
-      >
-
-        {/* ── Left panel: unit list ────────────────────────────────────── */}
-        {/* Always shown at lg+; on <lg slides in only when cardListOpen. */}
-        {/* On mobile stacks below main (order-2); on md+ sits to the left. */}
-        {appMode === 'edit' && (
-        <aside className={`w-full md:w-64 shrink-0 max-md:flex-1 max-md:min-h-0 order-2 md:order-1 ${cardListOpen ? 'flex' : 'hidden'} lg:flex flex-col bg-gray-900
-                          border-r border-gray-700 max-md:border-r-0 max-md:border-t overflow-hidden`}>
-          {/* Deck name header */}
-          <div className="px-4 py-4 border-b border-gray-700 shrink-0 flex items-center gap-2">
-            {editingDeckName ? (
-              <input
-                ref={deckNameInputRef}
-                type="text"
-                defaultValue={deckName ?? ''}
-                className="flex-1 min-w-0 bg-gray-800 border border-gray-600 rounded px-2 py-0.5
-                           font-heading text-sm font-bold text-white uppercase tracking-wide
-                           outline-none focus:border-blue-500"
-                onBlur={e => commitDeckName(e.target.value)}
-                onKeyDown={e => {
-                  if (e.key === 'Enter') commitDeckName(e.currentTarget.value);
-                  if (e.key === 'Escape') setEditingDeckName(false);
-                }}
-              />
-            ) : (
-              <p
-                className="flex-1 min-w-0 font-heading text-sm font-bold text-white uppercase tracking-wide truncate cursor-pointer"
-                onDoubleClick={startDeckNameEdit}
-                title="Double-click to rename"
-              >
-                {deckName ?? '—'}
-              </p>
-            )}
+        ) : null
+      }
+      leftPanelOpen={cardListOpen}
+      leftPanel={appMode === 'edit' ? (
+        <CardListPanel
+          deckName={deckName}
+          editingDeckName={editingDeckName}
+          inputRef={deckNameInputRef}
+          onStartEdit={startDeckNameEdit}
+          onCommit={commitDeckName}
+          onCancelEdit={() => setEditingDeckName(false)}
+          headerAction={
             <button
               type="button"
               onClick={() => editMode ? handleDoneEditing() : setEditMode(true)}
-              className="shrink-0 p-1 rounded hover:bg-gray-700 transition-colors text-gray-400 hover:text-white"
+              className="p-1 rounded hover:bg-gray-700 transition-colors text-gray-400 hover:text-white"
               title={editMode ? 'Done editing' : 'Edit deck'}
             >
               {editMode
@@ -1929,10 +1707,47 @@ const CardBuilderHaloFlashpoint = () => {
                 : <Pen2 className="w-4 h-4" />
               }
             </button>
-          </div>
-
-          {/* Card list */}
-          <nav className="flex-1 overflow-y-auto px-3 py-3 space-y-1">
+          }
+          footer={
+            <>
+              <HR className="!my-0" />
+              {editMode ? (
+                <Button
+                  leftIcon={<CheckCircle className="w-4 h-4" />}
+                  color="primary"
+                  size="sm"
+                  className="w-full"
+                  onClick={handleDoneEditing}
+                  loading={savingEdits}
+                >
+                  Done
+                </Button>
+              ) : (
+                <>
+                  <Button
+                    leftIcon={<AddCircle className="w-4 h-4" />}
+                    variant="outline"
+                    size="sm"
+                    className="w-full"
+                    onClick={addCard}
+                  >
+                    Add Unit
+                  </Button>
+                  <Button
+                    leftIcon={<AddCircle className="w-4 h-4" />}
+                    variant="outline"
+                    size="sm"
+                    className="w-full"
+                    disabled={isAtLimit(deckRules.length, getMaxRules(cardConstraints))}
+                    onClick={() => setRuleModalOpen(true)}
+                  >
+                    Add Rule
+                  </Button>
+                </>
+              )}
+            </>
+          }
+        >
             {cards.map((card, i) => (
               <div
                 key={card.id}
@@ -1989,314 +1804,64 @@ const CardBuilderHaloFlashpoint = () => {
                 </div>
               </div>
             ))}
-          </nav>
-
-          {/* Footer */}
-          <div className="px-3 pb-3 shrink-0 flex flex-col gap-3">
-            <HR className="!my-0" />
-            {editMode ? (
-              <Button
-                leftIcon={<CheckCircle className="w-4 h-4" />}
-                color="primary"
-                size="sm"
-                className="w-full"
-                onClick={handleDoneEditing}
-                loading={savingEdits}
-              >
-                Done
-              </Button>
-            ) : (
-              <>
-                <Button
-                  leftIcon={<AddCircle className="w-4 h-4" />}
-                  variant="outline"
-                  size="sm"
-                  className="w-full"
-                  onClick={addCard}
-                >
-                  Add Unit
-                </Button>
-                <Button
-                  leftIcon={<AddCircle className="w-4 h-4" />}
-                  variant="outline"
-                  size="sm"
-                  className="w-full"
-                  disabled={isAtLimit(deckRules.length, getMaxRules(cardConstraints))}
-                  onClick={() => setRuleModalOpen(true)}
-                >
-                  Add Rule
-                </Button>
-              </>
-            )}
-          </div>
-        </aside>
-        )}
-
-        {/* ── Center: carousel card display (hidden on play + rules tab) ── */}
-        {!(appMode === 'play' && playTab === 'rules') && (
-        <main className={`order-1 md:order-2 flex flex-col items-center overflow-hidden bg-gray-950 ${mobilePanelOpen ? 'flex-none' : 'flex-1'}`}>
-          {/* Game logo — hidden on mobile-panel-open and on short viewports */}
-          <div className={`flex items-center justify-center w-full shrink-0 py-3 ${mobilePanelOpen || isShortHeight ? 'hidden' : ''}`}>
-            <img src={logoHaloFlashpoint} alt="Halo Flashpoint" className="h-10 w-auto" />
-          </div>
-
-          {/* Carousel viewport */}
-          <div
-            ref={cardContainerRef}
-            className={`w-full overflow-hidden relative select-none touch-pan-y ${mobilePanelOpen ? 'flex-none' : 'flex-1 min-h-0'}`}
-            style={mobilePanelOpen ? { height: `calc((100vw - 32px) * ${CARD_H / CARD_W})` } : undefined}
-            onPointerDown={e => {
-              if (phaseRef.current !== 'idle') return;
-              draggingRef.current   = true;
-              dragStartXRef.current = e.clientX;
-            }}
-            onPointerMove={e => {
-              if (!draggingRef.current) return;
-              const delta = e.clientX - dragStartXRef.current;
-              if (Math.abs(delta) > 5 && !(e.currentTarget as HTMLElement).hasPointerCapture(e.pointerId)) {
-                (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-              }
-              applyStripTransform(delta, false);
-              // Live scale + opacity: interpolate proportional to drag progress
-              const cs   = cardScaleRef.current;
-              const as   = cs * ADJACENT_SCALE;
-              const adjO = cardsLengthRef.current >= 2 ? 0.5 : 0;
-              const t    = Math.min(1, Math.max(-1, delta / getSlideDistance()));
-              applyCardStyles(
-                as   + (cs   - as)   * Math.max(0,  t),  // prev scale grows right
-                cs   - (cs   - as)   * Math.abs(t),       // active scale shrinks
-                as   + (cs   - as)   * Math.max(0, -t),  // next scale grows left
-                adjO + (1    - adjO) * Math.max(0,  t),  // prev opacity brightens right
-                1    - (1    - adjO) * Math.abs(t),       // active opacity dims
-                adjO + (1    - adjO) * Math.max(0, -t),  // next opacity brightens left
-                false,
-              );
-            }}
-            onPointerUp={e => {
-              if (!draggingRef.current) return;
-              draggingRef.current = false;
-              const delta     = e.clientX - dragStartXRef.current;
-              const threshold = 80;
-              const idx       = carouselItems.findIndex(i => i.id === activeItemId);
-              if (Math.abs(delta) < 5) {
-                applyStripTransform(0, true);
-                resetCardStyles(true);
-              } else if (delta < -threshold && carouselItems.length >= 2) {
-                navigateCarousel(carouselItems[(idx + 1) % carouselItems.length].id, 'next');
-              } else if (delta > threshold && carouselItems.length >= 2) {
-                navigateCarousel(carouselItems[(idx - 1 + carouselItems.length) % carouselItems.length].id, 'prev');
-              } else {
-                // Didn't cross threshold — spring everything back
-                applyStripTransform(0, true);
-                resetCardStyles(true);
-              }
-            }}
-            onPointerCancel={() => {
-              draggingRef.current = false;
-              applyStripTransform(0, true);
-              resetCardStyles(true);
-            }}
+        </CardListPanel>
+      ) : undefined}
+      center={
+        appMode === 'play' && playTab === 'rules' ? (
+          <main className="flex-1 flex flex-col overflow-hidden bg-gray-950">
+            <div className="flex-1 overflow-y-auto py-5 px-5">
+              <Input
+                leftIcon={<Magnifer className="w-4 h-4" />}
+                placeholder="Search for a Rule"
+                value={ruleSearchQuery}
+                onChange={e => setRuleSearchQuery(e.target.value)}
+                className="mb-4"
+              />
+              <div className="flex flex-col gap-2.5">
+                {playRulesAndKeywords
+                  .filter(item => {
+                    if (!ruleSearchQuery) return true;
+                    const q = ruleSearchQuery.toLowerCase();
+                    return item.title.toLowerCase().includes(q)
+                      || item.description.toLowerCase().includes(q);
+                  })
+                  .map(item => (
+                    <Card key={item.key} className="!bg-gray-800 !border-gray-700">
+                      <CardBody className="p-5 space-y-3">
+                        <h5 className="font-heading text-xl text-white">
+                          {item.title}
+                        </h5>
+                        <div className="font-body text-base text-gray-300">
+                          <Markdown>{item.description}</Markdown>
+                        </div>
+                      </CardBody>
+                    </Card>
+                  ))}
+              </div>
+            </div>
+          </main>
+        ) : (
+          <CenterViewport
+            logo={<img src={logoHaloFlashpoint} alt="Halo Flashpoint" className="h-10 w-auto" />}
+            mobilePanelOpen={mobilePanelOpen}
+            isShortHeight={isShortHeight}
           >
-            {/* Strip — absolute, vertically centred; card divs are native-size with center-origin scale */}
-            {(() => {
-              const idx      = carouselItems.findIndex(i => i.id === activeItemId);
-              // Circular: wrap around so the last item shows the first as its "next" and vice-versa
-              const prevItem = carouselItems.length >= 2 ? carouselItems[(idx - 1 + carouselItems.length) % carouselItems.length] : null;
-              const nextItem = carouselItems.length >= 2 ? carouselItems[(idx + 1) % carouselItems.length] : null;
-              // Resolve to concrete card/rule data
-              const prevCard = prevItem?.kind === 'card' ? cards.find(c => c.id === prevItem.id) ?? null : null;
-              const prevRule = prevItem?.kind === 'rule' ? sortedRules.find(r => r.id === prevItem.id) ?? null : null;
-              const nextCard = nextItem?.kind === 'card' ? cards.find(c => c.id === nextItem.id) ?? null : null;
-              const nextRule = nextItem?.kind === 'rule' ? sortedRules.find(r => r.id === nextItem.id) ?? null : null;
-              // Visual widths at current zoom
-              const adjW    = CARD_W * cardScale * ADJACENT_SCALE;
-              const activeW = CARD_W * cardScale;
-              // Left edge of each card div so its visual centre lands where we want it.
-              // With transformOrigin:center the div centre == visual centre, so:
-              //   divLeft = visualCentre - CARD_W/2
-              const prevLeft   = adjW / 2                                           - CARD_W / 2;
-              const activeLeft = adjW + CARD_GAP + activeW / 2                      - CARD_W / 2;
-              const nextLeft   = adjW + CARD_GAP + activeW + CARD_GAP + adjW / 2   - CARD_W / 2;
-              return (
-                <div
-                  ref={stripRef}
-                  style={{
-                    position:   'absolute',
-                    top:        '50%',
-                    left:       0,
-                    height:     CARD_H,
-                    marginTop:  -(CARD_H / 2),
-                    willChange: 'transform',
-                  }}
-                  onTransitionEnd={handleStripTransitionEnd}
-                >
-                  {/* ── Prev card — ref-controlled scale+opacity, neither in JSX ── */}
-                  <div
-                    ref={prevCardRef}
-                    style={{
-                      position:        'absolute',
-                      top:             0,
-                      left:            prevLeft,
-                      width:           CARD_W,
-                      height:          CARD_H,
-                      transformOrigin: 'center center',
-                      cursor:          prevItem ? 'pointer' : 'default',
-                      pointerEvents:   prevItem ? 'auto' : 'none',
-                      filter:          'drop-shadow(0 4.179px 56.411px rgba(30,31,110,0.75))',
-                    }}
-                    onClick={() => prevItem && navigateCarousel(prevItem.id, 'prev')}
-                  >
-                    {prevCard && (
-                      <HaloFlashpointCard
-                        unitName={prevCard.unitName || 'Unit Name'}
-                        keywords={prevCard.keywords || ''}
-                        ra={prevCard.ra} fi={prevCard.fi} sv={prevCard.sv}
-                        advanceValue={prevCard.advance} sprintValue={prevCard.sprint}
-                        ar={prevCard.armour} hp={prevCard.hp}
-                        portrait={prevCard.portraitUrl ?? undefined}
-                        portraitStyle={prevCard.portraitStyle}
-                        weapons={prevCard.weapons.map(w => ({ type: w.type, name: w.name, range: w.range, ap: w.ap, keywords: w.keywords }))}
-                        tokenOverlay={buildTokenOverlayProp(prevCard)}
-                      />
-                    )}
-                    {prevRule && (
-                      <HaloFlashpointRuleCard
-                        title={prevRule.title || 'Rule Title'}
-                        description={prevRule.description || ''}
-                      />
-                    )}
-                  </div>
-
-                  {/* ── Active card — ref-controlled scale, no transform in JSX ── */}
-                  <div
-                    ref={activeCardRef}
-                    style={{
-                      position:        'absolute',
-                      top:             0,
-                      left:            activeLeft,
-                      width:           CARD_W,
-                      height:          CARD_H,
-                      transformOrigin: 'center center',
-                    }}
-                  >
-                    <Card3DWrapper
-                      style={{
-                        width:  CARD_W,
-                        height: CARD_H,
-                        filter: 'drop-shadow(0 5.571px 75.215px rgba(30,31,110,0.75))',
-                      }}
-                    >
-                      {activeRule ? (
-                        <HaloFlashpointRuleCard
-                          title={activeRule.title || 'Rule Title'}
-                          description={activeRule.description || ''}
-                          onTitleChange={appMode === 'edit' ? (v => updateActiveRule({ title: v })) : undefined}
-                          onDescriptionChange={appMode === 'edit' ? (v => updateActiveRule({ description: v })) : undefined}
-                          constraints={ruleConstraints}
-                        />
-                      ) : (
-                      <HaloFlashpointCard
-                        unitName={activeCard.unitName   || 'Unit Name'}
-                        keywords={activeCard.keywords   || ''}
-                        keywordData={activeCard.unitKeywords.map(k => ({
-                          label: k.paramValue != null ? `${k.keywordName} (${k.paramValue})` : k.keywordName,
-                          name: k.keywordName,
-                          description: k.description,
-                        }))}
-                        ra={activeCard.ra}
-                        fi={activeCard.fi}
-                        sv={activeCard.sv}
-                        advanceValue={activeCard.advance}
-                        sprintValue={activeCard.sprint}
-                        ar={activeCard.armour}
-                        hp={activeCard.hp}
-                        portrait={activeCard.portraitUrl ?? undefined}
-                        portraitStyle={activeCard.portraitStyle}
-                        weapons={activeCard.weapons.map(w => ({
-                          type:     w.type,
-                          name:     w.name,
-                          range:    w.range,
-                          ap:       w.ap,
-                          keywords: w.keywords,
-                          keywordData: w.weaponKeywords.map(k => ({
-                            label: k.paramValue != null ? `${k.keywordName} (${k.paramValue})` : k.keywordName,
-                            name: k.keywordName,
-                            description: k.description,
-                          })),
-                        }))}
-                        {...(appMode === 'edit' ? {
-                          onUnitNameChange: (v: string)  => updateActiveCard({ unitName: v }),
-                          onKeywordsChange: (v: string)  => updateActiveCard({ keywords: v }),
-                          onRaChange:       (v: number)  => updateActiveCard({ ra:       v }),
-                          onFiChange:       (v: number)  => updateActiveCard({ fi:       v }),
-                          onSvChange:       (v: number)  => updateActiveCard({ sv:       v }),
-                          onAdvanceValueChange: (v: number) => updateActiveCard({ advance: v }),
-                          onSprintValueChange:  (v: number) => updateActiveCard({ sprint:  v }),
-                          onArChange:       (v: number)  => updateActiveCard({ armour:   v }),
-                          onHpChange:       (v: number)  => updateActiveCard({ hp:       v }),
-                          onEditKeyword: (kw: { name: string; description: string }) => {
-                            const unitKw = activeCard.unitKeywords.find(k => k.keywordName === kw.name);
-                            if (unitKw) { setEditingUnitKw(unitKw); return; }
-                            for (const w of activeCard.weapons) {
-                              const weaponKw = w.weaponKeywords.find(k => k.keywordName === kw.name);
-                              if (weaponKw) { setEditingWeaponKw(weaponKw); return; }
-                            }
-                          },
-                          constraints: cardConstraints,
-                        } : {})}
-                        onWeaponClick={(hw) => {
-                          const match = activeCard.weapons.find(w => w.name === hw.name);
-                          if (match) setViewingWeapon(match);
-                        }}
-                        tokenOverlay={buildTokenOverlayProp(activeCard)}
-                      />
-                      )}
-                    </Card3DWrapper>
-                  </div>
-
-                  {/* ── Next card — ref-controlled scale+opacity, neither in JSX ── */}
-                  <div
-                    ref={nextCardRef}
-                    style={{
-                      position:        'absolute',
-                      top:             0,
-                      left:            nextLeft,
-                      width:           CARD_W,
-                      height:          CARD_H,
-                      transformOrigin: 'center center',
-                      cursor:          nextItem ? 'pointer' : 'default',
-                      pointerEvents:   nextItem ? 'auto' : 'none',
-                      filter:          'drop-shadow(0 4.179px 56.411px rgba(30,31,110,0.75))',
-                    }}
-                    onClick={() => nextItem && navigateCarousel(nextItem.id, 'next')}
-                  >
-                    {nextCard && (
-                      <HaloFlashpointCard
-                        unitName={nextCard.unitName || 'Unit Name'}
-                        keywords={nextCard.keywords || ''}
-                        ra={nextCard.ra} fi={nextCard.fi} sv={nextCard.sv}
-                        advanceValue={nextCard.advance} sprintValue={nextCard.sprint}
-                        ar={nextCard.armour} hp={nextCard.hp}
-                        portrait={nextCard.portraitUrl ?? undefined}
-                        portraitStyle={nextCard.portraitStyle}
-                        weapons={nextCard.weapons.map(w => ({ type: w.type, name: w.name, range: w.range, ap: w.ap, keywords: w.keywords }))}
-                        tokenOverlay={buildTokenOverlayProp(nextCard)}
-                      />
-                    )}
-                    {nextRule && (
-                      <HaloFlashpointRuleCard
-                        title={nextRule.title || 'Rule Title'}
-                        description={nextRule.description || ''}
-                      />
-                    )}
-                  </div>
-                </div>
-              );
-            })()}
-
-            {/* ── New Turn button (play mode, units tab) ─────────────── */}
-            {appMode === 'play' && playTab === 'units' && !activeRule && tokenDefinitions.some(d => d.refresh_on_turn !== 0) && (
-              <div className="absolute bottom-4 left-4 z-40">
+            <CardCarousel
+            items={carouselItems}
+            activeId={activeItemId}
+            onActiveChange={(id) => {
+              const item = carouselItems.find(i => i.id === id);
+              if (item?.kind === 'rule') selectRule(id);
+              else                       selectCard(id);
+            }}
+            cardWidth={CARD_W}
+            cardHeight={CARD_H}
+            onNavigateStart={() => setKwFading(true)}
+            layoutDeps={[appMode, playTab, cardListOpen, editorOpen, isMobile, isShortHeight, mobilePanelOpen]}
+            initialZoom={isShortHeight ? 1.0 : 0.7}
+            className={`w-full ${mobilePanelOpen ? 'flex-none' : 'flex-1 min-h-0'}`}
+            bottomLeftSlot={
+              appMode === 'play' && playTab === 'units' && !activeRule && tokenDefinitions.some(d => d.refresh_on_turn !== 0) ? (
                 <Button
                   variant={allActivated ? 'filled' : 'outline'}
                   color="primary"
@@ -2312,12 +1877,10 @@ const CardBuilderHaloFlashpoint = () => {
                 >
                   New Turn
                 </Button>
-              </div>
-            )}
-
-            {/* ── Token menu (play mode, units tab, viewing a card) ─── */}
-            {appMode === 'play' && playTab === 'units' && !activeRule && tokenDefinitions.length > 0 && (
-              <div className="absolute bottom-4 right-4 z-40">
+              ) : null
+            }
+            bottomRightSlot={
+              appMode === 'play' && playTab === 'units' && !activeRule && tokenDefinitions.length > 0 ? (
                 <TokenMenu
                   tokenDefinitions={tokenDefinitions}
                   card={{
@@ -2330,32 +1893,90 @@ const CardBuilderHaloFlashpoint = () => {
                   tokenState={activeCard.tokenState}
                   onTokenChange={handleTokenChange}
                 />
-              </div>
-            )}
-          </div>
+              ) : null
+            }
+            renderItem={(item, role) => {
+              if (item.kind === 'rule') {
+                const rule = sortedRules.find(r => r.id === item.id);
+                if (!rule) return null;
+                return (
+                  <HaloFlashpointRuleCard
+                    title={rule.title || 'Rule Title'}
+                    description={rule.description || ''}
+                    {...(role === 'active' && appMode === 'edit' ? {
+                      onTitleChange:       (v: string) => updateActiveRule({ title: v }),
+                      onDescriptionChange: (v: string) => updateActiveRule({ description: v }),
+                      constraints:         ruleConstraints,
+                    } : {})}
+                  />
+                );
+              }
+              const card = cards.find(c => c.id === item.id);
+              if (!card) return null;
+              return (
+                <HaloFlashpointCard
+                  unitName={card.unitName || 'Unit Name'}
+                  keywords={card.keywords || ''}
+                  {...(role === 'active' ? {
+                    keywordData: card.unitKeywords.map(k => ({
+                      label: k.paramValue != null ? `${k.keywordName} (${k.paramValue})` : k.keywordName,
+                      name:  k.keywordName,
+                      description: k.description,
+                    })),
+                  } : {})}
+                  ra={card.ra}
+                  fi={card.fi}
+                  sv={card.sv}
+                  advanceValue={card.advance}
+                  sprintValue={card.sprint}
+                  ar={card.armour}
+                  hp={card.hp}
+                  portrait={card.portraitUrl ?? undefined}
+                  portraitStyle={card.portraitStyle}
+                  weapons={card.weapons.map(w => ({
+                    type:     w.type,
+                    name:     w.name,
+                    range:    w.range,
+                    ap:       w.ap,
+                    keywords: w.keywords,
+                    ...(role === 'active' ? {
+                      keywordData: w.weaponKeywords.map(k => ({
+                        label: k.paramValue != null ? `${k.keywordName} (${k.paramValue})` : k.keywordName,
+                        name:  k.keywordName,
+                        description: k.description,
+                      })),
+                    } : {}),
+                  }))}
+                  {...(role === 'active' && appMode === 'edit' ? {
+                    onUnitNameChange:     (v: string) => updateActiveCard({ unitName: v }),
+                    onKeywordsChange:     (v: string) => updateActiveCard({ keywords: v }),
+                    onRaChange:           (v: number) => updateActiveCard({ ra:       v }),
+                    onFiChange:           (v: number) => updateActiveCard({ fi:       v }),
+                    onSvChange:           (v: number) => updateActiveCard({ sv:       v }),
+                    onAdvanceValueChange: (v: number) => updateActiveCard({ advance:  v }),
+                    onSprintValueChange:  (v: number) => updateActiveCard({ sprint:   v }),
+                    onArChange:           (v: number) => updateActiveCard({ armour:   v }),
+                    onHpChange:           (v: number) => updateActiveCard({ hp:       v }),
+                    onEditKeyword:        (kw: { name: string; description: string }) => {
+                      const unitKw = card.unitKeywords.find(k => k.keywordName === kw.name);
+                      if (unitKw) { setEditingUnitKw(unitKw); return; }
+                      for (const w of card.weapons) {
+                        const weaponKw = w.weaponKeywords.find(k => k.keywordName === kw.name);
+                        if (weaponKw) { setEditingWeaponKw(weaponKw); return; }
+                      }
+                    },
+                    constraints: cardConstraints,
+                  } : {})}
+                  onWeaponClick={role === 'active' ? (hw) => {
+                    const match = card.weapons.find(w => w.name === hw.name);
+                    if (match) setViewingWeapon(match);
+                  } : undefined}
+                  tokenOverlay={buildTokenOverlayProp(card)}
+                />
+              );
+            }}
+          />
 
-          {/* Zoom controls — hidden on mobile with a panel open (card auto-fits);
-              padding tightens on short viewports to give the card more vertical room */}
-          <div className={`shrink-0 items-center gap-2 ${isShortHeight ? 'py-1' : 'py-3'} ${mobilePanelOpen ? 'hidden' : 'flex'}`}>
-            <Button
-              leftIcon={<MinusCircle className="w-4 h-4" />}
-              variant="outline"
-              size="sm"
-              disabled={zoomLevel <= 0.5}
-              onClick={zoomOut}
-            >
-              Zoom Out
-            </Button>
-            <Button
-              rightIcon={<AddCircle className="w-4 h-4" />}
-              variant="outline"
-              size="sm"
-              disabled={zoomLevel >= 1.0}
-              onClick={zoomIn}
-            >
-              Zoom In
-            </Button>
-          </div>
 
           {/* ── Play mode: keyword + weapon cards for the active unit ──── */}
           {appMode === 'play' && playTab === 'units' && (
@@ -2413,60 +2034,15 @@ const CardBuilderHaloFlashpoint = () => {
               })()}
             </div>
           )}
-        </main>
-        )}
-
-        {/* ── Play mode: Rules tab list ────────────────────────────────── */}
-        {appMode === 'play' && playTab === 'rules' && (
-          <main className="flex-1 flex flex-col overflow-hidden bg-gray-950">
-            <div className="flex-1 overflow-y-auto py-5 px-5">
-              <Input
-                leftIcon={<Magnifer className="w-4 h-4" />}
-                placeholder="Search for a Rule"
-                value={ruleSearchQuery}
-                onChange={e => setRuleSearchQuery(e.target.value)}
-                className="mb-4"
-              />
-              <div className="flex flex-col gap-2.5">
-                {playRulesAndKeywords
-                  .filter(item => {
-                    if (!ruleSearchQuery) return true;
-                    const q = ruleSearchQuery.toLowerCase();
-                    return item.title.toLowerCase().includes(q)
-                      || item.description.toLowerCase().includes(q);
-                  })
-                  .map(item => (
-                    <Card key={item.key} className="!bg-gray-800 !border-gray-700">
-                      <CardBody className="p-5 space-y-3">
-                        <h5 className="font-heading text-xl text-white">
-                          {item.title}
-                        </h5>
-                        <div className="font-body text-base text-gray-300">
-                          <Markdown>{item.description}</Markdown>
-                        </div>
-                      </CardBody>
-                    </Card>
-                  ))}
-              </div>
-            </div>
-          </main>
-        )}
-
-        {/* ── Right panel: editor ──────────────────────────────────────── */}
-        {/* Always shown at lg+; on <lg slides in only when editorOpen. */}
-        {/* On mobile stacks below main (order-2); on md+ sits to the right. */}
-        {appMode === 'edit' && (
-        <aside className={`w-full md:w-64 shrink-0 max-md:flex-1 max-md:min-h-0 order-2 md:order-3 ${editorOpen ? 'flex' : 'hidden'} lg:flex flex-col bg-gray-900
-                          border-l border-gray-700 max-md:border-l-0 max-md:border-t overflow-hidden`}>
-          <div className="px-4 py-4 border-b border-gray-700 shrink-0">
-            <h2 className="font-heading text-sm font-bold text-white uppercase tracking-wide">
-              {activeRule ? 'Edit Rule' : 'Edit Card'}
-            </h2>
-          </div>
-
+          </CenterViewport>
+        )
+      }
+      rightPanelOpen={editorOpen}
+      rightPanel={appMode === 'edit' ? (
+        <EditorPanel title={activeRule ? 'Edit Rule' : 'Edit Card'}>
           {activeRule ? (
             /* ── Rule editor ────────────────────────────────────────── */
-            <div className="flex-1 overflow-y-auto px-3 py-4 space-y-6">
+            <>
               <section className="space-y-3">
                 <p className="font-body text-xs font-semibold text-gray-400 uppercase tracking-wide">
                   Rule Details
@@ -2508,10 +2084,10 @@ const CardBuilderHaloFlashpoint = () => {
                   Remove from Deck
                 </Button>
               </section>
-            </div>
+            </>
           ) : (
 
-          <div className="flex-1 overflow-y-auto px-3 py-4 space-y-6">
+          <>
 
             {/* ── Basic Details ──────────────────────────────────────── */}
             <section className="space-y-3">
@@ -2765,34 +2341,16 @@ const CardBuilderHaloFlashpoint = () => {
 
               {/* Attached weapons */}
               {activeCard.weapons.map(w => (
-                <div
+                <AttachedAddonRow
                   key={w.addonId}
-                  className="flex items-center gap-2 px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg cursor-pointer hover:border-gray-500 transition-colors"
+                  name={w.name}
+                  subtitle={[w.type, w.range && `R${w.range}`, w.ap && `AP ${w.ap}`, w.keywords]
+                    .filter(Boolean).join(', ')}
                   onClick={() => setViewingWeapon(w)}
-                >
-                  <div className="flex-1 min-w-0">
-                    <p className="font-body text-sm font-medium text-gray-200 truncate">
-                      {w.name}
-                    </p>
-                    <p className="font-body text-xs text-gray-500 truncate">
-                      {[w.type, w.range && `R${w.range}`, w.ap && `AP ${w.ap}`, w.keywords]
-                        .filter(Boolean).join(', ')}
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    aria-label={`Remove ${w.name}`}
-                    onClick={e => {
-                      e.stopPropagation();
-                      updateActiveCard({
-                        weapons: activeCard.weapons.filter(x => x.addonId !== w.addonId),
-                      });
-                    }}
-                    className="shrink-0 text-gray-500 hover:text-red-400 transition-colors"
-                  >
-                    <CloseCircle className="size-4" />
-                  </button>
-                </div>
+                  onRemove={() => updateActiveCard({
+                    weapons: activeCard.weapons.filter(x => x.addonId !== w.addonId),
+                  })}
+                />
               ))}
 
               <Button
@@ -2832,13 +2390,11 @@ const CardBuilderHaloFlashpoint = () => {
               </Button>
             </section>
 
-          </div>
+          </>
           )}
-        </aside>
-        )}
-
-      </div>
-
+        </EditorPanel>
+      ) : undefined}
+      modals={<>
       {/* ── Add Rule modal ──────────────────────────────────────────────── */}
       <AddRuleModal
         open={ruleModalOpen}
@@ -3068,8 +2624,8 @@ const CardBuilderHaloFlashpoint = () => {
           </div>
         </div>
       </Modal>
-
-    </div>
+      </>}
+    />
   );
 };
 

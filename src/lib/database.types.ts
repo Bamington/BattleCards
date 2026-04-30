@@ -42,22 +42,39 @@ export interface HaloFlashpointStats {
   pointsCost?:   number
 }
 
-/** One tier row in StarcraftStats.supplyTiers. */
+/**
+ * One tier row in StarcraftStats.supplyTiers.
+ *
+ * Storage carries only `maxModels` and `supply` per tier — the *minimum*
+ * model count and the validation lower-bound for `supply` are derived
+ * from the previous tier:
+ *   • Tier 0: model range starts at 1, supply min = 0
+ *   • Tier N: model range starts at (tiers[N-1].maxModels + 1),
+ *             supply min = (tiers[N-1].supply + 1)
+ */
 export interface StarcraftSupplyTier {
-  minModels: number
+  /** Inclusive upper bound of the tier's model range. */
   maxModels: number
+  /** Supply cost paid to field a unit of this tier's size. */
   supply:    number
 }
 
 export interface StarcraftStats {
+  /**
+   * Optional specific name for a named / hero unit (e.g. "Jim Raynor").
+   * The required *Unit Type* (e.g. "Marines") lives on `cards.name`, not in stats.
+   */
+  unitName?:     string
   /** Scalar movement value. */
   speed?:        number
-  /** Die threshold e.g. "5+". */
-  evade?:        string
-  /** Die threshold e.g. "5+". */
-  armour?:       string
+  /** Die threshold base value — the card renders as "{evade}+". */
+  evade?:        number
+  /** Die threshold base value — the card renders as "{armour}+". */
+  armour?:       number
   hitPoints?:    number
   size?:         number
+  /** Total point cost of the unit including weapons and upgrades. */
+  pointsCost?:   number
   /** 1–3 tier rows defining models-to-supply cost brackets. */
   supplyTiers?:  StarcraftSupplyTier[]
   /** Free-text, comma-separated (e.g. "Core, Light, Biological, Ground, Terran"). */
@@ -78,34 +95,49 @@ export interface HaloWeaponStats {
   pointsCost?: string
 }
 
-/** Which of a Starcraft unit's phases this weapon is fired in. */
-export type StarcraftWeaponPhase = 'assault' | 'combat'
+/**
+ * Turn phase — where the addon (weapon or ability) lives on the card.
+ * The card body groups items into headed sections by this value.
+ * `null` ≡ "None" / unassigned.
+ */
+export type StarcraftPhase = 'movement' | 'assault' | 'combat' | 'special_abilities'
+
+/**
+ * Activation timing — the coloured chip (Active / Passive / Reaction)
+ * rendered next to an addon's name. Independent of turn phase: an addon
+ * can have any combination of phase and timing, both optional in storage.
+ */
+export type StarcraftTiming = 'active' | 'passive' | 'reaction'
 
 export interface StarcraftWeaponStats {
-  phase?:     StarcraftWeaponPhase
-  /** Range — either inches ("12", "18") or "M" for melee. */
-  rng?:       string
+  phase?:     StarcraftPhase | null
+  timing?:    StarcraftTiming | null
+  /** Range in inches. Melee weapons store 0. */
+  range?:     number
   /** Rate of Attacks. */
   roa?:       number
-  /** Hit threshold e.g. "3+". */
-  hit?:       string
-  surgeType?: string
-  /** Surge dice spec e.g. "D3". */
-  sDice?:     string
+  /** Hit target value. Card renders as "{n}+". */
+  hit?:       number
+  /** Damage. */
   dmg?:       number
+  surgeType?: string
+  /** Surge dice spec — free text so values like "D3+1" are valid. */
+  sDice?:     string
 }
 
-/** Which bucket a Starcraft rule is organised under on the card. */
-export type StarcraftRulePhase = 'movement' | 'assault' | 'combat' | 'special_abilities'
-export type StarcraftRuleState = 'active' | 'passive' | 'reaction'
-
 export interface StarcraftRuleStats {
-  phase?:       StarcraftRulePhase
-  /** Activation state. null is valid (rule applies implicitly). */
-  state?:       StarcraftRuleState | null
-  /** 0–9, or null for rules that cost no command points. */
+  phase?:       StarcraftPhase | null
+  timing?:      StarcraftTiming | null
+  /**
+   * Resource cost (CP / BM / Energy depending on faction). The label is
+   * faction-dependent; the schema only stores the number.
+   */
   cpCost?:      number | null
   description?: string
+  /** True when this ability is itself an upgrade (gates upgradeCost UI). */
+  isUpgrade?:   boolean
+  /** Mineral cost for upgrade abilities. 0 / undefined when not an upgrade. */
+  upgradeCost?: number | null
 }
 
 // ── Database row types ────────────────────────────────────────────────────────
@@ -147,6 +179,13 @@ export interface Addon {
   name:          string
   description:   string | null
   stats:         Record<string, Json>
+  /**
+   * Optional parent addon — when set, this addon is rendered as an indented
+   * upgrade row under its parent on every card it's attached to. Same-game
+   * constraint enforced by trigger; one level of nesting (no
+   * grandchildren) enforced by the UI.
+   */
+  parent_addon_id: string | null
   created_at:    string
 }
 
@@ -154,12 +193,6 @@ export interface CardAddon {
   id:         string
   card_id:    string
   addon_id:   string
-  /**
-   * Optional parent card_addon row on the same card. When set, this addon
-   * is rendered as a child/upgrade of the parent (e.g. Starcraft weapon
-   * upgrades). Root-level addons have this as null.
-   */
-  parent_card_addon_id: string | null
   sort_order: number | null
   created_at: string
 }

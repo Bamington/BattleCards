@@ -27,6 +27,11 @@ import Navbar from '../components/Navbar';
 import ModeToggle, { type Mode } from '../components/ModeToggle';
 import PlaySubnav, { type PlayTab } from '../components/PlaySubnav';
 import EditSubnav from '../components/EditSubnav';
+import BuilderShell from '../components/BuilderShell';
+import CardListPanel from '../components/CardListPanel';
+import EditorPanel from '../components/EditorPanel';
+import CenterViewport from '../components/CenterViewport';
+import { useCardBuilder } from '../hooks/useCardBuilder';
 import Dropdown, { DropdownItem } from '../components/Dropdown';
 import UnitListEntry from '../components/UnitListEntry';
 import Input from '../components/Input';
@@ -173,52 +178,22 @@ const CardBuilderBloodBowl = () => {
 
   // ── Play mode toggle ─────────────────────────────────────────────────────────
   const [appMode, setAppMode] = useState<Mode>('edit');
-  // Tablet/mobile-only panel visibility (slide-in panels on <lg)
-  const [cardListOpen, setCardListOpen] = useState(false);
-  const [editorOpen, setEditorOpen]     = useState(false);
-  // Only one panel open at a time — opening one closes the other.
-  const toggleCardList = useCallback(() => {
-    setCardListOpen(o => !o);
-    setEditorOpen(false);
-  }, []);
-  const toggleEditor = useCallback(() => {
-    setEditorOpen(o => !o);
-    setCardListOpen(false);
-  }, []);
-  // Track whether we're on a mobile viewport (< md, 768px) — affects card
-  // sizing when a panel is open (full-width stacked layout vs. flex-row).
-  const [isMobile, setIsMobile] = useState(() =>
-    typeof window !== 'undefined' && window.matchMedia('(max-width: 767px)').matches,
-  );
-  // Short viewport height (e.g. landscape phone) — hide the game logo and tighten
-  // zoom-row spacing so the active card can fill more vertical space.
-  const [isShortHeight, setIsShortHeight] = useState(() =>
-    typeof window !== 'undefined' && window.matchMedia('(max-height: 700px)').matches,
-  );
-  useEffect(() => {
-    const mqWidth = window.matchMedia('(max-width: 767px)');
-    const mqHeight = window.matchMedia('(max-height: 700px)');
-    const widthHandler = (e: MediaQueryListEvent) => setIsMobile(e.matches);
-    const heightHandler = (e: MediaQueryListEvent) => setIsShortHeight(e.matches);
-    mqWidth.addEventListener('change', widthHandler);
-    mqHeight.addEventListener('change', heightHandler);
-    return () => {
-      mqWidth.removeEventListener('change', widthHandler);
-      mqHeight.removeEventListener('change', heightHandler);
-    };
-  }, []);
-  const mobilePanelOpen = isMobile && (cardListOpen || editorOpen);
+
+  // ── Shared builder chrome (panel toggles, responsive, deck-name) ────────────
+  const builder = useCardBuilder({ deckId });
+  const {
+    cardListOpen, editorOpen, toggleCardList, toggleEditor,
+    isMobile, isShortHeight, mobilePanelOpen,
+    deckName, setDeckName, editingDeckName, setEditingDeckName,
+    deckNameInputRef, startDeckNameEdit,
+  } = builder;
+
   const [playTab, setPlayTab] = useState<PlayTab>('units');
   const [ruleSearchQuery, setRuleSearchQuery] = useState('');
 
   // ── Keyword card fade-out/fade-in transition ────────────────────────────────
   const [kwDisplayId, setKwDisplayId] = useState<string>('');
   const [kwFading, setKwFading] = useState(false);
-
-  // ── Deck name ────────────────────────────────────────────────────────────────
-  const [deckName, setDeckName] = useState<string | null>(null);
-  const [editingDeckName, setEditingDeckName] = useState(false);
-  const deckNameInputRef = useRef<HTMLInputElement>(null);
 
   // ── Edit mode (reorder + rename + duplicate + delete) ────────────────────────
   const [editMode, setEditMode] = useState(false);
@@ -416,25 +391,12 @@ const CardBuilderBloodBowl = () => {
   };
 
   // ── Deck name inline rename ─────────────────────────────────────────────────
-  const startDeckNameEdit = useCallback(() => {
-    setEditingDeckName(true);
-    // Focus the input after it renders
-    requestAnimationFrame(() => deckNameInputRef.current?.select());
-  }, []);
-
-  const commitDeckName = useCallback(async (newName: string) => {
-    const trimmed = newName.trim();
-    if (!trimmed || trimmed === deckName) {
-      setEditingDeckName(false);
-      return;
-    }
-    setDeckName(trimmed);
-    setEditingDeckName(false);
-    // If not in edit mode, save immediately
-    if (!editMode && deckId) {
-      await supabase.from('decks').update({ name: trimmed }).eq('id', deckId);
-    }
-  }, [deckName, editMode, deckId]);
+  // `startDeckNameEdit` comes from useCardBuilder. `commitDeckName` skips the
+  // Supabase persist when editMode is on, since editMode batches its own save.
+  const commitDeckName = useCallback(
+    (newName: string) => builder.commitDeckName(newName, { persist: !editMode }),
+    [builder, editMode],
+  );
 
   // ── Drag reorder handlers ──────────────────────────────────────────────────
   const handleDragStart = useCallback((index: number) => {
@@ -1290,8 +1252,9 @@ const CardBuilderBloodBowl = () => {
 
   // ── Layout ────────────────────────────────────────────────────────────────
   return (
-    <div className="flex flex-col h-screen bg-gray-950 overflow-hidden">
-      <Navbar fixed={false}>
+    <BuilderShell
+      navbar={
+        <Navbar fixed={false}>
           {/* Desktop (lg+): full mode toggle + Print link */}
           <div className="hidden lg:flex items-center gap-3">
             {deckId && (
@@ -1330,10 +1293,11 @@ const CardBuilderBloodBowl = () => {
             )}
           </Dropdown>
         </Navbar>
-        {appMode === 'play' && (
+      }
+      topBar={
+        appMode === 'play' ? (
           <PlaySubnav tab={playTab} onTabChange={setPlayTab} />
-        )}
-        {appMode === 'edit' && (
+        ) : appMode === 'edit' ? (
           <EditSubnav
             className="lg:hidden"
             cardListOpen={cardListOpen}
@@ -1341,47 +1305,22 @@ const CardBuilderBloodBowl = () => {
             editorOpen={editorOpen}
             onToggleEditor={toggleEditor}
           />
-        )}
-
-      <div
-        className="flex flex-col md:flex-row flex-1 overflow-hidden"
-      >
-
-        {/* Left panel: unit list */}
-        {/* Always shown at lg+; on <lg slides in only when cardListOpen. */}
-        {/* On mobile stacks below main (order-2); on md+ sits to the left. */}
-        {appMode === 'edit' && (
-        <aside className={`w-full md:w-64 shrink-0 max-md:flex-1 max-md:min-h-0 order-2 md:order-1 ${cardListOpen ? 'flex' : 'hidden'} lg:flex flex-col bg-gray-900
-                          border-r border-gray-700 max-md:border-r-0 max-md:border-t overflow-hidden`}>
-          {/* Deck name header */}
-          <div className="px-4 py-4 border-b border-gray-700 shrink-0 flex items-center gap-2">
-            {editingDeckName ? (
-              <input
-                ref={deckNameInputRef}
-                type="text"
-                defaultValue={deckName ?? ''}
-                className="flex-1 min-w-0 bg-gray-800 border border-gray-600 rounded px-2 py-0.5
-                           font-heading text-sm font-bold text-white uppercase tracking-wide
-                           outline-none focus:border-blue-500"
-                onBlur={e => commitDeckName(e.target.value)}
-                onKeyDown={e => {
-                  if (e.key === 'Enter') commitDeckName(e.currentTarget.value);
-                  if (e.key === 'Escape') setEditingDeckName(false);
-                }}
-              />
-            ) : (
-              <p
-                className="flex-1 min-w-0 font-heading text-sm font-bold text-white uppercase tracking-wide truncate cursor-pointer"
-                onDoubleClick={startDeckNameEdit}
-                title="Double-click to rename"
-              >
-                {deckName ?? '—'}
-              </p>
-            )}
+        ) : null
+      }
+      leftPanelOpen={cardListOpen}
+      leftPanel={appMode === 'edit' ? (
+        <CardListPanel
+          deckName={deckName}
+          editingDeckName={editingDeckName}
+          inputRef={deckNameInputRef}
+          onStartEdit={startDeckNameEdit}
+          onCommit={commitDeckName}
+          onCancelEdit={() => setEditingDeckName(false)}
+          headerAction={
             <button
               type="button"
               onClick={() => editMode ? handleDoneEditing() : setEditMode(true)}
-              className="shrink-0 p-1 rounded hover:bg-gray-700 transition-colors text-gray-400 hover:text-white"
+              className="p-1 rounded hover:bg-gray-700 transition-colors text-gray-400 hover:text-white"
               title={editMode ? 'Done editing' : 'Edit deck'}
             >
               {editMode
@@ -1389,10 +1328,35 @@ const CardBuilderBloodBowl = () => {
                 : <Pen2 className="w-4 h-4" />
               }
             </button>
-          </div>
-
-          {/* Card list */}
-          <nav className="flex-1 overflow-y-auto px-3 py-3 space-y-1">
+          }
+          footer={
+            <>
+              <HR className="!my-0" />
+              {editMode ? (
+                <Button
+                  leftIcon={<CheckCircle className="w-4 h-4" />}
+                  color="primary"
+                  size="sm"
+                  className="w-full"
+                  onClick={handleDoneEditing}
+                  loading={savingEdits}
+                >
+                  Done
+                </Button>
+              ) : (
+                <Button
+                  leftIcon={<AddCircle className="w-4 h-4" />}
+                  variant="outline"
+                  size="sm"
+                  className="w-full"
+                  onClick={addCard}
+                >
+                  Add Unit
+                </Button>
+              )}
+            </>
+          }
+        >
             {cards.map((card, i) => (
               <div
                 key={card.id}
@@ -1427,45 +1391,48 @@ const CardBuilderBloodBowl = () => {
                 </div>
               </div>
             ))}
-          </nav>
-
-          {/* Footer */}
-          <div className="px-3 pb-3 shrink-0 flex flex-col gap-3">
-            <HR className="!my-0" />
-            {editMode ? (
-              <Button
-                leftIcon={<CheckCircle className="w-4 h-4" />}
-                color="primary"
-                size="sm"
-                className="w-full"
-                onClick={handleDoneEditing}
-                loading={savingEdits}
-              >
-                Done
-              </Button>
-            ) : (
-              <Button
-                leftIcon={<AddCircle className="w-4 h-4" />}
-                variant="outline"
-                size="sm"
-                className="w-full"
-                onClick={addCard}
-              >
-                Add Unit
-              </Button>
-            )}
-          </div>
-        </aside>
-        )}
-
-        {/* Center — carousel card display (hidden on play + rules tab) */}
-        {!(appMode === 'play' && playTab === 'rules') && (
-        <main className={`order-1 md:order-2 flex flex-col items-center overflow-hidden bg-gray-950 ${mobilePanelOpen ? 'flex-none' : 'flex-1'}`}>
-          {/* Game logo — hidden on mobile-panel-open and on short viewports */}
-          <div className={`flex items-center justify-center w-full shrink-0 py-3 ${mobilePanelOpen || isShortHeight ? 'hidden' : ''}`}>
-            <img src={logoBloodBowl} alt="Blood Bowl" className="h-10 w-auto" />
-          </div>
-
+        </CardListPanel>
+      ) : undefined}
+      center={
+        appMode === 'play' && playTab === 'rules' ? (
+          <main className="flex-1 flex flex-col overflow-hidden bg-gray-950">
+            <div className="flex-1 overflow-y-auto py-5 px-5">
+              <Input
+                leftIcon={<Magnifer className="w-4 h-4" />}
+                placeholder="Search for a Skill"
+                value={ruleSearchQuery}
+                onChange={e => setRuleSearchQuery(e.target.value)}
+                className="mb-4"
+              />
+              <div className="flex flex-col gap-2.5">
+                {playKeywords
+                  .filter(item => {
+                    if (!ruleSearchQuery) return true;
+                    const q = ruleSearchQuery.toLowerCase();
+                    return item.title.toLowerCase().includes(q)
+                      || item.description.toLowerCase().includes(q);
+                  })
+                  .map(item => (
+                    <Card key={item.key} className="!bg-gray-800 !border-gray-700">
+                      <CardBody className="p-5 space-y-3">
+                        <h5 className="font-heading text-xl text-white">
+                          {item.title}
+                        </h5>
+                        <div className="font-body text-base text-gray-300">
+                          <Markdown>{item.description}</Markdown>
+                        </div>
+                      </CardBody>
+                    </Card>
+                  ))}
+              </div>
+            </div>
+          </main>
+        ) : (
+          <CenterViewport
+            logo={<img src={logoBloodBowl} alt="Blood Bowl" className="h-10 w-auto" />}
+            mobilePanelOpen={mobilePanelOpen}
+            isShortHeight={isShortHeight}
+          >
           {/* Carousel viewport — overflow hidden hides off-screen adjacent cards */}
           <div
             ref={cardContainerRef}
@@ -1740,63 +1707,16 @@ const CardBuilderBloodBowl = () => {
               })()}
             </div>
           )}
-        </main>
-        )}
-
-        {/* ── Play mode: Rules tab list ────────────────────────────────── */}
-        {appMode === 'play' && playTab === 'rules' && (
-          <main className="flex-1 flex flex-col overflow-hidden bg-gray-950">
-            <div className="flex-1 overflow-y-auto py-5 px-5">
-              <Input
-                leftIcon={<Magnifer className="w-4 h-4" />}
-                placeholder="Search for a Skill"
-                value={ruleSearchQuery}
-                onChange={e => setRuleSearchQuery(e.target.value)}
-                className="mb-4"
-              />
-              <div className="flex flex-col gap-2.5">
-                {playKeywords
-                  .filter(item => {
-                    if (!ruleSearchQuery) return true;
-                    const q = ruleSearchQuery.toLowerCase();
-                    return item.title.toLowerCase().includes(q)
-                      || item.description.toLowerCase().includes(q);
-                  })
-                  .map(item => (
-                    <Card key={item.key} className="!bg-gray-800 !border-gray-700">
-                      <CardBody className="p-5 space-y-3">
-                        <h5 className="font-heading text-xl text-white">
-                          {item.title}
-                        </h5>
-                        <div className="font-body text-base text-gray-300">
-                          <Markdown>{item.description}</Markdown>
-                        </div>
-                      </CardBody>
-                    </Card>
-                  ))}
-              </div>
-            </div>
-          </main>
-        )}
-
-        {/* Right panel — editor */}
-        {/* Always shown at lg+; on <lg slides in only when editorOpen. */}
-        {/* On mobile stacks below main (order-2); on md+ sits to the right. */}
-        {appMode === 'edit' && (
-        <aside className={`w-full md:w-64 shrink-0 max-md:flex-1 max-md:min-h-0 order-2 md:order-3 ${editorOpen ? 'flex' : 'hidden'} lg:flex flex-col bg-gray-900
-                          border-l border-gray-700 max-md:border-l-0 max-md:border-t overflow-hidden`}>
-          <div className="px-4 py-4 border-b border-gray-700 shrink-0">
-            <h2 className="font-heading text-sm font-bold text-white uppercase tracking-wide">
-              Edit Card
-            </h2>
-          </div>
-
+          </CenterViewport>
+        )
+      }
+      rightPanelOpen={editorOpen}
+      rightPanel={appMode === 'edit' ? (
+        <EditorPanel title="Edit Card">
           {editorForm}
-        </aside>
-        )}
-
-      </div>
-
+        </EditorPanel>
+      ) : undefined}
+      modals={<>
       {/* Delete portrait confirmation modal */}
       <Modal
         open={deletePortraitConfirm}
@@ -1878,8 +1798,8 @@ const CardBuilderBloodBowl = () => {
           </div>
         </div>
       </Modal>
-
-    </div>
+      </>}
+    />
   );
 };
 
