@@ -569,7 +569,6 @@ const CardBuilderHaloFlashpoint = () => {
   const dragOverRef = useRef<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
   const [confirmDeleteCardId, setConfirmDeleteCardId] = useState<string | null>(null);
-  const [deletingCard, setDeletingCard] = useState(false);
 
   // ── Card list state ───────────────────────────────────────────────────────────
   const [cardState, setCardState] = useState(() => {
