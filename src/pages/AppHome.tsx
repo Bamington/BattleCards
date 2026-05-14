@@ -39,6 +39,7 @@ import Modal from '../components/Modal';
 import GamePickerItem from '../components/GamePickerItem';
 import Input from '../components/Input';
 import HR from '../components/HR';
+import ImportListModal from '../components/ImportListModal';
 import AddCircle from '../icons/AddCircle';
 import Widget2 from '../icons/Widget2';
 import Layers from '../icons/Layers';
@@ -59,8 +60,17 @@ import iconBloodBowl from '../assets/games/card assets/blood-bowl/icon.png';
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore
 import iconHalo from '../assets/games/card assets/halo/icon.png';
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore
+import iconKillTeam from '../assets/games/card assets/kill-team/icon.png';
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore — path contains spaces
+import iconStarcraft from '../assets/games/card assets/starcraft/icon.svg';
 import logoHaloFlashpoint from '../assets/games/logo-halo-flashpoint.png';
 import logoBloodBowl from '../assets/games/logo-blood-bowl.png';
+import logoKillTeam from '../assets/games/logo-kill-team.png';
+// Placeholder SVG for now — swap to logo-starcraft.png once branded art lands.
+import logoStarcraft from '../assets/games/logo-starcraft.svg';
 
 // ── Game definitions ──────────────────────────────────────────────────────────
 // Keyed by the game's slug (matches the value seeded into public.games).
@@ -80,6 +90,20 @@ const GAMES = [
     logoSrc: logoBloodBowl,
     thumbnailSrc: iconBloodBowl as string,
     thumbnailBg: 'bg-[#15417e]',
+  },
+  {
+    id: 'kill-team',
+    name: 'Kill Team',
+    logoSrc: logoKillTeam,
+    thumbnailSrc: iconKillTeam as string,
+    thumbnailBg: 'bg-gray-800',
+  },
+  {
+    id: 'starcraft',
+    name: 'StarCraft',
+    logoSrc: logoStarcraft,
+    thumbnailSrc: iconStarcraft as string,
+    thumbnailBg: 'bg-gradient-to-b from-[#0b1a33] to-[#061020]',
   },
 ] as const;
 
@@ -110,6 +134,9 @@ export default function AppHome() {
   // ── Delete confirmation state ──────────────────────────────────────────────
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [deleting,        setDeleting]        = useState(false);
+
+  // ── Import modal state ──────────────────────────────────────────────────────
+  const [showImport,   setShowImport]   = useState(false);
 
   // ── Modal state ────────────────────────────────────────────────────────────
   const [showModal,    setShowModal]    = useState(false);
@@ -488,6 +515,16 @@ export default function AppHome() {
 
         </div>
       </Modal>
+
+      {/* ── Import List modal ────────────────────────────────────────────── */}
+      <ImportListModal
+        open={showImport}
+        onClose={() => setShowImport(false)}
+        onImported={(deckId, gameSlug) => {
+          setShowImport(false);
+          navigate(`/app/builder/${gameSlug}?deckId=${deckId}`);
+        }}
+      />
 
     </div>
   );
