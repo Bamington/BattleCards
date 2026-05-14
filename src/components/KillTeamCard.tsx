@@ -599,7 +599,7 @@ const KillTeamCard = ({
       />
     )}
 
-    </div>{/* end outer wrapper */}
+    </div>
   );
 };
 

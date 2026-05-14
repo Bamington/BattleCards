@@ -266,7 +266,7 @@ const toKillTeamStats = (c: KillTeamCardData): Record<string, unknown> => {
   if (c.cardType === 'rule') {
     return { description: c.ruleDescription };
   }
-  const stats: KillTeamStats = {
+  return {
     role:     c.role,
     teamName: c.teamName,
     tags:     c.tags,
@@ -276,7 +276,6 @@ const toKillTeamStats = (c: KillTeamCardData): Record<string, unknown> => {
     wounds:   c.wounds,
     baseSize: c.baseSize,
   };
-  return stats;
 };
 
 const cardDisplayName = (c: KillTeamCardData): string => {

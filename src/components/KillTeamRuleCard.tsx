@@ -42,7 +42,6 @@ const BODY_BG      = '#e5e5e7';
 const HEADER_H        = 81;
 const HEADER_FONT     = 52;
 const BODY_PAD_X      = 14;
-const BODY_W          = CARD_W - BODY_PAD_X * 2; // 672
 
 const BODY_TOP        = 101;
 const TITLE_H         = 35;

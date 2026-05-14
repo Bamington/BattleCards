@@ -3422,7 +3422,7 @@ const ComponentGallery = () => {
                 { id: 'demo-pinned', game_id: '', name: 'Pinned', description: null, icon: 'Token Type=Pinned, State=Default', icon_off: null, is_toggle: false, keyword_name: null, keyword_value_role: null, stat_key: null, stat_role: null, starting_value: null, min_value: 0, max_value: 1, sort_order: 4, created_at: '' },
                 { id: 'demo-activated', game_id: '', name: 'Activated', description: null, icon: 'Token Type=Activated, State=Default', icon_off: 'Token Type=Activated, State=Off', is_toggle: true, keyword_name: null, keyword_value_role: null, stat_key: null, stat_role: null, starting_value: 1, min_value: 0, max_value: 1, sort_order: 5, created_at: '' },
               ] as TokenDefinition[]}
-              card={{ hp: 3, unitKeywords: [{ keywordName: 'Energy Shield', paramValue: 2 }] }}
+              card={{ stats: { hp: 3 }, unitKeywords: [{ keywordName: 'Energy Shield', paramValue: 2 }] }}
               tokenState={{ 'demo-activated': 1 }}
               onTokenChange={() => {}}
             />
@@ -3442,6 +3442,7 @@ const ComponentGallery = () => {
                 <Text size="sm" color="secondary">Card placeholder</Text>
               </div>
               <TokenOverlay
+                gameSlug="halo-flashpoint"
                 tokenDefinitions={[
                   { id: 'demo-damage', game_id: '', name: 'Damage', description: null, icon: 'Token Type=Damage, State=Default', icon_off: null, is_toggle: false, keyword_name: null, keyword_value_role: null, stat_key: 'hp', stat_role: 'max', starting_value: 0, min_value: 0, max_value: null, sort_order: 1, created_at: '' },
                   { id: 'demo-shield', game_id: '', name: 'Shield', description: null, icon: 'Token Type=Shield, State=Default', icon_off: 'Token Type=Shield, State=Off', is_toggle: true, keyword_name: 'Energy Shield', keyword_value_role: 'max', stat_key: null, stat_role: null, starting_value: null, min_value: 0, max_value: null, sort_order: 2, created_at: '' },
@@ -3449,7 +3450,7 @@ const ComponentGallery = () => {
                   { id: 'demo-pinned', game_id: '', name: 'Pinned', description: null, icon: 'Token Type=Pinned, State=Default', icon_off: null, is_toggle: false, keyword_name: null, keyword_value_role: null, stat_key: null, stat_role: null, starting_value: null, min_value: 0, max_value: 1, sort_order: 4, created_at: '' },
                   { id: 'demo-activated', game_id: '', name: 'Activated', description: null, icon: 'Token Type=Activated, State=Default', icon_off: 'Token Type=Activated, State=Off', is_toggle: true, keyword_name: null, keyword_value_role: null, stat_key: null, stat_role: null, starting_value: 1, min_value: 0, max_value: 1, sort_order: 5, created_at: '' },
                 ] as TokenDefinition[]}
-                card={{ hp: 4, unitKeywords: [{ keywordName: 'Energy Shield', paramValue: 3 }] }}
+                card={{ stats: { hp: 4 }, unitKeywords: [{ keywordName: 'Energy Shield', paramValue: 3 }] }}
                 tokenState={{ 'demo-activated': 1, 'demo-crouch': 0, 'demo-pinned': 0, 'demo-damage': 2, 'demo-shield': 2 }}
               />
             </div>
