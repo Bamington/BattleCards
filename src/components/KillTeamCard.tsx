@@ -24,13 +24,14 @@
  *   fall back to the system sans-serif until you drop it in /assets/games/fonts.
  */
 
-import { useState, useRef } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import KeywordInfoModal from './KeywordInfoModal';
 import TokenOverlay from './TokenOverlay';
 import type { TokenDefinition } from '../lib/database.types';
 import bgSvg         from '../assets/games/card assets/kill-team/bg.svg';
 import bgPortraitSvg from '../assets/games/card assets/kill-team/bg-portrait.svg';
+import bgMobileSvg   from '../assets/games/card assets/kill-team/bg-mobile.svg';
 import iconAPL       from '../assets/games/card assets/kill-team/kt-icon-APL.svg';
 import iconMove      from '../assets/games/card assets/kill-team/kt-icon-move.svg';
 import iconSave      from '../assets/games/card assets/kill-team/kt-icon-save.svg';
@@ -86,8 +87,7 @@ const TABLE_WIDTH    = 1211;
 const TABLE_TOP      = 126;
 const HEADER_H       = 43;
 const HEADER_BORDER  = 5;
-const ROW_H          = 48;
-const BOTTOM_BAND_Y  = 810; // abilities region must end before this
+const ROW_H          = 48;  // minimum row height; rows grow to fit wrapped text
 const ABILITIES_GAP  = 14;  // breathing room between weapon table and abilities
 
 // Column widths (match Figma 848:4543/4532/4534/4537/4539/4541)
@@ -107,6 +107,78 @@ const COL_WR    = { left: 632, width: TABLE_WIDTH - 632 };
 const ABILITIES_COL_GAP = 24;
 const ABILITY_BANNER_H  = 43;
 const ABILITY_GAP       = 12;
+
+// ── Mobile layout (portrait, 890 × 1270) ─────────────────────────────────────
+// Default for viewports ≤ 767px. Same data + handlers as desktop, different
+// geometry: title is centered above stats, stats sit in a single row below
+// the title band, abilities collapse from two columns to one. The portrait
+// uses the same parallelogram clip as desktop but lives on the right side
+// of the stats row instead of the name band.
+// Exported so the builder can drive its carousel bounding box from the
+// same source of truth — see CardBuilderKillTeam.tsx.
+export const CARD_W_MOBILE = 890;
+export const CARD_H_MOBILE = 1270;
+// Outer wrapper height when play-mode bar trackers are rendered beneath
+// the mobile card. Kept in sync with `tokenOverlayConfig.KILL_TEAM_MOBILE
+// .bar.y + bar.height` so the bottom of the last bar fits within the
+// wrapper without extending past it. Exported for the builder so the
+// carousel allocates a matching slot.
+export const CARD_OUTER_H_WITH_BARS_MOBILE = 1390;
+const MOBILE_BREAKPOINT = '(max-width: 767px)';
+
+// Title band (top 104px, baked into bg-mobile.svg)
+const M_NAME_TOP    = 13;
+const M_NAME_HEIGHT = 53;     // includes name text + 5px orange divider
+const M_NAME_WIDTH  = 600;    // wide enough for long operative names
+const M_ROLE_TOP    = 71;     // 84.5 centre - 13.5 half-height
+const M_ROLE_HEIGHT = 27;
+
+// Stats row (y=104 → 222, baked into bg-mobile.svg with labels)
+const M_STATS_ROW_TOP    = 104;
+const M_STAT_BLOCKS = [
+  { left: 0,   width: 96  },  // APL
+  { left: 142, width: 96  },  // Move
+  { left: 284, width: 96  },  // Save
+  { left: 426, width: 127 },  // Wounds
+];
+const M_STAT_VALUE_TOP    = 169;  // y of value top
+const M_STAT_VALUE_H      = 44;
+const M_STAT_VALUE_FONT   = 64;
+
+// Portrait — orange parallelogram frame + masked image. Frame is 10px wider
+// and offset 10px to the left so an orange stripe peeks past the image edge.
+const M_PORTRAIT_LEFT       = 571;
+const M_PORTRAIT_TOP        = 104;
+const M_PORTRAIT_FRAME_LEFT = 561;
+const M_PORTRAIT_FRAME_W    = 329.5;
+// Frame clip: same diagonal angle as the image, scaled to the wider frame.
+const M_PORTRAIT_FRAME_CLIP = 'polygon(57.5px 0, 329.5px 0, 329.5px 118px, 0 118px)';
+
+// Weapon table — column widths from Figma 888:14189 (rows). Header label
+// widths in Figma differ but row widths are what visually align.
+const M_TABLE_LEFT  = 0;
+const M_TABLE_WIDTH = CARD_W_MOBILE;
+const M_TABLE_TOP   = 222;
+const M_COL_RANGE = { left: 0,   width: 67  };
+const M_COL_NAME  = { left: 67,  width: 202 };
+const M_COL_ATK   = { left: 269, width: 67  };
+const M_COL_HIT   = { left: 336, width: 67  };
+const M_COL_DMG   = { left: 403, width: 67  };
+const M_COL_WR    = { left: 470, width: M_TABLE_WIDTH - 470 };
+
+// Abilities — single full-width column, larger fonts than desktop. All
+// text in the weapon table + ability blocks bumps up by 2px on mobile so
+// content is readable when the card is scaled to fit a narrow viewport.
+const M_ABILITIES_GAP      = 23;
+const M_WEAPON_CELL_FONT   = 32;  // weapon header + body cells (desktop: 30)
+const M_ABILITY_NAME_FONT  = 32;  // ability banner name + AP cost (desktop: 30)
+const M_ABILITY_DESC_FONT  = 30;  // ability description (desktop: 24)
+
+// Bottom band (baked into bg-mobile.svg). Base size sits in a 50px white
+// circle on the right; the tags string is left-aligned within the band.
+const M_BOTTOM_BAND_TOP    = CARD_H_MOBILE - 54;  // 1216
+const M_BOTTOM_BAND_HEIGHT = 54;
+const M_BASE_CIRCLE_SIZE   = 50;
 
 // ── Shared inline-input base styles ──────────────────────────────────────────
 const INPUT_BASE: React.CSSProperties = {
@@ -196,6 +268,12 @@ export interface KillTeamCardProps {
    *  in edit mode. Omit to hide the Edit button entirely. */
   onEditKeyword?:  (kw: CardKeywordInfo) => void;
 
+  /** Override the responsive layout. Defaults to viewport-based selection
+   *  (mobile ≤ 767px). Use 'mobile' or 'desktop' to force one regardless of
+   *  viewport — primarily for the component gallery to show both side by
+   *  side on the same screen. */
+  forceLayout?:    'mobile' | 'desktop';
+
   // ── Token overlay (play mode) ─────────────────────────────────────────
   /** When provided, renders the play-mode token overlay over the card.
    *  Mirrors `HaloFlashpointCard`'s `tokenOverlay` prop so any game using
@@ -234,7 +312,23 @@ const KillTeamCard = ({
   onAbilityClick,
   onEditKeyword,
   tokenOverlay,
+  forceLayout,
 }: KillTeamCardProps) => {
+
+  // ── Mobile breakpoint detection (live-updates on resize) ──────────────────
+  // forceLayout overrides the media query — used by the gallery to show
+  // both layouts side-by-side regardless of viewport.
+  const [viewportIsMobile, setViewportIsMobile] = useState(
+    () => typeof window !== 'undefined' && window.matchMedia(MOBILE_BREAKPOINT).matches,
+  );
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const mq = window.matchMedia(MOBILE_BREAKPOINT);
+    const handler = (e: MediaQueryListEvent) => setViewportIsMobile(e.matches);
+    mq.addEventListener('change', handler);
+    return () => mq.removeEventListener('change', handler);
+  }, []);
+  const isMobile = forceLayout ? forceLayout === 'mobile' : viewportIsMobile;
 
   // ── Inline edit state ──────────────────────────────────────────────────────
   const [editingField, setEditingField] = useState<string | null>(null);
@@ -279,11 +373,10 @@ const KillTeamCard = ({
   const leftAbilities  = abilities.slice(0, Math.ceil(abilities.length / 2));
   const rightAbilities = abilities.slice(Math.ceil(abilities.length / 2));
 
-  // ── Dynamic positioning — abilities start right under the weapon table ──
-  const weaponRowCount   = weapons.length;
-  const weaponTableBottom = TABLE_TOP + HEADER_H + HEADER_BORDER + (weaponRowCount * ROW_H);
-  const abilitiesTop     = weaponTableBottom + ABILITIES_GAP;
-  const abilitiesHeight  = Math.max(0, BOTTOM_BAND_Y - abilitiesTop - 10);
+  // Abilities now flow inside the weapon-table container (see JSX below),
+  // so we no longer pre-compute their absolute top/height from row counts.
+  // BOTTOM_BAND_Y is still the soft visual ceiling — overflow past it gets
+  // clipped by the card's outer overflow-hidden wrapper.
 
   // ── Stat values (with suffix concatenation) ───────────────────────────────
   const movementDisplay = movement > 0 ? `${movement}"` : '—';
@@ -293,6 +386,390 @@ const KillTeamCard = ({
   // to include the bar zone on the right so the carousel can allocate
   // matching slot width and bars never overlap the next card.
   const outerWidth = tokenOverlay ? CARD_OUTER_W_WITH_BARS : CARD_W;
+
+  // ── Mobile branch (≤ 767px) ───────────────────────────────────────────────
+  // Renders a portrait 890×1270 layout in place of the landscape one. Shares
+  // edit state, modal state, and all callbacks with desktop above.
+  if (isMobile) {
+    // When tokens are present (play mode), grow the outer wrapper height
+    // so the horizontal bar trackers fit beneath the card. Card chrome
+    // itself stays clipped to CARD_H_MOBILE via its own overflow-hidden.
+    const mobileOuterHeight = tokenOverlay ? CARD_OUTER_H_WITH_BARS_MOBILE : CARD_H_MOBILE;
+
+    return (
+      <div
+        className={`relative ${className}`}
+        style={{ width: CARD_W_MOBILE, height: mobileOuterHeight, ...CONDUIT }}
+      >
+      <div
+        className="relative overflow-hidden"
+        style={{ width: CARD_W_MOBILE, height: CARD_H_MOBILE }}
+      >
+
+        {/* Layer 1 — bg-mobile.svg bakes in the top + stats-row black bands,
+            the four stat-block labels (APL/MOVE/SAVE/WOUNDS), and the bottom
+            band. Dynamic content sits on top in absolutely-positioned divs. */}
+        <img
+          src={bgMobileSvg}
+          alt=""
+          className="absolute inset-0 w-full h-full"
+          draggable={false}
+        />
+
+        {/* Title block — centered horizontally. Operative name on top with
+            5px orange divider beneath; operative type centered below the
+            divider. Container is centered via left:50% + translate. */}
+        <div
+          className="absolute"
+          style={{
+            left: '50%', top: M_NAME_TOP,
+            width: M_NAME_WIDTH, transform: 'translateX(-50%)',
+          }}
+        >
+          <div className="flex items-center justify-center" style={{ height: M_NAME_HEIGHT - 5 }}>
+            {editingField === 'operativeName' ? (
+              <input
+                autoFocus type="text" value={editValue}
+                onChange={e => setEditValue(e.target.value)}
+                onBlur={() => commitText(onOperativeNameChange)}
+                onKeyDown={onKeyDown}
+                style={{
+                  ...INPUT_BASE, ...CONDUIT_BOLD,
+                  fontSize: 52, lineHeight: 1, color: 'white',
+                  letterSpacing: '-2.08px', textTransform: 'uppercase',
+                  width: '100%', textAlign: 'center',
+                  borderBottom: '1.5px solid rgba(255,255,255,0.4)',
+                }}
+              />
+            ) : (
+              <p
+                className="whitespace-nowrap"
+                style={{
+                  ...CONDUIT_BOLD,
+                  fontSize: 52, lineHeight: 1, color: 'white',
+                  letterSpacing: '-2.08px', textTransform: 'uppercase',
+                  textAlign: 'center',
+                  ...editCursor(!!onOperativeNameChange),
+                }}
+                onDoubleClick={e => {
+                  e.stopPropagation();
+                  startEdit('operativeName', operativeName, !!onOperativeNameChange);
+                }}
+              >
+                {operativeName}
+              </p>
+            )}
+          </div>
+          <div style={{ height: 5, background: ORANGE, width: '100%' }} />
+        </div>
+
+        {/* Operative Type — centered beneath the orange divider. Same
+            visibility rule as desktop (hide if empty and no edit handler). */}
+        {(role || onRoleChange) && (
+          <div
+            className="absolute flex items-center justify-center"
+            style={{
+              left: 0, right: 0, top: M_ROLE_TOP, height: M_ROLE_HEIGHT,
+            }}
+          >
+            {editingField === 'role' ? (
+              <input
+                autoFocus type="text" value={editValue}
+                onChange={e => setEditValue(e.target.value)}
+                onBlur={() => commitText(onRoleChange)}
+                onKeyDown={onKeyDown}
+                style={{
+                  ...INPUT_BASE, ...CONDUIT_BOLD,
+                  fontSize: 32, lineHeight: 1, color: 'white',
+                  letterSpacing: '-1.28px', textTransform: 'uppercase',
+                  width: 400, textAlign: 'center',
+                  borderBottom: '1.5px solid rgba(255,255,255,0.4)',
+                }}
+              />
+            ) : (
+              <p
+                className="whitespace-nowrap"
+                style={{
+                  ...CONDUIT_BOLD,
+                  fontSize: 32, lineHeight: 1, color: 'white',
+                  letterSpacing: '-1.28px', textTransform: 'uppercase',
+                  textAlign: 'center',
+                  ...editCursor(!!onRoleChange),
+                }}
+                onDoubleClick={e => {
+                  e.stopPropagation();
+                  startEdit('role', role, !!onRoleChange);
+                }}
+              >
+                {role || 'Operative Type'}
+              </p>
+            )}
+          </div>
+        )}
+
+        {/* Portrait — orange parallelogram frame + masked photo on the right
+            of the stats row. Frame is 10px wider than the image (5px on each
+            side via the 10px left offset) so an orange edge shows through
+            the diagonal cut. Hidden when no portrait supplied — bg-mobile.svg
+            shows the dark stats row through unchanged. */}
+        {portrait && (
+          <>
+            <div
+              className="absolute"
+              style={{
+                left: M_PORTRAIT_FRAME_LEFT, top: M_PORTRAIT_TOP,
+                width: M_PORTRAIT_FRAME_W, height: PORTRAIT_H,
+                background: ORANGE,
+                clipPath: M_PORTRAIT_FRAME_CLIP,
+              }}
+            />
+            <img
+              src={portrait}
+              alt=""
+              className="absolute object-cover pointer-events-none"
+              style={{
+                left: M_PORTRAIT_LEFT, top: M_PORTRAIT_TOP,
+                width: PORTRAIT_W, height: PORTRAIT_H,
+                clipPath: PORTRAIT_CLIP_PATH,
+              }}
+              draggable={false}
+            />
+          </>
+        )}
+
+        {/* Stat values — labels are baked into bg-mobile.svg, so we only
+            render the dynamic numbers (no orange icons on mobile). */}
+        {[
+          { key: 'actions',  value: actions,  onChange: onActionsChange,  display: String(actions), editable: !!onActionsChange  },
+          { key: 'movement', value: movement, onChange: onMovementChange, display: movementDisplay, editable: !!onMovementChange },
+          { key: 'save',     value: save,     onChange: onSaveChange,     display: saveDisplay,     editable: !!onSaveChange     },
+          { key: 'wounds',   value: wounds,   onChange: onWoundsChange,   display: String(wounds),  editable: !!onWoundsChange   },
+        ].map((stat, i) => {
+          const cfg = M_STAT_BLOCKS[i];
+          return (
+            <div
+              key={stat.key}
+              className="absolute flex items-center justify-center"
+              style={{
+                left:   cfg.left,
+                top:    M_STAT_VALUE_TOP,
+                width:  cfg.width,
+                height: M_STAT_VALUE_H,
+              }}
+            >
+              {editingField === stat.key ? (
+                <input
+                  autoFocus type="text" value={editValue}
+                  onChange={onIntChange}
+                  onBlur={() => commitNumber(stat.onChange, stat.key === 'wounds' ? 999 : 99)}
+                  onKeyDown={onKeyDown}
+                  style={{
+                    ...INPUT_BASE, ...CONDUIT_BOLD,
+                    fontSize: M_STAT_VALUE_FONT, lineHeight: 1, color: 'white',
+                    letterSpacing: '-2.56px', textAlign: 'center', width: 90,
+                    borderBottom: '2px solid rgba(255,255,255,0.4)',
+                  }}
+                />
+              ) : (
+                <p
+                  className="whitespace-nowrap"
+                  style={{
+                    ...CONDUIT_BOLD,
+                    fontSize: M_STAT_VALUE_FONT, lineHeight: 1, color: 'white',
+                    letterSpacing: '-2.56px', textAlign: 'center',
+                    ...editCursor(stat.editable),
+                  }}
+                  onDoubleClick={e => {
+                    e.stopPropagation();
+                    startEdit(stat.key, stat.value, stat.editable);
+                  }}
+                >
+                  {stat.display}
+                </p>
+              )}
+            </div>
+          );
+        })}
+
+        {/* Weapon table + abilities — full-width, no side margin. Single
+            absolutely-positioned container so abilities flow naturally
+            below the weapon table; rows auto-grow when text wraps. */}
+        <div
+          className="absolute"
+          style={{ left: M_TABLE_LEFT, top: M_TABLE_TOP, width: M_TABLE_WIDTH }}
+        >
+          <div className="flex items-center" style={{ minHeight: HEADER_H }}>
+            <WeaponHeaderCell col={M_COL_RANGE}                       fontSize={M_WEAPON_CELL_FONT}>R</WeaponHeaderCell>
+            <WeaponHeaderCell col={M_COL_NAME} align="left" fontSize={M_WEAPON_CELL_FONT}>NAME</WeaponHeaderCell>
+            <WeaponHeaderCell col={M_COL_ATK}                         fontSize={M_WEAPON_CELL_FONT}>ATK</WeaponHeaderCell>
+            <WeaponHeaderCell col={M_COL_HIT}                         fontSize={M_WEAPON_CELL_FONT}>HIT</WeaponHeaderCell>
+            <WeaponHeaderCell col={M_COL_DMG}                         fontSize={M_WEAPON_CELL_FONT}>DMG</WeaponHeaderCell>
+            <WeaponHeaderCell col={M_COL_WR}   align="left" fontSize={M_WEAPON_CELL_FONT}>WR</WeaponHeaderCell>
+          </div>
+          <div style={{ height: HEADER_BORDER, background: ORANGE }} />
+
+          {weapons.map((w, i) => (
+            <div
+              key={i}
+              className="flex items-center"
+              style={{
+                minHeight: ROW_H,
+                background: i % 2 === 1 ? ROW_GRAY : 'transparent',
+                cursor: onWeaponClick ? 'pointer' : 'default',
+              }}
+              onClick={() => onWeaponClick?.(w)}
+            >
+              <WeaponCell col={M_COL_RANGE} fontSize={M_WEAPON_CELL_FONT}>
+                {w.meleeOrRanged === 'melee' ? (
+                  <img src={iconMelee}  alt="Melee"  width={47} height={24} draggable={false} />
+                ) : w.meleeOrRanged === 'ranged' ? (
+                  <img src={iconRanged} alt="Ranged" width={37} height={22} draggable={false} />
+                ) : ''}
+              </WeaponCell>
+              <WeaponCell col={M_COL_NAME} align="left" fontSize={M_WEAPON_CELL_FONT}>{w.name}</WeaponCell>
+              <WeaponCell col={M_COL_ATK}                       fontSize={M_WEAPON_CELL_FONT}>{w.attack || '—'}</WeaponCell>
+              <WeaponCell col={M_COL_HIT}                       fontSize={M_WEAPON_CELL_FONT}>{w.hit || '—'}</WeaponCell>
+              <WeaponCell col={M_COL_DMG}                       fontSize={M_WEAPON_CELL_FONT}>{w.damage || '—'}</WeaponCell>
+              <WeaponCell col={M_COL_WR}   align="left" fontSize={M_WEAPON_CELL_FONT}>
+                {w.keywordData && w.keywordData.length > 0 ? (
+                  w.keywordData.map((kw, ki) => (
+                    <span key={ki}>
+                      {ki > 0 && ', '}
+                      <span
+                        role="button"
+                        tabIndex={0}
+                        onClick={e => { e.stopPropagation(); setViewingCardKeyword(kw); }}
+                        onKeyDown={e => { if (e.key === 'Enter') { e.stopPropagation(); setViewingCardKeyword(kw); } }}
+                        style={{ textDecoration: 'underline', color: '#2563eb', cursor: 'pointer' }}
+                      >
+                        {kw.label}
+                      </span>
+                    </span>
+                  ))
+                ) : (
+                  w.keywords || '—'
+                )}
+              </WeaponCell>
+            </div>
+          ))}
+
+          {/* Abilities — single full-width column. Flows below the weapon
+              table, picking up its (potentially auto-grown) height
+              automatically. 6px horizontal padding insets the abilities
+              from the card edges (the weapon table itself stays
+              edge-to-edge, matching the Figma). */}
+          <div
+            className="flex flex-col"
+            style={{
+              marginTop: M_ABILITIES_GAP,
+              paddingLeft: 6, paddingRight: 6,
+              gap: ABILITY_GAP,
+            }}
+          >
+            {abilities.map((a, i) => (
+              <KillTeamAbilityBlock
+                key={`m-${i}`}
+                ability={a}
+                onClick={onAbilityClick}
+                nameFontSize={M_ABILITY_NAME_FONT}
+                descFontSize={M_ABILITY_DESC_FONT}
+              />
+            ))}
+          </div>
+        </div>
+
+        {/* Bottom band — tags on the left, base size in a 50px white circle
+            on the right. The bg-mobile.svg already paints the black band, so
+            this layer just provides interactive content. */}
+        <div
+          className="absolute flex items-center"
+          style={{
+            left: 10, right: 10,
+            top: M_BOTTOM_BAND_TOP, height: M_BOTTOM_BAND_HEIGHT,
+          }}
+        >
+          <div className="flex-1 min-w-0">
+            {editingField === 'tags' ? (
+              <input
+                autoFocus type="text" value={editValue}
+                onChange={e => setEditValue(e.target.value)}
+                onBlur={() => commitText(onTagsChange)}
+                onKeyDown={onKeyDown}
+                style={{
+                  ...INPUT_BASE, ...CONDUIT_BOLD,
+                  fontSize: 30, lineHeight: 1.1, color: 'white',
+                  letterSpacing: '-1.2px', textTransform: 'uppercase',
+                  width: '100%',
+                  borderBottom: '1.5px solid rgba(255,255,255,0.4)',
+                }}
+              />
+            ) : (
+              <p
+                className="truncate"
+                style={{
+                  ...CONDUIT_BOLD,
+                  fontSize: 30, lineHeight: 1.1, color: 'white',
+                  letterSpacing: '-1.2px', textTransform: 'uppercase',
+                  ...editCursor(!!onTagsChange),
+                }}
+                onDoubleClick={e => {
+                  e.stopPropagation();
+                  startEdit('tags', tags, !!onTagsChange);
+                }}
+              >
+                {tags || '—'}
+              </p>
+            )}
+          </div>
+          <div
+            className="flex items-center justify-center flex-shrink-0"
+            style={{
+              width: M_BASE_CIRCLE_SIZE, height: M_BASE_CIRCLE_SIZE,
+              borderRadius: '50%', background: 'white', marginLeft: 16,
+            }}
+          >
+            <p
+              style={{
+                ...CONDUIT_BOLD,
+                fontSize: 30, lineHeight: 1, color: 'black',
+                letterSpacing: '-1.2px', textAlign: 'center',
+              }}
+            >
+              {baseSize}
+            </p>
+          </div>
+        </div>
+
+        {viewingCardKeyword && createPortal(
+          <KeywordInfoModal
+            open
+            onClose={() => setViewingCardKeyword(null)}
+            name={viewingCardKeyword.name}
+            description={viewingCardKeyword.description}
+            onEdit={onEditKeyword ? () => {
+              const kw = viewingCardKeyword;
+              setViewingCardKeyword(null);
+              onEditKeyword(kw);
+            } : undefined}
+          />,
+          document.body,
+        )}
+
+      </div>{/* end overflow-hidden inner wrapper */}
+
+      {tokenOverlay && tokenOverlay.definitions.length > 0 && (
+        <TokenOverlay
+          gameSlug="kill-team-mobile"
+          tokenDefinitions={tokenOverlay.definitions}
+          card={{ stats: { wounds }, unitKeywords: tokenOverlay.unitKeywords }}
+          tokenState={tokenOverlay.state}
+          onTokenChange={tokenOverlay.onChange}
+        />
+      )}
+
+      </div>
+    );
+  }
 
   return (
     <div
@@ -497,42 +974,44 @@ const KillTeamCard = ({
         );
       })}
 
-      {/* ── Weapon table ────────────────────────────────────────────────── */}
+      {/* ── Weapon table + abilities ─────────────────────────────────────
+            Single absolutely-positioned container so the abilities flow
+            naturally below the weapon table. Rows have minHeight: ROW_H
+            but auto-grow when text wraps (long weapon names, long keyword
+            lists), pushing the abilities down to keep them clear of the
+            table rather than overlapping fixed coordinates.
+
+            Caveat: if many weapons + abilities exceed the card height the
+            content overflows toward the bottom band — same as before — and
+            gets clipped by the outer overflow-hidden wrapper. */}
       <div
         className="absolute"
         style={{ left: TABLE_LEFT, top: TABLE_TOP, width: TABLE_WIDTH }}
       >
         {/* Header row */}
-        <div
-          className="relative flex items-center"
-          style={{ height: HEADER_H }}
-        >
+        <div className="flex items-center" style={{ minHeight: HEADER_H }}>
           <WeaponHeaderCell col={COL_RANGE}>R</WeaponHeaderCell>
           <WeaponHeaderCell col={COL_NAME} align="left">NAME</WeaponHeaderCell>
           <WeaponHeaderCell col={COL_ATK}>ATK</WeaponHeaderCell>
           <WeaponHeaderCell col={COL_HIT}>HIT</WeaponHeaderCell>
           <WeaponHeaderCell col={COL_DMG}>DMG</WeaponHeaderCell>
           <WeaponHeaderCell col={COL_WR} align="left">WR</WeaponHeaderCell>
-          {/* Orange under-header divider (5px) */}
-          <div
-            style={{
-              position: 'absolute', left: 0, bottom: -HEADER_BORDER,
-              width: TABLE_WIDTH, height: HEADER_BORDER, background: ORANGE,
-            }}
-          />
         </div>
+        {/* Orange under-header divider (5px) — now a flow-layout sibling
+            rather than a negatively-positioned overlay, so wrapped rows
+            below stay clear of it. */}
+        <div style={{ height: HEADER_BORDER, background: ORANGE }} />
 
-        {/* Weapon rows — alternating bg. No hard cap; abilities below shift
-            down to accommodate however many weapons are passed. */}
+        {/* Weapon rows — alternating bg. Each row auto-grows past ROW_H
+            when any cell wraps to multiple lines. */}
         {weapons.map((w, i) => (
           <div
             key={i}
-            className="relative flex items-center"
+            className="flex items-center"
             style={{
-              height: ROW_H,
+              minHeight: ROW_H,
               background: i % 2 === 1 ? ROW_GRAY : 'transparent',
               cursor: onWeaponClick ? 'pointer' : 'default',
-              marginTop: i === 0 ? HEADER_BORDER : 0,
             }}
             onClick={() => onWeaponClick?.(w)}
           >
@@ -569,33 +1048,33 @@ const KillTeamCard = ({
             </WeaponCell>
           </div>
         ))}
-      </div>
 
-      {/* ── Abilities — two equal-width columns, all with orange banner.
-            top + height are computed from weapon-row count so the block
-            stacks under the weapon table. ── */}
-      <div
-        className="absolute grid"
-        style={{
-          left: TABLE_LEFT,
-          top: abilitiesTop,
-          width: TABLE_WIDTH,
-          height: abilitiesHeight,
-          // Single ability → full-width single column; 2+ → two equal columns.
-          gridTemplateColumns: abilities.length <= 1 ? '1fr' : '1fr 1fr',
-          columnGap: ABILITIES_COL_GAP,
-          alignContent: 'start',
-        }}
-      >
-        <div className="flex flex-col" style={{ gap: ABILITY_GAP, overflow: 'hidden' }}>
-          {leftAbilities.map((a, i) => (
-            <KillTeamAbilityBlock key={`l-${i}`} ability={a} onClick={onAbilityClick} />
-          ))}
-        </div>
-        <div className="flex flex-col" style={{ gap: ABILITY_GAP, overflow: 'hidden' }}>
-          {rightAbilities.map((a, i) => (
-            <KillTeamAbilityBlock key={`r-${i}`} ability={a} onClick={onAbilityClick} />
-          ))}
+        {/* Abilities — two equal-width columns, all with orange banner.
+            Single ability → full-width single column; 2+ → two equal
+            columns. marginTop replaces the old absolute `abilitiesTop`.
+            6px horizontal padding pulls the banner+text in from the table
+            edges so the orange banners don't sit flush with the weapon
+            cells above. */}
+        <div
+          className="grid"
+          style={{
+            marginTop: ABILITIES_GAP,
+            paddingLeft: 6, paddingRight: 6,
+            gridTemplateColumns: abilities.length <= 1 ? '1fr' : '1fr 1fr',
+            columnGap: ABILITIES_COL_GAP,
+            alignContent: 'start',
+          }}
+        >
+          <div className="flex flex-col" style={{ gap: ABILITY_GAP, overflow: 'hidden' }}>
+            {leftAbilities.map((a, i) => (
+              <KillTeamAbilityBlock key={`l-${i}`} ability={a} onClick={onAbilityClick} />
+            ))}
+          </div>
+          <div className="flex flex-col" style={{ gap: ABILITY_GAP, overflow: 'hidden' }}>
+            {rightAbilities.map((a, i) => (
+              <KillTeamAbilityBlock key={`r-${i}`} ability={a} onClick={onAbilityClick} />
+            ))}
+          </div>
         </div>
       </div>
 
@@ -693,20 +1172,26 @@ const KillTeamCard = ({
 
 interface CellCol { left: number; width: number }
 
-const WeaponHeaderCell = ({ col, align = 'center', children }: {
+const WeaponHeaderCell = ({ col, align = 'center', fontSize = 30, children }: {
   col: CellCol;
   align?: 'center' | 'left';
+  /** Header text size. Default 30 (desktop); mobile passes 32. */
+  fontSize?: number;
   children: React.ReactNode;
 }) => (
   <div
-    className="absolute flex items-center"
+    className="flex items-center"
     style={{
-      left: col.left, top: 0, width: col.width, height: HEADER_H,
+      width: col.width, flexShrink: 0,
       paddingLeft: align === 'left' ? 14 : 0,
       justifyContent: align === 'left' ? 'flex-start' : 'center',
     }}
   >
-    <span style={{ ...CONDUIT_BOLD, fontSize: 30, color: 'black', letterSpacing: '-1.2px', lineHeight: 1 }}>
+    <span style={{
+      ...CONDUIT_BOLD, fontSize, color: 'black',
+      // -4% tracking matches the Figma at every size we use.
+      letterSpacing: `${fontSize * -0.04}px`, lineHeight: 1,
+    }}>
       {children}
     </span>
   </div>
@@ -715,9 +1200,15 @@ const WeaponHeaderCell = ({ col, align = 'center', children }: {
 export const KillTeamAbilityBlock = ({
   ability,
   onClick,
+  nameFontSize = 30,
+  descFontSize = 24,
 }: {
   ability: KillTeamAbility;
   onClick?: (a: KillTeamAbility) => void;
+  /** Banner (name + AP cost) font size. Default 30 (desktop); mobile 32. */
+  nameFontSize?: number;
+  /** Description font size. Default 24 (desktop); mobile 30. */
+  descFontSize?: number;
 }) => (
   <div
     style={{ cursor: onClick ? 'pointer' : 'default' }}
@@ -735,8 +1226,8 @@ export const KillTeamAbilityBlock = ({
       <p
         className="truncate"
         style={{
-          ...CONDUIT_BOLD, fontSize: 30, lineHeight: 1, color: 'white',
-          letterSpacing: '-1.2px', textTransform: 'uppercase',
+          ...CONDUIT_BOLD, fontSize: nameFontSize, lineHeight: 1, color: 'white',
+          letterSpacing: `${nameFontSize * -0.04}px`, textTransform: 'uppercase',
           flex: '1 0 0', minWidth: 0,
         }}
       >
@@ -745,8 +1236,8 @@ export const KillTeamAbilityBlock = ({
       {ability.apCost > 0 && (
         <p
           style={{
-            ...CONDUIT_BOLD, fontSize: 30, lineHeight: 1, color: 'white',
-            letterSpacing: '-1.2px', textTransform: 'uppercase',
+            ...CONDUIT_BOLD, fontSize: nameFontSize, lineHeight: 1, color: 'white',
+            letterSpacing: `${nameFontSize * -0.04}px`, textTransform: 'uppercase',
             flexShrink: 0, marginLeft: 12,
           }}
         >
@@ -758,8 +1249,9 @@ export const KillTeamAbilityBlock = ({
     {ability.description && (
       <p
         style={{
-          ...CONDUIT_REG, fontSize: 24, lineHeight: 1.2,
-          letterSpacing: '-0.96px', color: 'black',
+          ...CONDUIT_REG, fontSize: descFontSize, lineHeight: 1.2,
+          letterSpacing: `${descFontSize * -0.04}px`,
+          color: 'black',
           whiteSpace: 'pre-wrap', marginTop: 6,
         }}
       >
@@ -769,29 +1261,38 @@ export const KillTeamAbilityBlock = ({
   </div>
 );
 
-const WeaponCell = ({ col, align = 'center', children }: {
+const WeaponCell = ({ col, align = 'center', fontSize = 30, children }: {
   col: CellCol;
   align?: 'center' | 'left';
+  /** Cell text size. Default 30 (desktop); mobile passes 32. */
+  fontSize?: number;
   children: React.ReactNode;
 }) => (
-  // overflow stays visible so descenders (y, g, p) and ascenders aren't
-  // clipped by the row's tight 48px height. `whitespace-nowrap` keeps the
-  // text on a single line so cells still align across rows.
+  // Flex-flow cell: width is fixed, height is intrinsic. Text wraps within
+  // the cell width (no more horizontal bleed), and the parent row grows to
+  // fit whichever cell becomes tallest. Vertical padding gives wrapped text
+  // breathing room without inflating single-line rows past their minHeight.
   <div
-    className="absolute flex items-center"
+    className="flex items-center"
     style={{
-      left: col.left, top: 0, width: col.width, height: ROW_H,
-      paddingLeft: align === 'left' ? 14 : 0,
+      width: col.width, flexShrink: 0,
+      paddingLeft:  align === 'left' ? 14 : 4,
+      paddingRight: align === 'left' ? 8  : 4,
+      paddingTop:    4,
+      paddingBottom: 4,
       justifyContent: align === 'left' ? 'flex-start' : 'center',
-      overflow: 'visible',
     }}
   >
     <span
-      className="whitespace-nowrap"
       style={{
-        ...CONDUIT_BOLD, fontSize: 30, color: 'black',
-        letterSpacing: '-1.2px', lineHeight: 1,
+        ...CONDUIT_BOLD, fontSize, color: 'black',
+        letterSpacing: `${fontSize * -0.04}px`, lineHeight: 1.15,
         textAlign: align === 'left' ? 'left' : 'center',
+        // Wrap to multiple lines and break any unbreakable run rather than
+        // overflowing the cell. Width:100% lets the span actually fill the
+        // cell so the wrap logic has something to wrap against.
+        wordBreak: 'break-word',
+        width: '100%',
       }}
     >
       {children}

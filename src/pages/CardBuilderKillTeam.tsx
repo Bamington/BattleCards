@@ -38,7 +38,12 @@ import Counter from '../components/Counter';
 import Button from '../components/Button';
 import HR from '../components/HR';
 import Markdown from 'react-markdown';
-import KillTeamCard, { CARD_OUTER_W_WITH_BARS } from '../components/KillTeamCard';
+import KillTeamCard, {
+  CARD_OUTER_W_WITH_BARS,
+  CARD_W_MOBILE,
+  CARD_H_MOBILE,
+  CARD_OUTER_H_WITH_BARS_MOBILE,
+} from '../components/KillTeamCard';
 import KillTeamRuleCard from '../components/KillTeamRuleCard';
 import Card, { CardBody } from '../components/Card';
 import Magnifer from '../icons/Magnifer';
@@ -81,7 +86,6 @@ const OPERATIVE_W_WITH_BARS  = CARD_OUTER_W_WITH_BARS;  // 1370
 const OPERATIVE_H            = 890;
 const RULE_W                 = 700;
 const RULE_H                 = 1200;
-const CAROUSEL_BBOX_H        = Math.max(OPERATIVE_H, RULE_H);
 
 // ── Keyword update propagation ────────────────────────────────────────────────
 // Module-scoped ref so addon forms (which can't receive extra props via
@@ -820,7 +824,7 @@ const CardBuilderKillTeam = () => {
   const builder = useCardBuilder({ deckId });
   const {
     cardListOpen, editorOpen, toggleCardList, toggleEditor,
-    isShortHeight, mobilePanelOpen, layoutDeps,
+    isMobile, isShortHeight, mobilePanelOpen, layoutDeps,
     deckName, setDeckName, editingDeckName, setEditingDeckName,
     deckNameInputRef, startDeckNameEdit, commitDeckName,
   } = builder;
@@ -1031,15 +1035,31 @@ const CardBuilderKillTeam = () => {
   // Per-item width depends on appMode for operatives — in play mode each
   // operative reserves a wound-bar slot on the right. The bounding box
   // (used for the carousel's global fit-scale) follows the same rule.
-  const operativeSlotW = appMode === 'play' ? OPERATIVE_W_WITH_BARS : OPERATIVE_W;
+  //
+  // Mobile (≤ 767px): KillTeamCard renders its 890×1270 portrait layout in
+  // place of the 1270×890 landscape one. Both the per-item dims and the
+  // bounding box flip accordingly so the carousel's fit-scale uses the
+  // portrait footprint rather than reserving landscape-shaped slots that
+  // leave large dead bands around the card.
+  //
+  // Bar trackers: desktop grows slot WIDTH in play mode (bars sit to the
+  // right of the card); mobile grows slot HEIGHT in play mode (horizontal
+  // bars sit beneath the card).
+  const operativeSlotW = isMobile
+    ? CARD_W_MOBILE
+    : (appMode === 'play' ? OPERATIVE_W_WITH_BARS : OPERATIVE_W);
+  const operativeSlotH = isMobile
+    ? (appMode === 'play' ? CARD_OUTER_H_WITH_BARS_MOBILE : CARD_H_MOBILE)
+    : OPERATIVE_H;
   const dimsForCard = useCallback(
     (c: { cardType: 'operative' | 'rule' }) =>
       c.cardType === 'rule'
         ? { width: RULE_W, height: RULE_H }
-        : { width: operativeSlotW, height: OPERATIVE_H },
-    [operativeSlotW],
+        : { width: operativeSlotW, height: operativeSlotH },
+    [operativeSlotW, operativeSlotH],
   );
   const carouselBboxW = Math.max(operativeSlotW, RULE_W);
+  const carouselBboxH = Math.max(operativeSlotH, RULE_H);
 
   /** Play-mode Rules tab: all rule cards in the deck, plus a deduplicated
    *  list of every keyword that appears on any weapon, ability, or
@@ -2325,15 +2345,26 @@ const CardBuilderKillTeam = () => {
           logo={<img src={logoKillTeam} alt="Kill Team" className="h-10 w-auto" />}
           mobilePanelOpen={mobilePanelOpen}
           isShortHeight={isShortHeight}
+          isMobile={isMobile}
         >
           <CardCarousel
             items={cards}
             activeId={activeCardId}
             onActiveChange={(id) => setCardState(s => ({ ...s, activeCardId: id }))}
             cardWidth={carouselBboxW}
-            cardHeight={CAROUSEL_BBOX_H}
+            cardHeight={carouselBboxH}
             getItemDimensions={dimsForCard}
-            initialZoom={0.85}
+            // Mobile: fill the available viewport — the portrait layout already
+            // sits within a tight column with no adjacent-slot competition.
+            // Desktop keeps 0.85 to leave breathing room for the adjacent
+            // prev/next slots and the hover-tilt shadow.
+            initialZoom={isMobile ? 1.0 : 0.85}
+            // Mobile: drop the "Zoom In/Out" labels (icons only); in play
+            // mode also slot the zoom buttons into the bottom overlay strip
+            // between New Turn (left) and Token menu (right) instead of a
+            // dedicated row below the carousel.
+            compactZoomControls={isMobile}
+            zoomControlsInline={isMobile && appMode === 'play'}
             bottomLeftSlot={
               appMode === 'play' && playTab === 'units' && tokenDefinitions.some(d => d.refresh_on_turn !== 0) ? (
                 <Button

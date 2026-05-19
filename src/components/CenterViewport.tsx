@@ -32,12 +32,17 @@
 import type { ReactNode } from 'react';
 
 export interface CenterViewportProps {
-  /** Logo node rendered above the carousel. Hidden when `mobilePanelOpen || isShortHeight`. */
+  /** Logo node rendered above the carousel. Hidden when `mobilePanelOpen
+   *  || isShortHeight || isMobile` — at the mobile breakpoint the logo
+   *  strip is suppressed entirely so the card fills more vertical space. */
   logo?: ReactNode;
   /** True when a mobile slide-in panel is currently visible. Collapses the centre to flex-none. */
   mobilePanelOpen?: boolean;
   /** True on short viewports (e.g. landscape phones). Forces the logo strip to hide. */
   isShortHeight?: boolean;
+  /** True when the viewport is at the mobile breakpoint (≤ 767px). Hides
+   *  the logo strip to free up vertical room for the card. */
+  isMobile?: boolean;
   /** Carousel + any below-carousel content (play-mode keyword cards, etc.). */
   children?: ReactNode;
 }
@@ -46,9 +51,10 @@ const CenterViewport = ({
   logo,
   mobilePanelOpen = false,
   isShortHeight = false,
+  isMobile = false,
   children,
 }: CenterViewportProps) => {
-  const hideLogo = mobilePanelOpen || isShortHeight;
+  const hideLogo = mobilePanelOpen || isShortHeight || isMobile;
 
   return (
     <main className={`order-1 md:order-2 flex flex-col items-center overflow-hidden bg-gray-950 ${mobilePanelOpen ? 'flex-none' : 'flex-1'}`}>

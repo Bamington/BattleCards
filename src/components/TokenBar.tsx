@@ -43,12 +43,17 @@ export interface TokenBarProps {
   width: number;
   /** Bar height in pixels. */
   height: number;
+  /** Bar orientation. Default 'vertical' (taller than wide): fill anchored
+   *  to the bottom, grows upward; cap label at top; top-third heals,
+   *  bottom-third damages. 'horizontal' (wider than tall): fill anchored
+   *  to the left, grows rightward; cap label at right; left-third damages,
+   *  right-third heals — mirrors the same direction-of-growth convention. */
+  orientation?: 'vertical' | 'horizontal';
   /** Extra styles merged onto the outer wrapper (e.g. position). */
   style?: CSSProperties;
-  /** When provided, the bar becomes interactive. The top third hovers a
-   *  plus and clicks decrement `current` by 1 (healing → remaining +1);
-   *  the bottom third hovers a minus and clicks increment `current`
-   *  (damage → remaining −1). Clamped at [0, max]. */
+  /** When provided, the bar becomes interactive. Default vertical: top
+   *  hovers plus / heals, bottom hovers minus / damages. Horizontal: right
+   *  hovers plus / heals, left hovers minus / damages. Clamped at [0, max]. */
   onChange?: (newCurrent: number) => void;
 }
 
@@ -60,6 +65,7 @@ const TokenBar = ({
   palette,
   width,
   height,
+  orientation = 'vertical',
   style,
   onChange,
 }: TokenBarProps) => {
@@ -68,22 +74,27 @@ const TokenBar = ({
   const remaining  = safeMax - safeCurr;
   const fillPct    = safeMax > 0 ? (remaining / safeMax) * 100 : 0;
 
-  // Number sizes scale with bar width so both stay legible at any carousel
-  // zoom level. Cap label sits at ~half the size of the remaining number
-  // to match the visual hierarchy in the design.
-  const remainingFontSize = Math.max(28, Math.floor(width * 0.7));
-  const maxFontSize       = Math.max(14, Math.floor(width * 0.32));
+  const isHorizontal = orientation === 'horizontal';
+  // Font sizes scale with the bar's short axis so both stay legible at any
+  // carousel zoom level. Cap label sits at ~half the size of the remaining
+  // number to match the visual hierarchy in the design.
+  const shortAxis         = isHorizontal ? height : width;
+  const remainingFontSize = Math.max(28, Math.floor(shortAxis * 0.7));
+  const maxFontSize       = Math.max(14, Math.floor(shortAxis * 0.32));
 
-  // When the filled section grows tall enough to overlap the cap label,
+  // When the filled section grows large enough to overlap the cap label,
   // hide the cap so we don't render the number twice on top of itself.
   const CAP_BAND_PCT = 18;
   const remainingNumberOverlapsCap = fillPct > 100 - CAP_BAND_PCT;
 
   // ── Interactive zone state (only used when `onChange` is provided) ──
-  const [hoveredZone, setHoveredZone] = useState<'top' | 'bottom' | null>(null);
+  // Vertical bars use top/bottom zones; horizontal bars use left/right.
+  // Both keep the same heal/damage semantics (heal grows the bar; damage
+  // shrinks it).
+  const [hoveredZone, setHoveredZone] = useState<'heal' | 'damage' | null>(null);
   const canHeal   = safeCurr > 0;            // can decrement wound count
   const canDamage = safeCurr < safeMax;      // can increment wound count
-  const iconSize  = Math.max(24, Math.floor(width * 0.5));
+  const iconSize  = Math.max(24, Math.floor(shortAxis * 0.5));
 
   return (
     <div
@@ -106,21 +117,26 @@ const TokenBar = ({
         ...style,
       }}
     >
-      {/* Filled section — anchored to the BOTTOM, grows upward. The
-          remaining count is centred inside it. Uses the palette's active
-          state: bg-700, stroke-500, text white. */}
+      {/* Filled section — anchored to the growth edge (bottom for vertical,
+          left for horizontal). The remaining count is centred inside it.
+          Uses the palette's active state: bg-700, stroke-500, text white. */}
       <div
         style={{
           position: 'absolute',
-          left: 0,
-          right: 0,
-          bottom: 0,
-          height: `${fillPct}%`,
+          // Vertical: full width, anchored to bottom, height grows from
+          // bottom. Horizontal: full height, anchored to left, width grows
+          // from left.
+          ...(isHorizontal
+            ? { left: 0, top: 0, bottom: 0, width: `${fillPct}%` }
+            : { left: 0, right: 0, bottom: 0, height: `${fillPct}%` }),
           background: palette.active.bg,
-          // Stroke only on the top edge so the filled bar reads as a
-          // "water level" against the container, without competing with
-          // the outer border on the sides.
-          borderTop: `2px solid ${palette.active.stroke}`,
+          // Stroke only on the growth edge (the one facing the empty area)
+          // so the filled bar reads as a "water level" against the
+          // container, without competing with the outer border on the
+          // other sides. Vertical: top edge. Horizontal: right edge.
+          ...(isHorizontal
+            ? { borderRight: `2px solid ${palette.active.stroke}` }
+            : { borderTop:   `2px solid ${palette.active.stroke}` }),
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
@@ -138,16 +154,16 @@ const TokenBar = ({
         {remaining}
       </div>
 
-      {/* Cap label — small, inactive-text-coloured, fixed at the top of
-          the bar. Hides when the filled section would overlap it. */}
+      {/* Cap label — small, inactive-text-coloured, fixed at the "empty"
+          end of the bar (top for vertical, right for horizontal). Hides
+          when the filled section would overlap it. */}
       {!remainingNumberOverlapsCap && (
         <div
           style={{
             position: 'absolute',
-            top: 6,
-            left: 0,
-            right: 0,
-            textAlign: 'center',
+            ...(isHorizontal
+              ? { right: 8, top: 0, bottom: 0, display: 'flex', alignItems: 'center' }
+              : { top: 6, left: 0, right: 0, textAlign: 'center' as const }),
             color: palette.inactive.text,
             fontFamily: BAR_FONT_FAMILY,
             fontWeight: 700,
@@ -163,31 +179,33 @@ const TokenBar = ({
       )}
 
       {/* ── Interactive zones (only when onChange is provided) ────────
-          Three invisible buttons split the bar into thirds. Top heals
-          (decrements current), bottom damages (increments current); the
-          middle stays inert. On hover, each shows a white 50% overlay
-          and its respective icon. Disabled when at the relevant limit. */}
+          Three invisible buttons split the bar into thirds along its long
+          axis. Vertical: top=heal / bottom=damage. Horizontal: right=heal
+          / left=damage. The middle stays inert. On hover, each shows a
+          white 50% overlay and its respective icon. Disabled when at the
+          relevant limit. */}
       {onChange && (
         <>
-          {/* Top — heal (plus). Decrements current by 1, clamped at 0. */}
+          {/* Heal (plus). Decrements current by 1, clamped at 0. */}
           <button
             type="button"
             aria-label="Heal"
             disabled={!canHeal}
-            onMouseEnter={() => canHeal && setHoveredZone('top')}
+            onMouseEnter={() => canHeal && setHoveredZone('heal')}
             onMouseLeave={() => setHoveredZone(null)}
-            onFocus={() => canHeal && setHoveredZone('top')}
+            onFocus={() => canHeal && setHoveredZone('heal')}
             onBlur={() => setHoveredZone(null)}
             onClick={() => onChange(safeCurr - 1)}
             style={{
               position: 'absolute',
-              left: 0,
-              right: 0,
-              top: 0,
-              height: '33.333%',
+              ...(isHorizontal
+                // Horizontal: heal sits on the RIGHT third
+                ? { top: 0, bottom: 0, right: 0, width: '33.333%' }
+                // Vertical: heal sits on the TOP third
+                : { left: 0, right: 0, top: 0, height: '33.333%' }),
               padding: 0,
               border: 'none',
-              background: hoveredZone === 'top'
+              background: hoveredZone === 'heal'
                 ? 'rgba(255,255,255,0.5)'
                 : 'transparent',
               cursor: canHeal ? 'pointer' : 'not-allowed',
@@ -198,32 +216,33 @@ const TokenBar = ({
               zIndex: 2,
             }}
           >
-            {hoveredZone === 'top' && canHeal && (
+            {hoveredZone === 'heal' && canHeal && (
               <div style={{ width: iconSize, height: iconSize, color: '#fff' }}>
                 <AddCircle className="w-full h-full" />
               </div>
             )}
           </button>
 
-          {/* Bottom — damage (minus). Increments current by 1, clamped at max. */}
+          {/* Damage (minus). Increments current by 1, clamped at max. */}
           <button
             type="button"
             aria-label="Damage"
             disabled={!canDamage}
-            onMouseEnter={() => canDamage && setHoveredZone('bottom')}
+            onMouseEnter={() => canDamage && setHoveredZone('damage')}
             onMouseLeave={() => setHoveredZone(null)}
-            onFocus={() => canDamage && setHoveredZone('bottom')}
+            onFocus={() => canDamage && setHoveredZone('damage')}
             onBlur={() => setHoveredZone(null)}
             onClick={() => onChange(safeCurr + 1)}
             style={{
               position: 'absolute',
-              left: 0,
-              right: 0,
-              bottom: 0,
-              height: '33.333%',
+              ...(isHorizontal
+                // Horizontal: damage sits on the LEFT third
+                ? { top: 0, bottom: 0, left: 0, width: '33.333%' }
+                // Vertical: damage sits on the BOTTOM third
+                : { left: 0, right: 0, bottom: 0, height: '33.333%' }),
               padding: 0,
               border: 'none',
-              background: hoveredZone === 'bottom'
+              background: hoveredZone === 'damage'
                 ? 'rgba(255,255,255,0.5)'
                 : 'transparent',
               cursor: canDamage ? 'pointer' : 'not-allowed',
@@ -234,7 +253,7 @@ const TokenBar = ({
               zIndex: 2,
             }}
           >
-            {hoveredZone === 'bottom' && canDamage && (
+            {hoveredZone === 'damage' && canDamage && (
               <div style={{ width: iconSize, height: iconSize, color: '#fff' }}>
                 <MinusCircle className="w-full h-full" />
               </div>
