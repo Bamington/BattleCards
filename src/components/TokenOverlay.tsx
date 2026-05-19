@@ -335,44 +335,49 @@ const TokenOverlay = ({
       )}
 
       {/* ── Bar Zone (stat-linked counters) ─────────────────────────
-          Vertical bars stacked left-to-right, positioned to the right
-          of the card via the per-game zone config. Each bar gets a
+          Bars positioned via the per-game zone config. Each bar gets a
           fill colour from `display_color` and a max from the token's
-          effectiveMax (resolved from stat_key/stat_role). */}
-      {zones.bar.length > 0 && (
-        <div
-          style={{
-            position: 'absolute',
-            left: zoneConfig.bar.x,
-            top:  zoneConfig.bar.y,
-            display: 'flex',
-            flexDirection: 'row',
-            gap: zoneConfig.bar.gap,
-          }}
-        >
-          {zones.bar.map(tok => {
-            // Resolve the palette: color_set wins, falls back to deriving
-            // from display_color, then to a sensible green default so the
-            // bar always renders something legible.
-            const palette = resolveTokenPalette(tok.def)
-                         ?? paletteFromColorSet('Green')!;
-            const max     = tok.effectiveMax ?? 0;
-            return (
-              <TokenBar
-                key={tok.def.id}
-                max={max}
-                current={tok.current}
-                palette={palette}
-                width={zoneConfig.bar.width}
-                height={zoneConfig.bar.height}
-                onChange={onTokenChange
-                  ? (newCurrent) => onTokenChange(tok.def.id, newCurrent)
-                  : undefined}
-              />
-            );
-          })}
-        </div>
-      )}
+          effectiveMax (resolved from stat_key/stat_role).
+          - Vertical bars stack left-to-right (next to the card).
+          - Horizontal bars stack top-to-bottom (beneath the card). */}
+      {zones.bar.length > 0 && (() => {
+        const isHorizontal = zoneConfig.bar.orientation === 'horizontal';
+        return (
+          <div
+            style={{
+              position: 'absolute',
+              left: zoneConfig.bar.x,
+              top:  zoneConfig.bar.y,
+              display: 'flex',
+              flexDirection: isHorizontal ? 'column' : 'row',
+              gap: zoneConfig.bar.gap,
+            }}
+          >
+            {zones.bar.map(tok => {
+              // Resolve the palette: color_set wins, falls back to deriving
+              // from display_color, then to a sensible green default so the
+              // bar always renders something legible.
+              const palette = resolveTokenPalette(tok.def)
+                           ?? paletteFromColorSet('Green')!;
+              const max     = tok.effectiveMax ?? 0;
+              return (
+                <TokenBar
+                  key={tok.def.id}
+                  max={max}
+                  current={tok.current}
+                  palette={palette}
+                  width={zoneConfig.bar.width}
+                  height={zoneConfig.bar.height}
+                  orientation={isHorizontal ? 'horizontal' : 'vertical'}
+                  onChange={onTokenChange
+                    ? (newCurrent) => onTokenChange(tok.def.id, newCurrent)
+                    : undefined}
+                />
+              );
+            })}
+          </div>
+        );
+      })()}
     </div>
   );
 };

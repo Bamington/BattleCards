@@ -2328,6 +2328,7 @@ const ComponentGallery = () => {
             <div className="relative overflow-hidden shrink-0" style={{ width: 508, height: Math.round(890 * (508 / 1270)) }}>
               <div style={{ transform: `scale(${508 / 1270})`, transformOrigin: 'top left', position: 'absolute', top: 0, left: 0 }}>
                 <KillTeamCard
+                  forceLayout="desktop"
                   operativeName="Ravener Venomspitter"
                   tags="Ravener, Great Devourer, Tyranid, Venomspitter"
                   actions={3}
@@ -2350,6 +2351,99 @@ const ComponentGallery = () => {
                     { name: 'Ability 2',           apCost: 1, keywords: '', description: 'Until this operative has shot with its venom bolt, until it performs this action again, or until it performs the Burrow action (whichever comes first), all profiles of its venom bolt have the Lethal 5+ weapon rule, have 1 added to their Atk stat and the Range 8" weapon rule removed.' },
                     { name: 'Ability 3',           apCost: 1, keywords: '', description: 'Until this operative has shot with its venom bolt, until it performs this action again, or until it performs the Burrow action (whichever comes first), all profiles of its venom bolt have the Lethal 5+ weapon rule, have 1 added to their Atk stat and the Range 8" weapon rule removed.' },
                     { name: 'Ability 4',           apCost: 0, keywords: '', description: 'Until this operative has shot with its venom bolt, until it performs this action again, or until it performs the Burrow action (whichever comes first), all profiles of its venom bolt have the Lethal 5+ weapon rule, have 1 added to their Atk stat and the Range 8" weapon rule removed.' },
+                  ]}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Mobile layout — play mode with a horizontal wound bar beneath
+              the card. Demonstrates the bar-tracker placement and the
+              outer wrapper growing to host bars on mobile. */}
+          <div className="flex flex-col gap-2 items-center">
+            <p className="font-body text-xs text-gray-400 dark:text-gray-500">
+              Mobile layout / Play mode (bar tracker)
+            </p>
+            <div className="relative overflow-hidden shrink-0" style={{ width: 356, height: Math.round(1390 * (356 / 890)) }}>
+              <div style={{ transform: `scale(${356 / 890})`, transformOrigin: 'top left', position: 'absolute', top: 0, left: 0 }}>
+                <KillTeamCard
+                  forceLayout="mobile"
+                  operativeName="Nasty Monster Bug 5"
+                  role="Venomspitter"
+                  tags="Ravener, Great Devourer, Tyranid, Venomspitter"
+                  actions={3}
+                  movement={3}
+                  save={3}
+                  wounds={20}
+                  baseSize={20}
+                  weapons={[
+                    { name: 'Tall Blade',     meleeOrRanged: 'melee',  attack: 4, hit: '3+', damage: '3/4', keywords: 'Range [3], Rending, Silent' },
+                    { name: 'Pincer Tail',    meleeOrRanged: 'ranged', attack: 4, hit: '3+', damage: '3/4', keywords: 'Range 8", Blast 2, Poison*' },
+                  ]}
+                  abilities={[
+                    { name: 'Hypersensory Hunter', apCost: 0, keywords: '', description: 'This operative can perform the Charge action while it has a Conceal order if it performed the Burrow action during the same activation/ counteraction.' },
+                  ]}
+                  tokenOverlay={{
+                    definitions: [{
+                      id: 'demo-wounds',
+                      game_id: 'kill-team',
+                      name: 'Wounds',
+                      description: null,
+                      icon: null,
+                      icon_off: null,
+                      is_toggle: false,
+                      keyword_name: null,
+                      keyword_value_role: null,
+                      stat_key: 'wounds',
+                      stat_role: 'max',
+                      starting_value: 0,
+                      min_value: 0,
+                      max_value: null,
+                      refresh_on_turn: 0,
+                      is_activation_token: false,
+                      sort_order: 0,
+                      deck_id: null,
+                      display_color: '#22c55e',
+                      display_glyph: null,
+                      color_set: 'Green',
+                      display_style: 'bar',
+                    }],
+                    unitKeywords: [],
+                    state: { 'demo-wounds': 7 },
+                  }}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Mobile layout (forced) — portrait 890×1270, defaults to this on
+              viewports ≤ 767px. Forced here so it displays alongside the
+              desktop demos regardless of the gallery's own viewport. */}
+          <div className="flex flex-col gap-2 items-center">
+            <p className="font-body text-xs text-gray-400 dark:text-gray-500">
+              Mobile layout (forced)
+            </p>
+            <div className="relative overflow-hidden shrink-0" style={{ width: 356, height: Math.round(1270 * (356 / 890)) }}>
+              <div style={{ transform: `scale(${356 / 890})`, transformOrigin: 'top left', position: 'absolute', top: 0, left: 0 }}>
+                <KillTeamCard
+                  forceLayout="mobile"
+                  operativeName="Nasty Monster Bug 5"
+                  role="Venomspitter"
+                  tags="Ravener, Great Devourer, Tyranid, Venomspitter"
+                  actions={3}
+                  movement={3}
+                  save={3}
+                  wounds={20}
+                  baseSize={20}
+                  weapons={[
+                    { name: 'Tall Blade',                       meleeOrRanged: 'melee',  attack: 4, hit: '3+', damage: '3/4', keywords: 'Range [3], Rending, Silent' },
+                    { name: 'Scything Talons & Rending Blows',  meleeOrRanged: 'melee',  attack: 5, hit: '3+', damage: '4/5', keywords: 'Rending' },
+                    { name: 'Venom bolt (Focused)',             meleeOrRanged: 'ranged', attack: 4, hit: '3+', damage: '3/5', keywords: 'Range 8", Piercing 1, Poison*' },
+                    { name: 'Pincer Tail',                      meleeOrRanged: 'ranged', attack: 4, hit: '3+', damage: '3/4', keywords: 'Range 8", Blast 2, Poison*' },
+                  ]}
+                  abilities={[
+                    { name: 'Hypersensory Hunter', apCost: 0, keywords: '', description: 'This operative can perform the Charge action while it has a Conceal order if it performed the Burrow action during the same activation/ counteraction.' },
+                    { name: 'Ability 2',           apCost: 1, keywords: '', description: 'Until this operative has shot with its venom bolt, until it performs this action again, or until it performs the Burrow action (whichever comes first), all profiles of its venom bolt have the Lethal 5+ weapon rule, have 1 added to their Atk stat and the Range 8" weapon rule removed.' },
                   ]}
                 />
               </div>

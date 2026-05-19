@@ -25,9 +25,20 @@ export interface OverlayZoneConfig {
   /** UCT badges — laid out in a row, wrapping if needed. `gap` is the
    *  horizontal space between badges. */
   badge:  { x: number; y: number; gap: number };
-  /** Vertical bars for stat-linked counters (display_style='bar'). One
-   *  bar per eligible token, laid out left-to-right starting at `x`. */
-  bar:    { x: number; y: number; width: number; height: number; gap: number };
+  /** Bars for stat-linked counters (display_style='bar'). One bar per
+   *  eligible token.
+   *
+   *  - `orientation: 'vertical'` (default): each bar is taller than wide;
+   *    multiple bars stack left-to-right starting at `x`.
+   *  - `orientation: 'horizontal'`: each bar is wider than tall; multiple
+   *    bars stack top-to-bottom starting at `y` — used by the mobile
+   *    portrait layout where the bars sit beneath the card. */
+  bar:    {
+    x: number; y: number;
+    width: number; height: number;
+    gap: number;
+    orientation?: 'vertical' | 'horizontal';
+  };
 }
 
 const HALO_FLASHPOINT: OverlayZoneConfig = {
@@ -55,9 +66,26 @@ const KILL_TEAM: OverlayZoneConfig = {
   bar:    { x: 1290, y: 20, width: 80, height: 850, gap: 16 },
 };
 
+/** Kill Team operative coordinates for the mobile portrait layout
+ *  (890×1270). Inherits non-bar zones from the desktop config — those
+ *  may need their own mobile coordinates later, but only the bar zone is
+ *  currently mobile-aware. Bars sit beneath the card as horizontal
+ *  strips: 6px inset from each edge, ~80px tall, stacked top-to-bottom
+ *  if there's more than one. */
+const KILL_TEAM_MOBILE: OverlayZoneConfig = {
+  ...KILL_TEAM,
+  bar: {
+    x: 6, y: 1290,
+    width: 878, height: 80,
+    gap: 12,
+    orientation: 'horizontal',
+  },
+};
+
 export const TOKEN_OVERLAY_CONFIG: Record<string, OverlayZoneConfig> = {
-  'halo-flashpoint': HALO_FLASHPOINT,
-  'kill-team':       KILL_TEAM,
+  'halo-flashpoint':  HALO_FLASHPOINT,
+  'kill-team':        KILL_TEAM,
+  'kill-team-mobile': KILL_TEAM_MOBILE,
 };
 
 /** Fallback used when a game slug isn't listed — same as Halo's. */

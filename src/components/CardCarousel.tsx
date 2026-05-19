@@ -110,6 +110,15 @@ export interface CardCarouselProps<T extends { id: string }> {
   layoutDeps?:    DependencyList;
   /** Hide the zoom controls below the viewport. Default false. */
   hideZoomControls?: boolean;
+  /** Icon-only zoom buttons (no "Zoom In/Out" labels). Used on mobile
+   *  where horizontal space is scarce. Default false. */
+  compactZoomControls?: boolean;
+  /** Render zoom buttons centred inside the bottom overlay strip (between
+   *  the bottomLeftSlot and bottomRightSlot) instead of as a row beneath
+   *  the carousel. Used on mobile in play mode so the zoom controls sit
+   *  next to the New Turn / Token buttons rather than below the card.
+   *  Default false. */
+  zoomControlsInline?: boolean;
   /** Extra classes for the outer flex column. */
   className?:     string;
 }
@@ -130,8 +139,10 @@ const CardCarousel = <T extends { id: string }>({
   bottomLeftSlot,
   bottomRightSlot,
   layoutDeps,
-  hideZoomControls = false,
-  className        = '',
+  hideZoomControls    = false,
+  compactZoomControls = false,
+  zoomControlsInline  = false,
+  className           = '',
 }: CardCarouselProps<T>) => {
 
   // ── Active item resolution ────────────────────────────────────────────────
@@ -490,33 +501,60 @@ const CardCarousel = <T extends { id: string }>({
         {/* Bottom overlays (game-specific buttons / menus) */}
         {bottomLeftSlot  && <div className="absolute bottom-4 left-4 z-40">{bottomLeftSlot}</div>}
         {bottomRightSlot && <div className="absolute bottom-4 right-4 z-40">{bottomRightSlot}</div>}
+        {/* Inline zoom controls — centred horizontally inside the bottom
+            overlay strip. Used on mobile in play mode so the zoom buttons
+            sit between New Turn (left slot) and Token (right slot). */}
+        {!hideZoomControls && zoomControlsInline && (
+          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-40 flex items-center gap-2">
+            {renderZoomButtons({ compact: compactZoomControls, zoomLevel, zoomIn, zoomOut })}
+          </div>
+        )}
       </div>
 
-      {/* ── Zoom controls ────────────────────────────────────────────────── */}
-      {!hideZoomControls && (
+      {/* ── Zoom controls (default position — row below the viewport) ─── */}
+      {!hideZoomControls && !zoomControlsInline && (
         <div className="shrink-0 flex items-center gap-2 py-3">
-          <Button
-            leftIcon={<MinusCircle className="w-4 h-4" />}
-            variant="outline"
-            size="sm"
-            disabled={zoomLevel <= 0.5}
-            onClick={zoomOut}
-          >
-            Zoom Out
-          </Button>
-          <Button
-            rightIcon={<AddCircle className="w-4 h-4" />}
-            variant="outline"
-            size="sm"
-            disabled={zoomLevel >= 1.0}
-            onClick={zoomIn}
-          >
-            Zoom In
-          </Button>
+          {renderZoomButtons({ compact: compactZoomControls, zoomLevel, zoomIn, zoomOut })}
         </div>
       )}
     </div>
   );
 };
+
+// ── Zoom button group ─────────────────────────────────────────────────────────
+// Module-scoped helper so both the inline and below-viewport placements
+// produce identical buttons. `compact` drops the text labels and renders
+// icon-only buttons — used on mobile where space is at a premium.
+const renderZoomButtons = ({
+  compact, zoomLevel, zoomIn, zoomOut,
+}: {
+  compact:   boolean;
+  zoomLevel: number;
+  zoomIn:    () => void;
+  zoomOut:   () => void;
+}) => (
+  <>
+    <Button
+      leftIcon={compact ? undefined : <MinusCircle className="w-4 h-4" />}
+      variant="outline"
+      size="sm"
+      disabled={zoomLevel <= 0.5}
+      onClick={zoomOut}
+      aria-label="Zoom out"
+    >
+      {compact ? <MinusCircle className="w-4 h-4" /> : 'Zoom Out'}
+    </Button>
+    <Button
+      rightIcon={compact ? undefined : <AddCircle className="w-4 h-4" />}
+      variant="outline"
+      size="sm"
+      disabled={zoomLevel >= 1.0}
+      onClick={zoomIn}
+      aria-label="Zoom in"
+    >
+      {compact ? <AddCircle className="w-4 h-4" /> : 'Zoom In'}
+    </Button>
+  </>
+);
 
 export default CardCarousel;

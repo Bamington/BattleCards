@@ -17,6 +17,7 @@
  *   </Card3DWrapper>
  */
 
+import { useState } from 'react';
 import type { CSSProperties, ReactNode } from 'react';
 
 export interface Card3DWrapperProps {
@@ -40,6 +41,18 @@ const Card3DWrapper = ({
   maxRotation = 5,
   perspective = 800,
 }: Card3DWrapperProps) => {
+  const [isTouch] = useState(
+    () => typeof window !== 'undefined' && window.matchMedia('(hover: none)').matches,
+  );
+
+  if (isTouch) {
+    return (
+      <div className={className} style={style}>
+        <div style={{ width: '100%', height: '100%' }}>{children}</div>
+      </div>
+    );
+  }
+
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
     const { left, top, width, height } = e.currentTarget.getBoundingClientRect();
     const xPct = (e.clientX - left) / width;
