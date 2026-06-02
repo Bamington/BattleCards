@@ -457,6 +457,10 @@ export interface DeckWithGame extends Deck {
   game: Game
 }
 
+export interface PackWithGame extends Pack {
+  game: Game
+}
+
 export interface CardWithDeck extends Card {
   deck: Deck
 }

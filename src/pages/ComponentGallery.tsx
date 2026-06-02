@@ -50,6 +50,7 @@ import Callout from '../components/Callout';
 import logoBloodBowl from '../assets/games/logo-blood-bowl.png';
 import logoHaloFlashpoint from '../assets/games/logo-halo-flashpoint.png';
 import DeckListItem from '../components/DeckListItem';
+import PackListItem from '../components/PackListItem';
 import AddonListItem from '../components/AddonListItem';
 import RichTextEditor from '../components/RichTextEditor';
 import AddAddonModal, { type AddonFormProps } from '../components/AddAddonModal';
@@ -400,6 +401,7 @@ const ComponentGallery = () => {
         <SidebarItem href="#nav-callout"      icon={<InfoCircle className="w-5 h-5" />}         label="Callout"      />
         <SidebarItem href="#nav-game-logos"       icon={<Gallery className="w-5 h-5" />}            label="Game Logos"       />
         <SidebarItem href="#nav-deck-list-item"    icon={<Gallery className="w-5 h-5" />}            label="Deck List Item"   />
+        <SidebarItem href="#nav-pack-list-item"    icon={<Gallery className="w-5 h-5" />}            label="Pack List Item"   />
         <SidebarItem href="#nav-blog-entry-preview" icon={<Gallery className="w-5 h-5" />}           label="Blog Entry Preview" />
         <SidebarItem href="#nav-modal"              icon={<Gallery className="w-5 h-5" />}            label="Modal"            />
         <SidebarItem href="#nav-upload-photo-modal" icon={<Gallery className="w-5 h-5" />}            label="Upload Photo Modal" />
@@ -2929,6 +2931,87 @@ const ComponentGallery = () => {
               thumbnailBg="bg-[#15417e]"
               thumbnail={<img src={iconBloodBowl} alt="" className="size-full object-cover" />}
               onDelete={() => {}}
+            />
+          </div>
+
+        </div>
+      </GallerySection>
+
+      {/* ════════════════════════════════════════════════════════════════
+          PACK LIST ITEM
+          Used in the Packs column on AppHome. Composes Badge + a small
+          icon-only download button + a 64×64 thumbnail.
+      ════════════════════════════════════════════════════════════════ */}
+      <GallerySection id="nav-pack-list-item" title="Pack List Item">
+        {/* Constrain to ~342px so the demo matches its real-world width. */}
+        <div className="w-full max-w-[342px] space-y-6">
+
+          <div className="flex flex-col gap-2">
+            <p className="font-body text-xs text-gray-400 dark:text-gray-500">Blood Bowl pack — two badges + description + download</p>
+            <PackListItem
+              name="Black Orc Player Cards"
+              gameName="Blood Bowl"
+              thumbnailBg="bg-[#15417e]"
+              thumbnail={<img src={iconBloodBowl} alt="" className="size-full object-cover" />}
+              badges={[
+                { label: '8 Units',   icon: <UserRounded className="size-3.5" /> },
+                { label: '14 Skills', icon: <Star        className="size-3.5" /> },
+              ]}
+              description="All the Black Orc players from Season 3 of Blood Bowl, including all skills and traits."
+              onDownload={() => {}}
+            />
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <p className="font-body text-xs text-gray-400 dark:text-gray-500">Halo pack — many badges + short description</p>
+            <PackListItem
+              name="Spartan Strike Team"
+              gameName="Halo: Flashpoint"
+              thumbnailBg="bg-gradient-to-b from-[#252525] to-[#181d24]"
+              thumbnail={<img src={iconHalo} alt="" className="size-full object-cover" />}
+              badges={[
+                { label: '6 Units',    icon: <UserRounded className="size-3.5" /> },
+                { label: '8 Weapons',  icon: <Star        className="size-3.5" /> },
+                { label: '3 Rules',    icon: <FileText    className="size-3.5" /> },
+              ]}
+              description="A starter pack for a Spartan strike team."
+              onDownload={() => {}}
+            />
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <p className="font-body text-xs text-gray-400 dark:text-gray-500">No description (header + badges only)</p>
+            <PackListItem
+              name="Quick Reference"
+              gameName="Blood Bowl"
+              thumbnailBg="bg-[#15417e]"
+              thumbnail={<img src={iconBloodBowl} alt="" className="size-full object-cover" />}
+              badges={[
+                { label: '4 Skills', icon: <Star className="size-3.5" /> },
+              ]}
+              onDownload={() => {}}
+            />
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <p className="font-body text-xs text-gray-400 dark:text-gray-500">No badges (header + description only)</p>
+            <PackListItem
+              name="Lore Compendium"
+              gameName="Halo: Flashpoint"
+              thumbnailBg="bg-gradient-to-b from-[#252525] to-[#181d24]"
+              thumbnail={<img src={iconHalo} alt="" className="size-full object-cover" />}
+              description="Background lore for every faction in Halo: Flashpoint. No game content — just flavour text."
+              onDownload={() => {}}
+            />
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <p className="font-body text-xs text-gray-400 dark:text-gray-500">Minimal (header only — no download, no badges, no description)</p>
+            <PackListItem
+              name="Imported Pack"
+              gameName="Blood Bowl"
+              thumbnailBg="bg-[#15417e]"
+              thumbnail={<img src={iconBloodBowl} alt="" className="size-full object-cover" />}
             />
           </div>
 
