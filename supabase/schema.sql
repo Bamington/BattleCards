@@ -1319,3 +1319,161 @@ select g.id, 'addon', at.id, '{
 from public.games g
 join public.addon_types at on at.game_id = g.id and at.slug = 'weapons'
 where g.slug = 'halo-flashpoint';
+
+
+-- ── Packs: import RPC ────────────────────────────────────────────────────────
+-- Atomic deep-clone of a pack into the calling user's tables. Cloned cards
+-- always land as templates (deck_id = null, is_template = true). Each clone
+-- carries pack_source_id (for future update detection) and a
+-- pack_source_snapshot of the source's content fields (for the field-level
+-- merge that will land with re-import).
+--
+-- SECURITY DEFINER: bypasses RLS so the function can insert join rows
+-- (card_addons / card_keywords) for templates, which the user-context
+-- INSERT policies forbid. Equivalent access checks are enforced explicitly
+-- inside the function (auth, pack visibility, no self-import, idempotency).
+
+create or replace function public.import_pack(p_pack_id uuid)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_user_id      uuid := auth.uid();
+  v_pack         record;
+  v_keyword_map  jsonb := '{}'::jsonb;
+  v_addon_map    jsonb := '{}'::jsonb;
+  v_card_map     jsonb := '{}'::jsonb;
+begin
+  if v_user_id is null then
+    raise exception 'Not authenticated' using errcode = '42501';
+  end if;
+
+  select id, owner_user_id, is_public
+    into v_pack
+  from public.packs
+  where id = p_pack_id;
+
+  if v_pack.id is null
+    or not (v_pack.is_public or v_pack.owner_user_id = v_user_id) then
+    raise exception 'Pack not found or not accessible' using errcode = '42501';
+  end if;
+
+  if v_pack.owner_user_id = v_user_id then
+    raise exception 'Cannot import your own pack' using errcode = '22023';
+  end if;
+
+  if exists (
+    select 1 from public.pack_imports
+    where pack_id = p_pack_id and user_id = v_user_id
+  ) then
+    raise exception 'Pack already imported' using errcode = '23505';
+  end if;
+
+  -- Clone keywords; collect source→clone id map.
+  with cloned as (
+    insert into public.keywords (
+      user_id, game_id, name, description, params_schema, extra,
+      pack_source_id, pack_source_snapshot
+    )
+    select
+      v_user_id, k.game_id, k.name, k.description, k.params_schema, k.extra,
+      k.id,
+      jsonb_build_object(
+        'name', k.name, 'description', k.description,
+        'params_schema', k.params_schema, 'extra', k.extra
+      )
+    from public.keywords k
+    where k.pack_id = p_pack_id
+    returning id, pack_source_id
+  )
+  select coalesce(jsonb_object_agg(pack_source_id::text, id::text), '{}'::jsonb)
+    into v_keyword_map
+  from cloned;
+
+  -- Clone addons (parent_addon_id deferred to second pass).
+  with cloned as (
+    insert into public.addons (
+      user_id, addon_type_id, game_id, name, description, stats,
+      parent_addon_id, pack_source_id, pack_source_snapshot
+    )
+    select
+      v_user_id, a.addon_type_id, a.game_id, a.name, a.description, a.stats,
+      null, a.id,
+      jsonb_build_object(
+        'name', a.name, 'description', a.description, 'stats', a.stats,
+        'parent_addon_id', a.parent_addon_id
+      )
+    from public.addons a
+    where a.pack_id = p_pack_id
+    returning id, pack_source_id
+  )
+  select coalesce(jsonb_object_agg(pack_source_id::text, id::text), '{}'::jsonb)
+    into v_addon_map
+  from cloned;
+
+  -- Pass two: remap parent_addon_id on clones.
+  update public.addons clone
+     set parent_addon_id = (v_addon_map ->> src.parent_addon_id::text)::uuid
+  from public.addons src
+  where src.id = clone.pack_source_id
+    and src.pack_id = p_pack_id
+    and src.parent_addon_id is not null;
+
+  -- Clone addon_keywords joins.
+  insert into public.addon_keywords (addon_id, keyword_id, params, sort_order)
+  select
+    (v_addon_map   ->> ak.addon_id::text)::uuid,
+    (v_keyword_map ->> ak.keyword_id::text)::uuid,
+    ak.params, ak.sort_order
+  from public.addon_keywords ak
+  join public.addons a on a.id = ak.addon_id
+  where a.pack_id = p_pack_id;
+
+  -- Clone cards (always as templates).
+  with cloned as (
+    insert into public.cards (
+      deck_id, user_id, game_id, name, card_type, stats,
+      is_template, pack_source_id, pack_source_snapshot
+    )
+    select
+      null, v_user_id, c.game_id, c.name, c.card_type, c.stats,
+      true, c.id,
+      jsonb_build_object(
+        'name', c.name, 'card_type', c.card_type, 'stats', c.stats
+      )
+    from public.cards c
+    where c.pack_id = p_pack_id
+    returning id, pack_source_id
+  )
+  select coalesce(jsonb_object_agg(pack_source_id::text, id::text), '{}'::jsonb)
+    into v_card_map
+  from cloned;
+
+  -- Clone card_addons / card_keywords joins.
+  insert into public.card_addons (card_id, addon_id, sort_order)
+  select
+    (v_card_map  ->> ca.card_id::text)::uuid,
+    (v_addon_map ->> ca.addon_id::text)::uuid,
+    ca.sort_order
+  from public.card_addons ca
+  join public.cards c on c.id = ca.card_id
+  where c.pack_id = p_pack_id;
+
+  insert into public.card_keywords (card_id, keyword_id, params, sort_order)
+  select
+    (v_card_map    ->> ck.card_id::text)::uuid,
+    (v_keyword_map ->> ck.keyword_id::text)::uuid,
+    ck.params, ck.sort_order
+  from public.card_keywords ck
+  join public.cards c on c.id = ck.card_id
+  where c.pack_id = p_pack_id;
+
+  insert into public.pack_imports (user_id, pack_id)
+  values (v_user_id, p_pack_id);
+end;
+$$;
+
+revoke all on function public.import_pack(uuid) from public;
+grant  execute on function public.import_pack(uuid) to authenticated;

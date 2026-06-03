@@ -156,6 +156,11 @@ export default function AppHome() {
   const [packsLoading,      setPacksLoading]      = useState(true);
   const [packsError,        setPacksError]        = useState<string | null>(null);
   const [hasOwnOrImported,  setHasOwnOrImported]  = useState(false);
+  // While a download is in flight: ID of the pack being imported (used to
+  // ignore concurrent clicks and show a spinner) + inline error from the
+  // most recent failed import. Cleared on next successful import or refresh.
+  const [importingId,       setImportingId]       = useState<string | null>(null);
+  const [importError,       setImportError]       = useState<string | null>(null);
 
   // ── Delete confirmation state ──────────────────────────────────────────────
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
@@ -301,6 +306,38 @@ export default function AppHome() {
     }
   }
 
+  // ── Import pack ───────────────────────────────────────────────────────────
+  //
+  // Calls the import_pack RPC, which atomically deep-clones the pack into
+  // the user's tables. Optimistic UI: the pack is removed from the browse
+  // list immediately on click and the Manage button appears (if not already
+  // visible). On error we restore both pieces of state and surface the
+  // message inline. import_pack runs as SECURITY DEFINER, so the success
+  // path is "no error returned" rather than a row payload.
+
+  const handleImport = async (pack: PackForList) => {
+    if (importingId) return; // ignore concurrent clicks
+    setImportingId(pack.id);
+    setImportError(null);
+
+    // Snapshot prior state so we can revert on failure.
+    const prevHadAny = hasOwnOrImported;
+
+    // Optimistic update.
+    setPacks(prev => prev.filter(p => p.id !== pack.id));
+    setHasOwnOrImported(true);
+
+    const { error } = await supabase.rpc('import_pack', { p_pack_id: pack.id });
+    setImportingId(null);
+
+    if (error) {
+      // Revert.
+      setPacks(prev => [pack, ...prev]);
+      setHasOwnOrImported(prevHadAny);
+      setImportError(`Couldn't import "${pack.name}". Please try again.`);
+    }
+  };
+
   // ── Delete deck ───────────────────────────────────────────────────────────
 
   const confirmDelete = (deckId: string) => setConfirmDeleteId(deckId);
@@ -426,6 +463,12 @@ export default function AppHome() {
                       Sets of rules or homebrew cards that you can use in your own decks.
                     </p>
 
+                    {/* Surface the most recent import failure inline; the
+                        pack itself is re-added to the list below. */}
+                    {importError && (
+                      <p className="font-body text-sm text-red-400 text-center">{importError}</p>
+                    )}
+
                     {packs.length === 0 ? (
 
                       // Empty
@@ -454,11 +497,7 @@ export default function AppHome() {
                               }
                               badges={pack.badges}
                               description={pack.description ?? undefined}
-                              onDownload={() => {
-                                // Stubbed in this tranche — the real import
-                                // RPC + deep-clone logic lands next.
-                                console.log('TODO: download pack', pack.id);
-                              }}
+                              onDownload={() => handleImport(pack)}
                             />
                           );
                         })}
