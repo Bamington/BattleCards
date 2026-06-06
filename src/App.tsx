@@ -10,6 +10,8 @@
  * - /login                         → Pre-login screen (sign in / continue as guest)
  * - /gallery                       → Component gallery (dev tool — not a user-facing screen)
  * - /app                           → App home
+ * - /app/packs                     → Manage packs (placeholder until built)
+ * - /app/packs/new                 → Create pack (placeholder until built)
  * - /app/builder/blood-bowl        → Blood Bowl card builder
  * - /app/builder/halo-flashpoint   → Halo Flashpoint card builder
  * - /app/builder/kill-team         → Kill Team card builder
@@ -32,6 +34,7 @@ import PrintDeck from './pages/PrintDeck';
 import Login from './pages/Login';
 import AppHome from './pages/AppHome';
 import AuthCallback from './pages/AuthCallback';
+import PacksPlaceholder from './pages/PacksPlaceholder';
 
 // ── Root redirect ─────────────────────────────────────────────────────────
 // Checks auth state and sends the user to /login or /app accordingly.
@@ -72,6 +75,10 @@ function App() {
 
         {/* ── App home ── */}
         <Route path="/app" element={<AppHome />} />
+
+        {/* ── Packs (placeholders until create / manage flows are built) ── */}
+        <Route path="/app/packs"     element={<PacksPlaceholder mode="manage" />} />
+        <Route path="/app/packs/new" element={<PacksPlaceholder mode="create" />} />
 
         {/* ── OAuth callback — handles Google redirect ── */}
         <Route path="/auth/callback" element={<AuthCallback />} />

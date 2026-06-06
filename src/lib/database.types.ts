@@ -198,6 +198,33 @@ export interface AddonType {
   created_at:  string
 }
 
+/**
+ * A publishable collection of templates, addons, and keywords. Other
+ * users can import a pack to deep-clone its contents into their own
+ * library as a starting point for building decks.
+ */
+export interface Pack {
+  id:            string
+  owner_user_id: string
+  game_id:       string
+  name:          string
+  description:   string | null
+  is_public:     boolean
+  created_at:    string
+  updated_at:    string
+}
+
+/**
+ * Tracks which users have imported which packs. Lets the UI show
+ * "installed" state and (later) detect available updates.
+ */
+export interface PackImport {
+  id:          string
+  user_id:     string
+  pack_id:     string
+  imported_at: string
+}
+
 export interface Addon {
   id:            string
   user_id:       string
@@ -214,6 +241,13 @@ export interface Addon {
    * grandchildren) enforced by the UI.
    */
   parent_addon_id: string | null
+  /** Set when this row IS a pack source addon (owned by a pack). */
+  pack_id:              string | null
+  /** Set when this row is a CLONE created on import from a pack source. */
+  pack_source_id:       string | null
+  /** Snapshot of the source row's content at clone time. Used by a future
+   *  re-import flow to merge updates without overwriting user edits. */
+  pack_source_snapshot: Record<string, Json> | null
   created_at:    string
 }
 
@@ -252,6 +286,13 @@ export interface Card {
   /** null = default layout; 'portraitFramed' = show portrait frame overlay */
   portrait_style: string | null
   is_template:    boolean
+  /** Set when this row IS a pack source card (template living inside a pack). */
+  pack_id:              string | null
+  /** Set when this row is a CLONE created on import from a pack source. */
+  pack_source_id:       string | null
+  /** Snapshot of the source row's content at clone time. Used by a future
+   *  re-import flow to merge updates without overwriting user edits. */
+  pack_source_snapshot: Record<string, Json> | null
   created_at:     string
 }
 
@@ -275,6 +316,13 @@ export interface Keyword {
   params_schema: StatField[]
   /** Arbitrary game-specific metadata on the keyword itself. */
   extra:         Record<string, Json>
+  /** Set when this row IS a pack source keyword (owned by a pack). */
+  pack_id:              string | null
+  /** Set when this row is a CLONE created on import from a pack source. */
+  pack_source_id:       string | null
+  /** Snapshot of the source row's content at clone time. Used by a future
+   *  re-import flow to merge updates without overwriting user edits. */
+  pack_source_snapshot: Record<string, Json> | null
   created_at:    string
 }
 
@@ -409,6 +457,10 @@ export interface GameConstraint {
 // ── Join types (common query shapes) ─────────────────────────────────────────
 
 export interface DeckWithGame extends Deck {
+  game: Game
+}
+
+export interface PackWithGame extends Pack {
   game: Game
 }
 

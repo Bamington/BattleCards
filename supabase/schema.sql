@@ -33,6 +33,32 @@ create table public.addon_types (
   unique (game_id, slug)
 );
 
+-- A publishable collection of templates, addons, and keywords. Other
+-- users can import a pack to deep-clone its contents into their own
+-- library as a starting point for building decks.
+create table public.packs (
+  id            uuid        primary key default gen_random_uuid(),
+  owner_user_id uuid        not null references auth.users (id) on delete cascade,
+  game_id       uuid        not null references public.games (id) on delete restrict,
+  name          text        not null,
+  description   text,
+  is_public     boolean     not null default false,
+  created_at    timestamptz not null default now(),
+  updated_at    timestamptz not null default now()
+);
+
+-- Tracks which users have imported which packs. Lets the UI show
+-- "installed" state and (later) detect available updates. Uninstall
+-- = delete this row; the user's clones survive because pack_source_id
+-- uses ON DELETE SET NULL.
+create table public.pack_imports (
+  id          uuid        primary key default gen_random_uuid(),
+  user_id     uuid        not null references auth.users (id) on delete cascade,
+  pack_id     uuid        not null references public.packs (id) on delete cascade,
+  imported_at timestamptz not null default now(),
+  unique (user_id, pack_id)
+);
+
 create table public.decks (
   id         uuid        primary key default gen_random_uuid(),
   user_id    uuid        not null references auth.users (id) on delete cascade,
@@ -46,7 +72,8 @@ create table public.cards (
   -- Nullable: templates (is_template = true) have no deck.
   deck_id     uuid        references public.decks (id) on delete cascade,
   -- Always populated. Owner of the card or template.
-  -- Auto-filled by trigger from decks.user_id for deck cards.
+  -- Auto-filled by trigger from decks.user_id for deck cards, or from
+  -- packs.owner_user_id for pack source cards.
   user_id     uuid        not null references auth.users (id) on delete cascade,
   -- Nullable for deck cards (derive via deck); required for templates.
   game_id     uuid        references public.games (id) on delete restrict,
@@ -59,10 +86,25 @@ create table public.cards (
   -- Shape is defined by the parent game's stat_schema.
   stats       jsonb       not null default '{}'::jsonb,
   is_template boolean     not null default false,
+  -- Set when this row IS a pack source (a template living inside a pack).
+  pack_id     uuid        references public.packs (id) on delete cascade,
+  -- Set when this row is a CLONE created on import from a pack source.
+  -- Points to the original pack row for future update detection.
+  pack_source_id        uuid  references public.cards (id) on delete set null,
+  -- Snapshot of the source row's content at clone time. Used by a future
+  -- re-import flow to do field-level merge (preserve user edits, propagate
+  -- untouched fields).
+  pack_source_snapshot  jsonb,
   created_at  timestamptz not null default now(),
   constraint cards_template_or_deck check (
     (is_template = false and deck_id is not null) or
     (is_template = true  and deck_id is null and game_id is not null)
+  ),
+  -- Three valid pack-state rows: user content / pack source / clone.
+  constraint cards_pack_state check (
+    (pack_id is null     and pack_source_id is null) or
+    (pack_id is not null and pack_source_id is null) or
+    (pack_id is null     and pack_source_id is not null)
   )
 );
 
@@ -79,7 +121,17 @@ create table public.addons (
   -- Game-specific stats stored as a flexible JSON object.
   -- Shape is defined by the parent addon_type's stat_schema.
   stats         jsonb       not null default '{}'::jsonb,
-  created_at    timestamptz not null default now()
+  -- Pack ownership / clone provenance — see cards table for the model.
+  pack_id              uuid  references public.packs  (id) on delete cascade,
+  pack_source_id       uuid  references public.addons (id) on delete set null,
+  pack_source_snapshot jsonb,
+  created_at    timestamptz not null default now(),
+  -- Three valid pack-state rows: user content / pack source / clone.
+  constraint addons_pack_state check (
+    (pack_id is null     and pack_source_id is null) or
+    (pack_id is not null and pack_source_id is null) or
+    (pack_id is null     and pack_source_id is not null)
+  )
 );
 
 -- Join table — links cards to addons (many-to-many).
@@ -109,17 +161,24 @@ begin
 end;
 $$;
 
--- Auto-populate cards.user_id from the parent deck for deck cards. Templates
--- must pass user_id explicitly (they have no parent deck).
+-- Auto-populate cards.user_id from the parent deck (deck cards) or from
+-- the parent pack's owner (pack source cards). Personal templates must
+-- pass user_id explicitly — they have neither a deck nor a pack.
 create or replace function public.cards_fill_user_id()
 returns trigger
 language plpgsql
 as $$
 begin
-  if new.user_id is null and new.deck_id is not null then
-    select d.user_id into new.user_id
-      from public.decks d
-     where d.id = new.deck_id;
+  if new.user_id is null then
+    if new.deck_id is not null then
+      select d.user_id into new.user_id
+        from public.decks d
+       where d.id = new.deck_id;
+    elsif new.pack_id is not null then
+      select p.owner_user_id into new.user_id
+        from public.packs p
+       where p.id = new.pack_id;
+    end if;
   end if;
   return new;
 end;
@@ -134,6 +193,26 @@ create index if not exists cards_templates_user_game_idx
   on public.cards (user_id, game_id)
   where is_template = true;
 
+-- Pack lookups: "list all rows in pack X" — used by import and authoring.
+create index if not exists cards_pack_id_idx
+  on public.cards (pack_id) where pack_id is not null;
+create index if not exists addons_pack_id_idx
+  on public.addons (pack_id) where pack_id is not null;
+
+-- Clone provenance: "find all clones of source Y" — used by re-import /
+-- update detection later.
+create index if not exists cards_pack_source_id_idx
+  on public.cards (pack_source_id) where pack_source_id is not null;
+create index if not exists addons_pack_source_id_idx
+  on public.addons (pack_source_id) where pack_source_id is not null;
+
+create index if not exists packs_owner_user_id_idx
+  on public.packs (owner_user_id);
+create index if not exists packs_game_public_idx
+  on public.packs (game_id) where is_public = true;
+create index if not exists pack_imports_user_id_idx
+  on public.pack_imports (user_id);
+
 create trigger addon_set_game_id
   before insert or update of addon_type_id on public.addons
   for each row execute procedure public.set_addon_game_id();
@@ -141,12 +220,14 @@ create trigger addon_set_game_id
 
 -- ── Row Level Security ────────────────────────────────────────────────────────
 
-alter table public.games       enable row level security;
-alter table public.addon_types enable row level security;
-alter table public.decks       enable row level security;
-alter table public.cards       enable row level security;
-alter table public.addons      enable row level security;
-alter table public.card_addons enable row level security;
+alter table public.games        enable row level security;
+alter table public.addon_types  enable row level security;
+alter table public.packs        enable row level security;
+alter table public.pack_imports enable row level security;
+alter table public.decks        enable row level security;
+alter table public.cards        enable row level security;
+alter table public.addons       enable row level security;
+alter table public.card_addons  enable row level security;
 
 -- games: any authenticated user can read; writes require the service role (admin only)
 create policy "games_select" on public.games
@@ -174,8 +255,41 @@ create policy "decks_delete" on public.decks
   for delete to authenticated
   using (auth.uid() = user_id);
 
--- cards: users manage cards that belong to their own decks (deck cards)
--- or templates they own directly (templates have no deck).
+-- packs: anyone authed can read public packs or packs they own.
+-- Writes are restricted to the owner.
+create policy "packs_select" on public.packs
+  for select to authenticated
+  using (is_public = true or owner_user_id = auth.uid());
+
+create policy "packs_insert" on public.packs
+  for insert to authenticated
+  with check (owner_user_id = auth.uid());
+
+create policy "packs_update" on public.packs
+  for update to authenticated
+  using      (owner_user_id = auth.uid())
+  with check (owner_user_id = auth.uid());
+
+create policy "packs_delete" on public.packs
+  for delete to authenticated
+  using (owner_user_id = auth.uid());
+
+-- pack_imports: users see and manage only their own imports.
+create policy "pack_imports_select" on public.pack_imports
+  for select to authenticated
+  using (user_id = auth.uid());
+
+create policy "pack_imports_insert" on public.pack_imports
+  for insert to authenticated
+  with check (user_id = auth.uid());
+
+create policy "pack_imports_delete" on public.pack_imports
+  for delete to authenticated
+  using (user_id = auth.uid());
+
+-- cards: users manage cards that belong to their own decks (deck cards),
+-- personal templates and imported clones (both user-owned), and pack
+-- source rows from packs they can read (writes restricted to pack owner).
 create policy "cards_select" on public.cards
   for select to authenticated
   using (
@@ -185,7 +299,13 @@ create policy "cards_select" on public.cards
         and decks.user_id = auth.uid()
     ))
     or
-    (is_template = true and user_id = auth.uid())
+    (is_template = true and pack_id is null and user_id = auth.uid())
+    or
+    (pack_id is not null and exists (
+      select 1 from public.packs
+      where packs.id = cards.pack_id
+        and (packs.is_public = true or packs.owner_user_id = auth.uid())
+    ))
   );
 
 create policy "cards_insert" on public.cards
@@ -197,7 +317,13 @@ create policy "cards_insert" on public.cards
         and decks.user_id = auth.uid()
     ))
     or
-    (is_template = true and user_id = auth.uid())
+    (is_template = true and pack_id is null and user_id = auth.uid())
+    or
+    (pack_id is not null and exists (
+      select 1 from public.packs
+      where packs.id = cards.pack_id
+        and packs.owner_user_id = auth.uid()
+    ))
   );
 
 create policy "cards_update" on public.cards
@@ -209,7 +335,13 @@ create policy "cards_update" on public.cards
         and decks.user_id = auth.uid()
     ))
     or
-    (is_template = true and user_id = auth.uid())
+    (is_template = true and pack_id is null and user_id = auth.uid())
+    or
+    (pack_id is not null and exists (
+      select 1 from public.packs
+      where packs.id = cards.pack_id
+        and packs.owner_user_id = auth.uid()
+    ))
   )
   with check (
     (deck_id is not null and exists (
@@ -218,7 +350,13 @@ create policy "cards_update" on public.cards
         and decks.user_id = auth.uid()
     ))
     or
-    (is_template = true and user_id = auth.uid())
+    (is_template = true and pack_id is null and user_id = auth.uid())
+    or
+    (pack_id is not null and exists (
+      select 1 from public.packs
+      where packs.id = cards.pack_id
+        and packs.owner_user_id = auth.uid()
+    ))
   );
 
 create policy "cards_delete" on public.cards
@@ -230,26 +368,73 @@ create policy "cards_delete" on public.cards
         and decks.user_id = auth.uid()
     ))
     or
-    (is_template = true and user_id = auth.uid())
+    (is_template = true and pack_id is null and user_id = auth.uid())
+    or
+    (pack_id is not null and exists (
+      select 1 from public.packs
+      where packs.id = cards.pack_id
+        and packs.owner_user_id = auth.uid()
+    ))
   );
 
--- addons: users manage only their own rows
+-- addons: users manage their own rows; can also read addons from packs
+-- they can see, and pack owners can write rows in their own packs.
 create policy "addons_select" on public.addons
   for select to authenticated
-  using (auth.uid() = user_id);
+  using (
+    (pack_id is null and user_id = auth.uid())
+    or
+    (pack_id is not null and exists (
+      select 1 from public.packs
+      where packs.id = addons.pack_id
+        and (packs.is_public = true or packs.owner_user_id = auth.uid())
+    ))
+  );
 
 create policy "addons_insert" on public.addons
   for insert to authenticated
-  with check (auth.uid() = user_id);
+  with check (
+    (pack_id is null and user_id = auth.uid())
+    or
+    (pack_id is not null and exists (
+      select 1 from public.packs
+      where packs.id = addons.pack_id
+        and packs.owner_user_id = auth.uid()
+    ))
+  );
 
 create policy "addons_update" on public.addons
   for update to authenticated
-  using     (auth.uid() = user_id)
-  with check (auth.uid() = user_id);
+  using (
+    (pack_id is null and user_id = auth.uid())
+    or
+    (pack_id is not null and exists (
+      select 1 from public.packs
+      where packs.id = addons.pack_id
+        and packs.owner_user_id = auth.uid()
+    ))
+  )
+  with check (
+    (pack_id is null and user_id = auth.uid())
+    or
+    (pack_id is not null and exists (
+      select 1 from public.packs
+      where packs.id = addons.pack_id
+        and packs.owner_user_id = auth.uid()
+    ))
+  );
 
 create policy "addons_delete" on public.addons
   for delete to authenticated
-  using (auth.uid() = user_id);
+  using (
+    (pack_id is null and user_id = auth.uid())
+    or
+    (pack_id is not null and exists (
+      select 1 from public.packs
+      where packs.id = addons.pack_id
+        and packs.owner_user_id = auth.uid()
+    ))
+  );
 
 -- card_addons: users manage join rows for cards in their own decks
 create policy "card_addons_select" on public.card_addons
@@ -307,7 +492,9 @@ create policy "card_addons_delete" on public.card_addons
 
 -- ── Keywords ─────────────────────────────────────────────────────────────────
 
--- Keyword definitions — user-owned, scoped to a game.
+-- Keyword definitions — user-owned, scoped to a game. May also be owned
+-- by a pack (pack_id set) or be a clone imported from a pack source
+-- (pack_source_id set). See cards table for the ownership model.
 create table public.keywords (
   id            uuid        primary key default gen_random_uuid(),
   user_id       uuid        not null references auth.users (id) on delete cascade,
@@ -319,9 +506,37 @@ create table public.keywords (
   params_schema jsonb       not null default '[]'::jsonb,
   -- Arbitrary game-specific metadata that lives on the keyword itself.
   extra         jsonb       not null default '{}'::jsonb,
+  -- Pack ownership / clone provenance — see cards table for the model.
+  pack_id              uuid  references public.packs    (id) on delete cascade,
+  pack_source_id       uuid  references public.keywords (id) on delete set null,
+  pack_source_snapshot jsonb,
   created_at    timestamptz not null default now(),
-  unique (user_id, game_id, name)
+  -- Three valid pack-state rows: user content / pack source / clone.
+  constraint keywords_pack_state check (
+    (pack_id is null     and pack_source_id is null) or
+    (pack_id is not null and pack_source_id is null) or
+    (pack_id is null     and pack_source_id is not null)
+  )
 );
+
+-- Uniqueness is split by ownership scope. A single inline unique on
+-- (user_id, game_id, name) would block pack owners from having a
+-- personal keyword and a pack keyword with the same name (both rows
+-- share user_id), block two of their own packs from sharing a keyword
+-- name, and block clones imported from different packs.
+create unique index if not exists keywords_user_game_name_personal_uniq
+  on public.keywords (user_id, game_id, name)
+  where pack_id is null and pack_source_id is null;
+
+create unique index if not exists keywords_pack_game_name_uniq
+  on public.keywords (pack_id, game_id, name)
+  where pack_id is not null;
+
+-- Pack and clone lookup indexes for keywords (parallel to cards/addons).
+create index if not exists keywords_pack_id_idx
+  on public.keywords (pack_id) where pack_id is not null;
+create index if not exists keywords_pack_source_id_idx
+  on public.keywords (pack_source_id) where pack_source_id is not null;
 
 -- Assigns keywords to cards with per-instance parameter values.
 create table public.card_keywords (
@@ -351,23 +566,64 @@ alter table public.keywords       enable row level security;
 alter table public.card_keywords  enable row level security;
 alter table public.addon_keywords enable row level security;
 
--- keywords: users manage only their own rows
+-- keywords: users manage their own rows; can also read keywords from
+-- packs they can see, and pack owners can write rows in their own packs.
 create policy "keywords_select" on public.keywords
   for select to authenticated
-  using (auth.uid() = user_id);
+  using (
+    (pack_id is null and user_id = auth.uid())
+    or
+    (pack_id is not null and exists (
+      select 1 from public.packs
+      where packs.id = keywords.pack_id
+        and (packs.is_public = true or packs.owner_user_id = auth.uid())
+    ))
+  );
 
 create policy "keywords_insert" on public.keywords
   for insert to authenticated
-  with check (auth.uid() = user_id);
+  with check (
+    (pack_id is null and user_id = auth.uid())
+    or
+    (pack_id is not null and exists (
+      select 1 from public.packs
+      where packs.id = keywords.pack_id
+        and packs.owner_user_id = auth.uid()
+    ))
+  );
 
 create policy "keywords_update" on public.keywords
   for update to authenticated
-  using     (auth.uid() = user_id)
-  with check (auth.uid() = user_id);
+  using (
+    (pack_id is null and user_id = auth.uid())
+    or
+    (pack_id is not null and exists (
+      select 1 from public.packs
+      where packs.id = keywords.pack_id
+        and packs.owner_user_id = auth.uid()
+    ))
+  )
+  with check (
+    (pack_id is null and user_id = auth.uid())
+    or
+    (pack_id is not null and exists (
+      select 1 from public.packs
+      where packs.id = keywords.pack_id
+        and packs.owner_user_id = auth.uid()
+    ))
+  );
 
 create policy "keywords_delete" on public.keywords
   for delete to authenticated
-  using (auth.uid() = user_id);
+  using (
+    (pack_id is null and user_id = auth.uid())
+    or
+    (pack_id is not null and exists (
+      select 1 from public.packs
+      where packs.id = keywords.pack_id
+        and packs.owner_user_id = auth.uid()
+    ))
+  );
 
 -- card_keywords: users manage rows for cards in their own decks
 create policy "card_keywords_select" on public.card_keywords
@@ -1063,3 +1319,161 @@ select g.id, 'addon', at.id, '{
 from public.games g
 join public.addon_types at on at.game_id = g.id and at.slug = 'weapons'
 where g.slug = 'halo-flashpoint';
+
+
+-- ── Packs: import RPC ────────────────────────────────────────────────────────
+-- Atomic deep-clone of a pack into the calling user's tables. Cloned cards
+-- always land as templates (deck_id = null, is_template = true). Each clone
+-- carries pack_source_id (for future update detection) and a
+-- pack_source_snapshot of the source's content fields (for the field-level
+-- merge that will land with re-import).
+--
+-- SECURITY DEFINER: bypasses RLS so the function can insert join rows
+-- (card_addons / card_keywords) for templates, which the user-context
+-- INSERT policies forbid. Equivalent access checks are enforced explicitly
+-- inside the function (auth, pack visibility, no self-import, idempotency).
+
+create or replace function public.import_pack(p_pack_id uuid)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_user_id      uuid := auth.uid();
+  v_pack         record;
+  v_keyword_map  jsonb := '{}'::jsonb;
+  v_addon_map    jsonb := '{}'::jsonb;
+  v_card_map     jsonb := '{}'::jsonb;
+begin
+  if v_user_id is null then
+    raise exception 'Not authenticated' using errcode = '42501';
+  end if;
+
+  select id, owner_user_id, is_public
+    into v_pack
+  from public.packs
+  where id = p_pack_id;
+
+  if v_pack.id is null
+    or not (v_pack.is_public or v_pack.owner_user_id = v_user_id) then
+    raise exception 'Pack not found or not accessible' using errcode = '42501';
+  end if;
+
+  if v_pack.owner_user_id = v_user_id then
+    raise exception 'Cannot import your own pack' using errcode = '22023';
+  end if;
+
+  if exists (
+    select 1 from public.pack_imports
+    where pack_id = p_pack_id and user_id = v_user_id
+  ) then
+    raise exception 'Pack already imported' using errcode = '23505';
+  end if;
+
+  -- Clone keywords; collect source→clone id map.
+  with cloned as (
+    insert into public.keywords (
+      user_id, game_id, name, description, params_schema, extra,
+      pack_source_id, pack_source_snapshot
+    )
+    select
+      v_user_id, k.game_id, k.name, k.description, k.params_schema, k.extra,
+      k.id,
+      jsonb_build_object(
+        'name', k.name, 'description', k.description,
+        'params_schema', k.params_schema, 'extra', k.extra
+      )
+    from public.keywords k
+    where k.pack_id = p_pack_id
+    returning id, pack_source_id
+  )
+  select coalesce(jsonb_object_agg(pack_source_id::text, id::text), '{}'::jsonb)
+    into v_keyword_map
+  from cloned;
+
+  -- Clone addons (parent_addon_id deferred to second pass).
+  with cloned as (
+    insert into public.addons (
+      user_id, addon_type_id, game_id, name, description, stats,
+      parent_addon_id, pack_source_id, pack_source_snapshot
+    )
+    select
+      v_user_id, a.addon_type_id, a.game_id, a.name, a.description, a.stats,
+      null, a.id,
+      jsonb_build_object(
+        'name', a.name, 'description', a.description, 'stats', a.stats,
+        'parent_addon_id', a.parent_addon_id
+      )
+    from public.addons a
+    where a.pack_id = p_pack_id
+    returning id, pack_source_id
+  )
+  select coalesce(jsonb_object_agg(pack_source_id::text, id::text), '{}'::jsonb)
+    into v_addon_map
+  from cloned;
+
+  -- Pass two: remap parent_addon_id on clones.
+  update public.addons clone
+     set parent_addon_id = (v_addon_map ->> src.parent_addon_id::text)::uuid
+  from public.addons src
+  where src.id = clone.pack_source_id
+    and src.pack_id = p_pack_id
+    and src.parent_addon_id is not null;
+
+  -- Clone addon_keywords joins.
+  insert into public.addon_keywords (addon_id, keyword_id, params, sort_order)
+  select
+    (v_addon_map   ->> ak.addon_id::text)::uuid,
+    (v_keyword_map ->> ak.keyword_id::text)::uuid,
+    ak.params, ak.sort_order
+  from public.addon_keywords ak
+  join public.addons a on a.id = ak.addon_id
+  where a.pack_id = p_pack_id;
+
+  -- Clone cards (always as templates).
+  with cloned as (
+    insert into public.cards (
+      deck_id, user_id, game_id, name, card_type, stats,
+      is_template, pack_source_id, pack_source_snapshot
+    )
+    select
+      null, v_user_id, c.game_id, c.name, c.card_type, c.stats,
+      true, c.id,
+      jsonb_build_object(
+        'name', c.name, 'card_type', c.card_type, 'stats', c.stats
+      )
+    from public.cards c
+    where c.pack_id = p_pack_id
+    returning id, pack_source_id
+  )
+  select coalesce(jsonb_object_agg(pack_source_id::text, id::text), '{}'::jsonb)
+    into v_card_map
+  from cloned;
+
+  -- Clone card_addons / card_keywords joins.
+  insert into public.card_addons (card_id, addon_id, sort_order)
+  select
+    (v_card_map  ->> ca.card_id::text)::uuid,
+    (v_addon_map ->> ca.addon_id::text)::uuid,
+    ca.sort_order
+  from public.card_addons ca
+  join public.cards c on c.id = ca.card_id
+  where c.pack_id = p_pack_id;
+
+  insert into public.card_keywords (card_id, keyword_id, params, sort_order)
+  select
+    (v_card_map    ->> ck.card_id::text)::uuid,
+    (v_keyword_map ->> ck.keyword_id::text)::uuid,
+    ck.params, ck.sort_order
+  from public.card_keywords ck
+  join public.cards c on c.id = ck.card_id
+  where c.pack_id = p_pack_id;
+
+  insert into public.pack_imports (user_id, pack_id)
+  values (v_user_id, p_pack_id);
+end;
+$$;
+
+revoke all on function public.import_pack(uuid) from public;
+grant  execute on function public.import_pack(uuid) to authenticated;
