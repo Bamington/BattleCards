@@ -11,7 +11,8 @@
  * - /gallery                       → Component gallery (dev tool — not a user-facing screen)
  * - /app                           → App home
  * - /app/packs                     → Manage packs (placeholder until built)
- * - /app/packs/new                 → Create pack (placeholder until built)
+ * - /app/packs/new                 → Create pack (placeholder; in-app flow uses a modal)
+ * - /app/packs/:packId/edit        → Pack editor (placeholder until built)
  * - /app/builder/blood-bowl        → Blood Bowl card builder
  * - /app/builder/halo-flashpoint   → Halo Flashpoint card builder
  * - /app/builder/kill-team         → Kill Team card builder
@@ -77,8 +78,9 @@ function App() {
         <Route path="/app" element={<AppHome />} />
 
         {/* ── Packs (placeholders until create / manage flows are built) ── */}
-        <Route path="/app/packs"     element={<PacksPlaceholder mode="manage" />} />
-        <Route path="/app/packs/new" element={<PacksPlaceholder mode="create" />} />
+        <Route path="/app/packs"               element={<PacksPlaceholder mode="manage" />} />
+        <Route path="/app/packs/new"           element={<PacksPlaceholder mode="create" />} />
+        <Route path="/app/packs/:packId/edit"  element={<PacksPlaceholder mode="edit" />} />
 
         {/* ── OAuth callback — handles Google redirect ── */}
         <Route path="/auth/callback" element={<AuthCallback />} />

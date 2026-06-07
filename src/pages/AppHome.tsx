@@ -162,6 +162,23 @@ export default function AppHome() {
   const [importingId,       setImportingId]       = useState<string | null>(null);
   const [importError,       setImportError]       = useState<string | null>(null);
 
+  // ── Create-pack flow state ────────────────────────────────────────────────
+  // Two sequential modals: a confirmation step, then the form.
+  const [showPackConfirm,   setShowPackConfirm]   = useState(false);
+  const [showPackCreate,    setShowPackCreate]    = useState(false);
+  const [packName,          setPackName]          = useState('');
+  const [packDescription,   setPackDescription]   = useState('');
+  const [packGame,          setPackGame]          = useState<GameSlug | null>(null);
+  const [creatingPack,      setCreatingPack]      = useState(false);
+  const [packCreateError,   setPackCreateError]   = useState<string | null>(null);
+
+  const packNameTrimmed = packName.trim();
+  const packDescTrimmed = packDescription.trim();
+  const canCreatePack =
+    packNameTrimmed.length >= 1 && packNameTrimmed.length <= 99 &&
+    packDescTrimmed.length >= 1 && packDescTrimmed.length <= 500 &&
+    packGame !== null;
+
   // ── Delete confirmation state ──────────────────────────────────────────────
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [deleting,        setDeleting]        = useState(false);
@@ -338,6 +355,64 @@ export default function AppHome() {
     }
   };
 
+  // ── Create pack flow ──────────────────────────────────────────────────────
+  // Two-step modal flow. Step 1 (confirm) reassures the user that they
+  // don't need a pack just to make a deck. Step 2 (form) collects name,
+  // description, and game, then INSERTs and navigates to the editor.
+
+  const openPackConfirm = () => {
+    // Reset form state every time we open so a previously cancelled
+    // attempt doesn't leak in.
+    setPackName('');
+    setPackDescription('');
+    setPackGame(null);
+    setPackCreateError(null);
+    setShowPackConfirm(true);
+  };
+
+  const advanceToPackForm = () => {
+    setShowPackConfirm(false);
+    setShowPackCreate(true);
+  };
+
+  const cancelPackFlow = () => {
+    if (creatingPack) return;
+    setShowPackConfirm(false);
+    setShowPackCreate(false);
+  };
+
+  const handleCreatePack = async () => {
+    if (!canCreatePack || !userId) return;
+    const gameId = gameIdMap[packGame!];
+    if (!gameId) return;
+
+    setCreatingPack(true);
+    setPackCreateError(null);
+
+    const { data, error } = await supabase
+      .from('packs')
+      .insert({
+        name:          packNameTrimmed,
+        description:   packDescTrimmed,
+        game_id:       gameId,
+        owner_user_id: userId,
+        // is_public stays false on creation; the author publishes from the
+        // editor / manage view when they're ready to share.
+      })
+      .select('id')
+      .single();
+
+    if (error || !data) {
+      setCreatingPack(false);
+      setPackCreateError('Something went wrong. Please try again.');
+      return;
+    }
+
+    // Navigate to the placeholder pack editor route. The page will be
+    // replaced once the editor UI is built.
+    navigate(`/app/packs/${data.id}/edit`);
+  };
+
   // ── Delete deck ───────────────────────────────────────────────────────────
 
   const confirmDelete = (deckId: string) => setConfirmDeleteId(deckId);
@@ -510,7 +585,7 @@ export default function AppHome() {
                       variant="outline"
                       color="primary"
                       leftIcon={<AddCircle className="size-4" />}
-                      onClick={() => navigate('/app/packs/new')}
+                      onClick={openPackConfirm}
                     >
                       Create Pack
                     </Button>
@@ -799,6 +874,136 @@ export default function AppHome() {
           navigate(`/app/builder/${gameSlug}?deckId=${deckId}`);
         }}
       />
+
+      {/* ── Create Pack — step 1: confirmation ───────────────────────────── */}
+      {/* Reassures the user they don't need a pack just to make a deck.
+          Modeled on the Delete-deck confirmation modal above. */}
+      <Modal
+        open={showPackConfirm}
+        onClose={() => setShowPackConfirm(false)}
+        className="max-w-xs"
+      >
+        <div className="flex flex-col gap-3 p-5">
+
+          <Box className="size-8 text-blue-400" />
+
+          <h2 className="font-heading text-xl text-white">
+            Are you sure you want to create a pack?
+          </h2>
+
+          <p className="font-body text-base text-gray-300">
+            Packs are sets of rules that can be used by you and other players.
+          </p>
+
+          <p className="font-body text-base text-gray-300">
+            <strong className="font-bold text-white">
+              If you're just trying to create a new deck, you don't need to
+              create a pack
+            </strong>
+            {' '}— you can create rules directly when you create your decks.
+          </p>
+
+          <div className="flex items-center gap-3 pt-1">
+            <Button
+              variant="ghost"
+              color="danger"
+              onClick={() => setShowPackConfirm(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              rightIcon={<AltArrowRight className="size-4" />}
+              onClick={advanceToPackForm}
+            >
+              Continue
+            </Button>
+          </div>
+
+        </div>
+      </Modal>
+
+      {/* ── Create Pack — step 2: form ───────────────────────────────────── */}
+      {/* Mirrors the Create New Deck modal pattern (Input + game picker +
+          buttons), with an added required Pack Description textarea. The
+          textarea uses the same inline styling as the description field in
+          AddKeywordModal so it reads consistently across the app. */}
+      <Modal open={showPackCreate} onClose={cancelPackFlow}>
+        <div className="flex flex-col gap-3 p-5">
+
+          <h2 className="font-heading text-xl text-white">Create New Pack</h2>
+
+          <Input
+            label="Pack Name"
+            required
+            placeholder="Enter your pack name"
+            value={packName}
+            onChange={e => setPackName(e.target.value)}
+            maxLength={99}
+            autoFocus
+            disabled={creatingPack}
+          />
+
+          {/* Plain textarea matching the AddKeywordModal description field
+              styling — no Textarea component exists yet, and the keyword
+              modal sets the convention. */}
+          <div className="flex flex-col gap-1">
+            <div className="flex gap-0.5 items-center font-body text-sm font-medium text-gray-900 dark:text-white">
+              <span>Pack Description</span><span className="text-red-600">*</span>
+            </div>
+            <textarea
+              rows={4}
+              placeholder="What's contained in the pack"
+              value={packDescription}
+              maxLength={500}
+              onChange={e => setPackDescription(e.target.value)}
+              disabled={creatingPack}
+              className="w-full px-3 py-2.5 rounded-lg bg-gray-700 border border-gray-600 font-body text-sm text-white placeholder-gray-400 focus:outline-none focus:border-blue-500 resize-none overflow-y-auto disabled:opacity-50 disabled:cursor-not-allowed"
+            />
+          </div>
+
+          <HR />
+
+          <p className="font-body text-sm text-gray-300">
+            Choose which game this pack will belong to.
+          </p>
+
+          <div className="flex flex-col gap-1.5">
+            {GAMES.map(game => (
+              <GamePickerItem
+                key={game.id}
+                logoSrc={game.logoSrc}
+                logoAlt={game.name}
+                selected={packGame === game.id}
+                onClick={() => !creatingPack && setPackGame(game.id)}
+              />
+            ))}
+          </div>
+
+          {packCreateError && (
+            <p className="font-body text-sm text-red-400">{packCreateError}</p>
+          )}
+
+          <div className="flex justify-end gap-2 pt-1">
+            <Button
+              variant="outline"
+              color="danger"
+              disabled={creatingPack}
+              onClick={cancelPackFlow}
+            >
+              Cancel
+            </Button>
+            <Button
+              disabled={!canCreatePack}
+              loading={creatingPack}
+              rightIcon={<AddCircle className="size-4" />}
+              onClick={handleCreatePack}
+            >
+              Create New Pack
+            </Button>
+          </div>
+
+        </div>
+      </Modal>
 
     </div>
   );
