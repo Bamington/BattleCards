@@ -44,6 +44,9 @@ import Checkbox from './Checkbox';
 export interface SelectableListItemProps {
   /** Row label */
   name: string;
+  /** Optional second line below the name — e.g. "Pack: Space Marines"
+   *  to indicate the source of an item in a multi-source picker. */
+  subtitle?: string;
   /** Whether the row is currently selected */
   checked: boolean;
   /** Called with the new checked value on toggle */
@@ -60,16 +63,20 @@ export interface SelectableListItemProps {
 
 const SelectableListItem = ({
   name,
+  subtitle,
   checked,
   onCheckedChange,
   disabled = false,
   menu,
   className = '',
 }: SelectableListItemProps) => {
+  // Row height grows when a subtitle is present so both lines breathe.
+  const hasSubtitle = Boolean(subtitle);
   return (
     <div
       className={[
-        'group flex items-center gap-2 w-full h-[50px] px-2.5',
+        'group flex items-center gap-2 w-full px-2.5',
+        hasSubtitle ? 'min-h-[66px] py-1' : 'h-[50px]',
         'bg-gray-800 rounded-lg shadow-sm transition-colors',
         checked
           ? 'border border-blue-500'
@@ -94,11 +101,16 @@ const SelectableListItem = ({
         type="button"
         onClick={() => !disabled && onCheckedChange(!checked)}
         disabled={disabled}
-        className="flex-1 min-w-0 text-left disabled:cursor-not-allowed"
+        className="flex-1 min-w-0 text-left disabled:cursor-not-allowed flex flex-col justify-center"
       >
         <p className="font-heading text-base leading-6 text-gray-300 group-hover:text-white transition-colors truncate">
           {name}
         </p>
+        {subtitle && (
+          <p className="font-body text-xs leading-4 text-gray-400 truncate">
+            {subtitle}
+          </p>
+        )}
       </button>
 
       {/* Optional menu slot — render whatever the caller provides. */}

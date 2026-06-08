@@ -75,8 +75,11 @@ export interface AddToPackModalProps {
 }
 
 interface PickerItem {
-  id:   string;
-  name: string;
+  id:       string;
+  name:     string;
+  /** Where this row came from — shown as a subtitle, e.g. "Pack: …",
+   *  "Deck: …", "My Templates", "My Library". */
+  subtitle: string;
 }
 
 const RPC_NAME: Record<EntityType, string> = {
@@ -85,11 +88,40 @@ const RPC_NAME: Record<EntityType, string> = {
   keyword: 'copy_keywords_to_pack',
 };
 
-const TABLE_NAME: Record<EntityType, 'cards' | 'addons' | 'keywords'> = {
-  card:    'cards',
-  addon:   'addons',
-  keyword: 'keywords',
+/** Loose row shape covering the union of fields we read across the
+ *  three entity tables. All fields are optional because Supabase
+ *  returns table-specific shapes per select(). */
+type Row = {
+  id:           string;
+  name:         string;
+  description?: string | null;
+  stats?:       Record<string, unknown>;
+  card_type?:   string;
+  addon_type_id?: string;
+  params_schema?: unknown;
+  extra?:         unknown;
+  pack_id?:     string | null;
+  deck_id?:     string | null;
+  is_template?: boolean;
 };
+
+/** Build a content fingerprint for dedup. Items with identical
+ *  fingerprints are treated as the same row, regardless of which
+ *  source they came from. */
+function fingerprint(row: Row, entityType: EntityType): string {
+  switch (entityType) {
+    case 'card':
+      return JSON.stringify([row.name, row.card_type ?? '', row.stats ?? {}]);
+    case 'addon':
+      return JSON.stringify([
+        row.name, row.description ?? '', row.addon_type_id ?? '', row.stats ?? {},
+      ]);
+    case 'keyword':
+      return JSON.stringify([
+        row.name, row.description ?? '', row.params_schema ?? [], row.extra ?? {},
+      ]);
+  }
+}
 
 // ── Component ────────────────────────────────────────────────────────────────
 
@@ -118,8 +150,17 @@ export default function AddToPackModal({
   const [adding,   setAdding]   = useState(false);
 
   // ── Fetch picker items each time the modal opens ───────────────────────
-  // Scope (per the user's decision): only the caller's OWN packs, same
-  // game, excluding the target pack itself.
+  // Source scope:
+  //   - Cards: caller's other packs (same game) + caller's decks (same game) +
+  //            caller's standalone templates (is_template=true, no pack/deck)
+  //   - Addons: caller's other packs (same game) + caller's library addons
+  //             (pack_id null, same game, same addon_type)
+  //   - Keywords: caller's other packs (same game) + caller's library
+  //               keywords (pack_id null, same game)
+  // After loading, we content-fingerprint dedup against the target pack's
+  // existing rows (so a copy that would land as a no-op is hidden) and
+  // within the picker (so identical rows from multiple sources collapse
+  // to a single visible option).
 
   useEffect(() => {
     if (!open) return;
@@ -135,42 +176,167 @@ export default function AddToPackModal({
   async function loadItems() {
     setLoading(true);
     try {
-      // Step 1: find the user's other packs in this game.
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Not signed in');
 
-      const { data: ownPacks, error: packsErr } = await supabase
-        .from('packs')
-        .select('id')
-        .eq('owner_user_id', user.id)
-        .eq('game_id', gameId)
-        .neq('id', targetPackId);
-      if (packsErr) throw packsErr;
+      // Per-entity-type select shapes — we pull the content fields needed
+      // for the fingerprint, plus source FKs for the subtitle.
+      const cardSelect    = 'id, name, card_type, stats, pack_id, deck_id, is_template';
+      const addonSelect   = 'id, name, description, stats, addon_type_id, pack_id';
+      const keywordSelect = 'id, name, description, params_schema, extra, pack_id';
 
-      const sourcePackIds = (ownPacks ?? []).map(p => p.id);
-      if (sourcePackIds.length === 0) {
-        setItems([]);
-        return;
+      // 1) Fetch all the source rows in parallel.
+      const [
+        ownPacksRes,
+        ownDecksRes,
+        packRowsRes,
+        deckCardsRes,
+        libraryRes,
+        targetRowsRes,
+      ] = await Promise.all([
+
+        // a) Other packs the caller owns (excluding target). We need names
+        //    too so we can label sources as "Pack: <name>".
+        supabase
+          .from('packs')
+          .select('id, name')
+          .eq('owner_user_id', user.id)
+          .eq('game_id', gameId)
+          .neq('id', targetPackId),
+
+        // b) Cards-only: caller's decks (same game) — for the source label.
+        entityType === 'card'
+          ? supabase
+              .from('decks')
+              .select('id, name')
+              .eq('user_id', user.id)
+              .eq('game_id', gameId)
+          : Promise.resolve({ data: [] as { id: string; name: string }[], error: null }),
+
+        // c) Entities in the caller's other packs (deferred filter — we
+        //    don't know the source pack ids yet, so we fetch ALL and
+        //    filter client-side once ownPacks resolves). Simpler than
+        //    chaining two awaits.
+        supabase
+          .from(entityType === 'card' ? 'cards' : entityType === 'addon' ? 'addons' : 'keywords')
+          .select(entityType === 'card' ? cardSelect : entityType === 'addon' ? addonSelect : keywordSelect)
+          .not('pack_id', 'is', null)
+          .eq(entityType === 'card' ? 'game_id'
+               : entityType === 'addon' ? 'game_id'
+               : 'game_id', gameId)
+          .order('name'),
+
+        // d) Cards-only: caller's deck cards (joined to deck for the name).
+        entityType === 'card' && cardType
+          ? supabase
+              .from('cards')
+              .select(`${cardSelect}, deck:decks!inner(id, name, user_id, game_id)`)
+              .not('deck_id', 'is', null)
+              .eq('card_type', cardType)
+              .order('name')
+          : Promise.resolve({ data: [] as Row[], error: null }),
+
+        // e) Standalone user-owned rows (no pack, no deck). For cards that
+        //    means is_template = true; for addons/keywords it's just the
+        //    caller's personal library (pack_id null).
+        entityType === 'card'
+          ? supabase
+              .from('cards')
+              .select(cardSelect)
+              .eq('user_id', user.id)
+              .eq('game_id', gameId)
+              .eq('is_template', true)
+              .is('pack_id', null)
+              .is('deck_id', null)
+              .order('name')
+          : supabase
+              .from(entityType === 'addon' ? 'addons' : 'keywords')
+              .select(entityType === 'addon' ? addonSelect : keywordSelect)
+              .eq('user_id', user.id)
+              .eq('game_id', gameId)
+              .is('pack_id', null)
+              .order('name'),
+
+        // f) Target pack's existing rows — used for content-fingerprint
+        //    dedup. We only need the fingerprint fields, but reuse the
+        //    full select for brevity.
+        supabase
+          .from(entityType === 'card' ? 'cards' : entityType === 'addon' ? 'addons' : 'keywords')
+          .select(entityType === 'card' ? cardSelect : entityType === 'addon' ? addonSelect : keywordSelect)
+          .eq('pack_id', targetPackId),
+      ]);
+
+      const ownPackMap = new Map(
+        ((ownPacksRes.data ?? []) as { id: string; name: string }[]).map(p => [p.id, p.name]),
+      );
+      const ownDeckMap = new Map(
+        ((ownDecksRes.data ?? []) as { id: string; name: string }[]).map(d => [d.id, d.name]),
+      );
+
+      // Supabase's TS parser doesn't fully resolve the dynamic select
+      // strings above (mixed table/column unions), so we cast each
+      // response through unknown. The runtime shape matches Row.
+      const packRowsAll = (packRowsRes.data ?? []) as unknown as Row[];
+      const packRows = packRowsAll
+        .filter(r => r.pack_id && ownPackMap.has(r.pack_id))
+        .filter(r => entityType !== 'card'  || !cardType    || r.card_type === cardType)
+        .filter(r => entityType !== 'addon' || !addonTypeId || r.addon_type_id === addonTypeId);
+
+      // Deck cards arrive with a nested `deck` for the source label. Filter
+      // to decks the user actually owns (the inner join already does the
+      // ownership check, but be defensive).
+      const deckCardsRaw = (deckCardsRes.data ?? []) as unknown as (Row & {
+        deck?: { id: string; name: string } | { id: string; name: string }[];
+      })[];
+      const deckRows: Row[] = [];
+      for (const r of deckCardsRaw) {
+        const deck = Array.isArray(r.deck) ? r.deck[0] : r.deck;
+        if (!deck || !ownDeckMap.has(deck.id)) continue;
+        deckRows.push({ ...r, deck_id: deck.id });
       }
 
-      // Step 2: fetch entities of the right type/scope in those packs.
-      let query = supabase
-        .from(TABLE_NAME[entityType])
-        .select('id, name')
-        .in('pack_id', sourcePackIds)
-        .order('name');
+      const libraryRows = ((libraryRes.data ?? []) as unknown as Row[])
+        .filter(r => entityType !== 'addon' || !addonTypeId || r.addon_type_id === addonTypeId);
 
-      if (entityType === 'card' && cardType) {
-        query = query.eq('card_type', cardType);
+      // Build the unified picker list with source labels.
+      const labelFor = (r: Row): string => {
+        if (r.pack_id && ownPackMap.has(r.pack_id)) return `Pack: ${ownPackMap.get(r.pack_id)}`;
+        if (r.deck_id && ownDeckMap.has(r.deck_id)) return `Deck: ${ownDeckMap.get(r.deck_id)}`;
+        if (entityType === 'card') return 'My Templates';
+        return 'My Library';
+      };
+
+      const candidates: { row: Row; pick: PickerItem }[] = [];
+      const pushAll = (rows: Row[]) => {
+        for (const r of rows) {
+          candidates.push({
+            row: r,
+            pick: { id: r.id, name: r.name, subtitle: labelFor(r) },
+          });
+        }
+      };
+      pushAll(packRows);
+      pushAll(deckRows);
+      pushAll(libraryRows);
+
+      // Content-fingerprint dedup: skip any candidate whose fingerprint
+      // already exists in the target pack OR has already been added to
+      // the picker (collapses identical rows from multiple sources).
+      const seen = new Set<string>(
+        ((targetRowsRes.data ?? []) as unknown as Row[]).map(r => fingerprint(r, entityType)),
+      );
+      const final: PickerItem[] = [];
+      for (const { row, pick } of candidates) {
+        const fp = fingerprint(row, entityType);
+        if (seen.has(fp)) continue;
+        seen.add(fp);
+        final.push(pick);
       }
-      if (entityType === 'addon' && addonTypeId) {
-        query = query.eq('addon_type_id', addonTypeId);
-      }
+      // Stable sort by name (most queries already do this, but the merge
+      // can interleave sources out of order).
+      final.sort((a, b) => a.name.localeCompare(b.name));
 
-      const { data, error: itemsErr } = await query;
-      if (itemsErr) throw itemsErr;
-
-      setItems((data ?? []) as PickerItem[]);
+      setItems(final);
     } catch (e) {
       setError(
         (e as { message?: string })?.message
@@ -284,6 +450,7 @@ export default function AddToPackModal({
               <SelectableListItem
                 key={item.id}
                 name={item.name}
+                subtitle={item.subtitle}
                 checked={selected.has(item.id)}
                 onCheckedChange={c => toggle(item.id, c)}
                 disabled={adding}

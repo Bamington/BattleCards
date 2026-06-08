@@ -3074,6 +3074,28 @@ const ComponentGallery = () => {
           </div>
 
           <div className="flex flex-col gap-2">
+            <p className="font-body text-xs text-gray-400 dark:text-gray-500">With subtitle (source label, as used in the multi-source picker)</p>
+            <SelectableListItem
+              name="BR55 Battle Rifle"
+              subtitle="Pack: Space Marines"
+              checked={false}
+              onCheckedChange={() => {}}
+            />
+            <SelectableListItem
+              name="Spartan Zvezda"
+              subtitle="Deck: My Halo Skirmish"
+              checked={true}
+              onCheckedChange={() => {}}
+            />
+            <SelectableListItem
+              name="Stealth"
+              subtitle="My Library"
+              checked={false}
+              onCheckedChange={() => {}}
+            />
+          </div>
+
+          <div className="flex flex-col gap-2">
             <p className="font-body text-xs text-gray-400 dark:text-gray-500">Disabled (e.g. submit in flight)</p>
             <SelectableListItem name="Tackle" checked={true} onCheckedChange={() => {}} disabled />
             <SelectableListItem name="Dodge"  checked={false} onCheckedChange={() => {}} disabled />

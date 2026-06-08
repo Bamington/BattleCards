@@ -1482,8 +1482,14 @@ grant  execute on function public.import_pack(uuid) to authenticated;
 -- ── Packs: pack-to-pack copy RPCs ────────────────────────────────────────────
 -- Used by the pack editor's "Add X to Pack" flow. Each function takes a
 -- target pack id (must be owned by caller) and an array of source entity
--- ids (must live in packs the caller also owns, same game). Copies them
--- into the target pack as fresh pack-source rows, pulling in dependencies:
+-- ids. Source rows can come from:
+--   - any pack the caller owns (same game as target), OR
+--   - any deck the caller owns (cards only, same game), OR
+--   - the caller's standalone user-owned rows (no pack, no deck — for
+--     cards this means is_template=true; for addons/keywords this means
+--     personal-library rows).
+-- Copies them into the target pack as fresh pack-source rows, pulling in
+-- dependencies:
 --   copy_addons_to_pack also copies attached keywords (deduped by name)
 --   copy_cards_to_pack  also copies attached addons + keywords
 -- All three are SECURITY DEFINER for the same reason as import_pack (the
@@ -1517,18 +1523,25 @@ begin
 
   if array_length(p_source_ids, 1) is null then return 0; end if;
 
+  -- A source keyword must be either (a) in a pack the caller owns, OR
+  -- (b) owned directly by the caller (pack_id null) — both same game.
   if exists (
     select 1 from public.keywords k
     where k.id = any(p_source_ids)
-      and k.pack_id is not null
-      and not exists (
-        select 1 from public.packs p
-        where p.id = k.pack_id
-          and p.owner_user_id = v_user_id
-          and p.game_id = v_target.game_id
+      and not (
+        (k.pack_id is not null and exists (
+          select 1 from public.packs p
+          where p.id = k.pack_id
+            and p.owner_user_id = v_user_id
+            and p.game_id = v_target.game_id
+        ))
+        OR
+        (k.pack_id is null
+          and k.user_id = v_user_id
+          and k.game_id = v_target.game_id)
       )
   ) then
-    raise exception 'Source keyword belongs to a pack you do not own or a different game'
+    raise exception 'Source keyword is not accessible to you or in a different game'
       using errcode = '42501';
   end if;
 
@@ -1592,18 +1605,25 @@ begin
 
   if array_length(p_source_ids, 1) is null then return 0; end if;
 
+  -- A source addon must be either (a) in a pack the caller owns, OR
+  -- (b) owned directly by the caller (pack_id null) — both same game.
   if exists (
     select 1 from public.addons a
     where a.id = any(p_source_ids)
-      and a.pack_id is not null
-      and not exists (
-        select 1 from public.packs p
-        where p.id = a.pack_id
-          and p.owner_user_id = v_user_id
-          and p.game_id = v_target.game_id
+      and not (
+        (a.pack_id is not null and exists (
+          select 1 from public.packs p
+          where p.id = a.pack_id
+            and p.owner_user_id = v_user_id
+            and p.game_id = v_target.game_id
+        ))
+        OR
+        (a.pack_id is null
+          and a.user_id = v_user_id
+          and a.game_id = v_target.game_id)
       )
   ) then
-    raise exception 'Source addon belongs to a pack you do not own or a different game'
+    raise exception 'Source addon is not accessible to you or in a different game'
       using errcode = '42501';
   end if;
 
@@ -1708,18 +1728,36 @@ begin
 
   if array_length(p_source_ids, 1) is null then return 0; end if;
 
+  -- A source card must be either:
+  --   (a) in a pack the caller owns, same game; or
+  --   (b) in a deck the caller owns, same game; or
+  --   (c) a user-owned template (is_template true, no pack, no deck), same game.
+  -- For (b) the card's game_id may be null (deck cards derive game from the
+  -- parent deck), so we check deck.game_id rather than cards.game_id.
   if exists (
     select 1 from public.cards c
     where c.id = any(p_source_ids)
-      and c.pack_id is not null
-      and not exists (
-        select 1 from public.packs p
-        where p.id = c.pack_id
-          and p.owner_user_id = v_user_id
-          and p.game_id = v_target.game_id
+      and not (
+        (c.pack_id is not null and exists (
+          select 1 from public.packs p
+          where p.id = c.pack_id
+            and p.owner_user_id = v_user_id
+            and p.game_id = v_target.game_id
+        ))
+        OR
+        (c.deck_id is not null and exists (
+          select 1 from public.decks d
+          where d.id = c.deck_id
+            and d.user_id = v_user_id
+            and d.game_id = v_target.game_id
+        ))
+        OR
+        (c.deck_id is null and c.pack_id is null and c.is_template = true
+          and c.user_id = v_user_id
+          and c.game_id = v_target.game_id)
       )
   ) then
-    raise exception 'Source card belongs to a pack you do not own or a different game'
+    raise exception 'Source card is not accessible to you or in a different game'
       using errcode = '42501';
   end if;
 
@@ -1793,15 +1831,21 @@ begin
   where ak.addon_id::text in (select jsonb_object_keys(v_addon_map))
   on conflict (addon_id, keyword_id) do nothing;
 
-  -- Clone the cards as templates.
+  -- Clone the cards as templates. Use the resolved game_id (cards.game_id
+  -- may be null for deck cards) so the cloned template satisfies the
+  -- "game_id not null when is_template" check.
   for v_src in
-    select * from public.cards where id = any(p_source_ids)
+    select c.*,
+           coalesce(c.game_id, d.game_id) as resolved_game_id
+    from public.cards c
+    left join public.decks d on d.id = c.deck_id
+    where c.id = any(p_source_ids)
   loop
     insert into public.cards (
       deck_id, user_id, game_id, name, card_type, stats,
       is_template, pack_id
     ) values (
-      null, v_user_id, v_src.game_id, v_src.name, v_src.card_type,
+      null, v_user_id, v_src.resolved_game_id, v_src.name, v_src.card_type,
       v_src.stats, true, p_target_pack_id
     ) returning id into v_new_id;
 
