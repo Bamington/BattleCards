@@ -38,6 +38,7 @@ import UserRounded from '../icons/UserRounded';
 import FileText from '../icons/FileText';
 import Star from '../icons/Star';
 import Bookmark from '../icons/Bookmark';
+import MenuDots from '../icons/MenuDots';
 import AltArrowLeft from '../icons/AltArrowLeft';
 import { supabase } from '../lib/supabase';
 import type {
@@ -601,32 +602,55 @@ const KILL_TEAM_DIMS      = dimsFor(1270, 890);
 const KILL_TEAM_RULE_DIMS = dimsFor(700, 1200);
 const STARCRAFT_DIMS      = dimsFor(1270, 890);
 
-/** Shared wrapper that draws the card-shaped bounding box and applies
- *  the CSS transform that scales the native-size card into the tile. */
+/** Shared wrapper that draws the card-shaped bounding box, applies the
+ *  CSS transform that scales the native-size card into the tile, and
+ *  renders the footer label (uppercase card name + ⋯ menu icon) below
+ *  the preview. Matches Figma node 919:16810. */
 function PreviewTile({
   dims,
   title,
   children,
+  onMenuClick,
 }: {
   dims:   PreviewDims;
   title?: string;
   children: React.ReactNode;
+  /** Called when the user clicks the ⋯ icon. Wire to a real menu when
+   *  card actions (edit/delete/etc.) ship; currently stubbed. */
+  onMenuClick?: () => void;
 }) {
   return (
     <div
-      className="shrink-0 rounded-lg border border-gray-700 overflow-hidden bg-gray-950"
-      style={{ width: dims.w, height: dims.h }}
-      title={title}
+      className="shrink-0 rounded-[6px] border border-gray-700 overflow-hidden bg-gray-800"
+      style={{ width: dims.w }}
     >
-      <div
-        style={{
-          width:           dims.nativeW,
-          height:          dims.nativeH,
-          transform:       `scale(${dims.scale})`,
-          transformOrigin: 'top left',
-        }}
-      >
-        {children}
+      {/* Card area — fixed height, clips the scaled-down native card */}
+      <div className="overflow-hidden" style={{ height: dims.h }} title={title}>
+        <div
+          style={{
+            width:           dims.nativeW,
+            height:          dims.nativeH,
+            transform:       `scale(${dims.scale})`,
+            transformOrigin: 'top left',
+          }}
+        >
+          {children}
+        </div>
+      </div>
+
+      {/* Footer band — card name (uppercase Space Grotesk Bold) + ⋯ */}
+      <div className="flex items-center p-1">
+        <p className="flex-1 min-w-0 truncate font-body font-bold text-xs leading-4 tracking-[1.2px] uppercase text-gray-300">
+          {title ?? ''}
+        </p>
+        <button
+          type="button"
+          aria-label="Card options"
+          onClick={onMenuClick}
+          className="shrink-0 p-1 opacity-50 hover:opacity-100 transition-opacity text-gray-300 hover:text-white"
+        >
+          <MenuDots className="size-4" />
+        </button>
       </div>
     </div>
   );
@@ -635,9 +659,13 @@ function PreviewTile({
 /** Per-card preview render — switches on game slug + card_type and
  *  delegates to the right shaper + card component. */
 function renderPreview(c: CardWithJoins, gameSlug: string): React.ReactNode {
+  // Per-card menu stub. Wire to a real Edit/Delete/etc. menu when
+  // those card actions are designed.
+  const onMenuClick = () => stubNotImplemented('Card options');
+
   if (gameSlug === 'halo-flashpoint') {
     return (
-      <PreviewTile key={c.id} dims={HALO_DIMS} title={c.name}>
+      <PreviewTile key={c.id} dims={HALO_DIMS} title={c.name} onMenuClick={onMenuClick}>
         <HaloFlashpointCard
           {...dbRowsToHaloFlashpointProps(c as unknown as HaloCardDbRow)}
         />
@@ -647,7 +675,7 @@ function renderPreview(c: CardWithJoins, gameSlug: string): React.ReactNode {
 
   if (gameSlug === 'blood-bowl') {
     return (
-      <PreviewTile key={c.id} dims={BLOOD_BOWL_DIMS} title={c.name}>
+      <PreviewTile key={c.id} dims={BLOOD_BOWL_DIMS} title={c.name} onMenuClick={onMenuClick}>
         <BloodBowlCard
           {...dbRowsToBloodBowlProps(c as unknown as BloodBowlCardDbRow)}
         />
@@ -658,7 +686,7 @@ function renderPreview(c: CardWithJoins, gameSlug: string): React.ReactNode {
   if (gameSlug === 'kill-team') {
     if (c.card_type === 'rule') {
       return (
-        <PreviewTile key={c.id} dims={KILL_TEAM_RULE_DIMS} title={c.name}>
+        <PreviewTile key={c.id} dims={KILL_TEAM_RULE_DIMS} title={c.name} onMenuClick={onMenuClick}>
           <KillTeamRuleCard
             {...dbRowsToKillTeamRuleProps(c as unknown as KillTeamCardDbRow)}
           />
@@ -666,7 +694,7 @@ function renderPreview(c: CardWithJoins, gameSlug: string): React.ReactNode {
       );
     }
     return (
-      <PreviewTile key={c.id} dims={KILL_TEAM_DIMS} title={c.name}>
+      <PreviewTile key={c.id} dims={KILL_TEAM_DIMS} title={c.name} onMenuClick={onMenuClick}>
         {/* Force the desktop (landscape) layout so the scale assumption
             holds — without this the card flips to a portrait mobile
             layout on narrow viewports. */}
@@ -680,7 +708,7 @@ function renderPreview(c: CardWithJoins, gameSlug: string): React.ReactNode {
 
   if (gameSlug === 'starcraft') {
     return (
-      <PreviewTile key={c.id} dims={STARCRAFT_DIMS} title={c.name}>
+      <PreviewTile key={c.id} dims={STARCRAFT_DIMS} title={c.name} onMenuClick={onMenuClick}>
         <StarcraftCard
           {...dbRowsToStarcraftProps(c as unknown as StarcraftCardDbRow)}
         />
@@ -689,16 +717,19 @@ function renderPreview(c: CardWithJoins, gameSlug: string): React.ReactNode {
   }
 
   // Fallback for any future game that lands before its shaper does.
+  // Uses PreviewTile so the footer chrome is consistent; the card area
+  // shows a name placeholder instead of a real game card.
   return (
-    <div
-      key={c.id}
-      className="shrink-0 rounded-lg border border-gray-700 bg-gray-800 flex items-center justify-center p-3"
-      style={{ width: HALO_DIMS.w, height: HALO_DIMS.h }}
-    >
-      <p className="font-heading text-base text-white text-center truncate">
-        {c.name}
-      </p>
-    </div>
+    <PreviewTile key={c.id} dims={HALO_DIMS} title={c.name} onMenuClick={onMenuClick}>
+      <div
+        className="flex items-center justify-center p-3 bg-gray-700"
+        style={{ width: HALO_DIMS.nativeW, height: HALO_DIMS.nativeH }}
+      >
+        <p className="font-heading text-[80px] text-white text-center truncate">
+          {c.name}
+        </p>
+      </div>
+    </PreviewTile>
   );
 }
 
