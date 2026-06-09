@@ -28,6 +28,7 @@ import Navbar from '../components/Navbar';
 import Button from '../components/Button';
 import AddonListItem from '../components/AddonListItem';
 import AddToPackModal from '../components/AddToPackModal';
+import HaloFlashpointCard from '../components/HaloFlashpointCard';
 import AddCircle from '../icons/AddCircle';
 import UserRounded from '../icons/UserRounded';
 import FileText from '../icons/FileText';
@@ -38,10 +39,18 @@ import { supabase } from '../lib/supabase';
 import type {
   PackWithGame, Card, Addon, Keyword, AddonType, Json,
 } from '../lib/database.types';
+import {
+  dbRowsToHaloFlashpointProps,
+  type HaloCardDbRow,
+} from '../lib/cardShape/haloFlashpoint';
 
 // ── Local types ──────────────────────────────────────────────────────────────
 
 type RuleType = { value: string; label: string; plural: string };
+
+/** A pack card with its addon + keyword joins materialised, so the
+ *  per-game card preview can render without extra round-trips. */
+type CardWithJoins = Card & HaloCardDbRow;
 
 /** Everything AddToPackModal needs to render itself. PackEditor keeps one
  *  of these in state to drive which Add picker is currently open. */
@@ -72,7 +81,7 @@ export default function PackEditor() {
 
   const [pack,        setPack]        = useState<PackWithGame | null>(null);
   const [addonTypes,  setAddonTypes]  = useState<AddonType[]>([]);
-  const [cards,       setCards]       = useState<Card[]>([]);
+  const [cards,       setCards]       = useState<CardWithJoins[]>([]);
   const [addons,      setAddons]      = useState<Addon[]>([]);
   const [keywords,    setKeywords]    = useState<Keyword[]>([]);
   const [loading,     setLoading]     = useState(true);
@@ -120,9 +129,19 @@ export default function PackEditor() {
           .select('*')
           .eq('game_id', fetchedPack.game_id)
           .order('name'),
+        // Cards select pulls the full join graph so the preview can render
+        // without follow-up fetches. The same shape feeds the Halo card
+        // shaper (dbRowsToHaloFlashpointProps).
         supabase
           .from('cards')
-          .select('*')
+          .select(`
+            *,
+            card_addons(addon_id, sort_order, addons(name, stats,
+              addon_keywords(keyword_id, params, sort_order,
+                keywords(name, description, params_schema)))),
+            card_keywords(keyword_id, params, sort_order,
+              keywords(name, description, params_schema))
+          `)
           .eq('pack_id', packId!)
           .order('created_at'),
         supabase
@@ -138,7 +157,9 @@ export default function PackEditor() {
       ]);
 
       setAddonTypes((atRes.data ?? []) as AddonType[]);
-      setCards((cardsRes.data ?? []) as Card[]);
+      // The nested select shape doesn't narrow cleanly via Supabase's TS,
+      // so cast through unknown. Runtime shape matches CardWithJoins.
+      setCards((cardsRes.data ?? []) as unknown as CardWithJoins[]);
       setAddons((addonsRes.data ?? []) as Addon[]);
       setKeywords((keywordsRes.data ?? []) as Keyword[]);
     } catch (e) {
@@ -314,7 +335,7 @@ export default function PackEditor() {
               {operativeCards.length === 0 ? (
                 <EmptyPanelState message="No units yet. Click Add Unit to create one." />
               ) : (
-                <CardNameplateRow cards={operativeCards} />
+                <CardPreviewRow cards={operativeCards} gameSlug={pack.game.slug} />
               )}
             </PackPanel>
 
@@ -336,7 +357,7 @@ export default function PackEditor() {
                 {ruleCards.length === 0 ? (
                   <EmptyPanelState message="No rule cards yet. Click Add Rule Card to create one." />
                 ) : (
-                  <CardNameplateRow cards={ruleCards} />
+                  <CardPreviewRow cards={ruleCards} gameSlug={pack.game.slug} />
                 )}
               </PackPanel>
             )}
@@ -513,24 +534,69 @@ function EmptyPanelState({ message }: { message: string }) {
   );
 }
 
-/** Placeholder for the unit / rule card previews shown in the top panels.
- *  The Figma renders the actual game-specific card here, scaled down. That
- *  rendering will be added when the Add Unit flow exists and we have
- *  testable card data; in the meantime this shows a name-plate tile so the
- *  panel reads correctly without crashing on incomplete card data. */
-function CardNameplateRow({ cards }: { cards: Card[] }) {
+/** Horizontal row of card previews for the Unit / Rule panels.
+ *
+ *  Halo Flashpoint cards render as the actual <HaloFlashpointCard>,
+ *  CSS-scaled down to a thumbnail size. Other games still use a
+ *  name-plate tile until each gets its own DB→props shaper and
+ *  per-game render arm added here. */
+
+// Halo's card renders at native 1270×890. The preview tile width is
+// chosen to match the Figma "Unit List Item" cell (~237px); the height
+// follows from the native aspect ratio so the card doesn't squash.
+const HALO_NATIVE_W = 1270;
+const HALO_NATIVE_H = 890;
+const PREVIEW_W     = 237;
+const HALO_SCALE    = PREVIEW_W / HALO_NATIVE_W;
+const PREVIEW_H     = Math.round(HALO_NATIVE_H * HALO_SCALE);
+
+function CardPreviewRow({
+  cards,
+  gameSlug,
+}: {
+  cards: CardWithJoins[];
+  gameSlug: string;
+}) {
   return (
     <div className="flex gap-3 overflow-x-auto">
-      {cards.map(c => (
-        <div
-          key={c.id}
-          className="shrink-0 w-[237px] aspect-[237/188] rounded-lg border border-gray-700 bg-gray-800 flex items-center justify-center p-3"
-        >
-          <p className="font-heading text-base text-white text-center truncate">
-            {c.name}
-          </p>
-        </div>
-      ))}
+      {cards.map(c => {
+        if (gameSlug === 'halo-flashpoint') {
+          const props = dbRowsToHaloFlashpointProps(c);
+          return (
+            <div
+              key={c.id}
+              className="shrink-0 rounded-lg border border-gray-700 overflow-hidden bg-gray-950"
+              style={{ width: PREVIEW_W, height: PREVIEW_H }}
+              title={c.name}
+            >
+              <div
+                style={{
+                  width:           HALO_NATIVE_W,
+                  height:          HALO_NATIVE_H,
+                  transform:       `scale(${HALO_SCALE})`,
+                  transformOrigin: 'top left',
+                }}
+              >
+                <HaloFlashpointCard {...props} />
+              </div>
+            </div>
+          );
+        }
+        // Fallback: name-plate tile. Per-game previews land in follow-up
+        // tranches (Blood Bowl, Kill Team, Starcraft each need their own
+        // shaper + render arm here).
+        return (
+          <div
+            key={c.id}
+            className="shrink-0 rounded-lg border border-gray-700 bg-gray-800 flex items-center justify-center p-3"
+            style={{ width: PREVIEW_W, height: PREVIEW_H }}
+          >
+            <p className="font-heading text-base text-white text-center truncate">
+              {c.name}
+            </p>
+          </div>
+        );
+      })}
     </div>
   );
 }
