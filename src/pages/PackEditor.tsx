@@ -22,14 +22,19 @@
  * Route: /app/packs/:packId/edit
  */
 
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef, type ComponentType } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import Button from '../components/Button';
 import AddonListItem from '../components/AddonListItem';
 import AddToPackModal from '../components/AddToPackModal';
 import AddKeywordModal from '../components/AddKeywordModal';
+import type { AddonFormProps } from '../components/AddAddonModal';
 import HaloWeaponForm from '../components/HaloWeaponForm';
+import KillTeamWeaponForm from '../components/KillTeamWeaponForm';
+import KillTeamAbilityForm from '../components/KillTeamAbilityForm';
+import StarcraftWeaponForm from '../components/StarcraftWeaponForm';
+import StarcraftAbilityForm from '../components/StarcraftAbilityForm';
 import HaloFlashpointCard from '../components/HaloFlashpointCard';
 import BloodBowlCard from '../components/BloodBowlCard';
 import KillTeamCard from '../components/KillTeamCard';
@@ -100,6 +105,24 @@ function stubNotImplemented(what: string) {
   alert(`${what} — coming soon`);
 }
 
+// ── Per-game addon edit forms ─────────────────────────────────────────────────
+// An entry here gives that game/addon-type's rows an Edit item in their ⋯
+// menu; the form renders directly inside a Modal (no picker step needed when
+// editing a specific row). These are the same forms the builders feed to
+// AddAddonModal — their builder-only context props (pending-keyword hand-offs,
+// cross-card propagation) are optional and simply omitted here; the pack
+// editor reloads from the DB after save instead.
+//
+// Blood Bowl has a `skills` addon type in the DB but its builder models
+// skills as keywords (no skill-addon creation path), so it has no entry —
+// those rows keep a delete-only menu, and skills edit through the Keywords
+// panel.
+const ADDON_EDIT_FORMS: Record<string, Record<string, ComponentType<AddonFormProps>>> = {
+  'halo-flashpoint': { weapons: HaloWeaponForm },
+  'kill-team':       { weapons: KillTeamWeaponForm, abilities: KillTeamAbilityForm },
+  'starcraft':       { weapons: StarcraftWeaponForm, rules: StarcraftAbilityForm },
+};
+
 // ── Page ─────────────────────────────────────────────────────────────────────
 
 export default function PackEditor() {
@@ -132,12 +155,15 @@ export default function PackEditor() {
   // they own, so the modal's update path works without changes.
   const [editingKeyword, setEditingKeyword] = useState<Keyword | null>(null);
 
-  // The Halo weapon addon to edit. When non-null, a Modal renders
-  // HaloWeaponForm directly (no picker step). Other game/addon
-  // combinations don't have per-game forms extracted yet, so they
-  // omit the Edit menu item entirely.
-  const [editingWeaponAddon, setEditingWeaponAddon] = useState<Addon | null>(null);
-  const [savingWeaponEdit,   setSavingWeaponEdit]   = useState(false);
+  // The addon being edited, paired with its game-specific form from
+  // ADDON_EDIT_FORMS (resolved at click time, when the addon-type slug is
+  // in scope). When non-null, a Modal renders the form directly.
+  const [editingAddon, setEditingAddon] = useState<{
+    addon:     Addon;
+    Form:      ComponentType<AddonFormProps>;
+    typeLabel: string;
+  } | null>(null);
+  const [savingAddonEdit, setSavingAddonEdit] = useState(false);
 
   // Delete-confirmation state. One shared modal for every entity type;
   // `kind` picks the supabase table and the "this cannot be undone"
@@ -479,11 +505,9 @@ export default function PackEditor() {
 
               {addonTypes.map(at => {
                 const singular = singularise(at.name);
-                // Only Halo weapons have an extracted edit form so far.
-                // Other game/addon-type combos will gain Edit menu items
-                // as their forms get extracted in follow-up tranches.
-                const canEdit =
-                  pack.game.slug === 'halo-flashpoint' && at.slug === 'weapons';
+                // Games register their addon edit forms in ADDON_EDIT_FORMS;
+                // combos without one (Blood Bowl skills) get no Edit item.
+                const EditForm = ADDON_EDIT_FORMS[pack.game.slug]?.[at.slug];
                 return (
                   <PackPanel
                     key={at.id}
@@ -516,7 +540,9 @@ export default function PackEditor() {
                               name={a.name}
                               subtitle={addonSubtitle(a, at)}
                               addonTypeName={singular}
-                              onEdit={canEdit ? () => setEditingWeaponAddon(a) : undefined}
+                              onEdit={EditForm
+                                ? () => setEditingAddon({ addon: a, Form: EditForm, typeLabel: singular })
+                                : undefined}
                               onDelete={() => requestDelete('addon', a.id, a.name, singular)}
                             />
                           ))}
@@ -612,40 +638,40 @@ export default function PackEditor() {
         />
       )}
 
-      {/* Edit Halo weapon modal — renders HaloWeaponForm directly inside a
-          Modal (no picker step needed when editing one specific row). The
-          form writes addon row + addon_keywords joins, then we reload the
-          pack so the subtitle / keyword counts refresh. The pack editor
-          doesn't have in-memory weapon-keyword caches the way builders do,
-          so it ignores the form's onPendingKeywords /
-          onPropagateKeywordUpdate side-channels. */}
-      {editingWeaponAddon && (
+      {/* Edit addon modal — renders the game-specific form from
+          ADDON_EDIT_FORMS directly inside a Modal (no picker step needed
+          when editing one specific row). The form writes the addon row +
+          addon_keywords joins, then we reload the pack so the subtitle /
+          keyword counts refresh. The pack editor doesn't have in-memory
+          keyword caches the way builders do, so it omits the forms'
+          optional builder-context props. */}
+      {editingAddon && (
         <Modal
           open
-          onClose={() => !savingWeaponEdit && setEditingWeaponAddon(null)}
+          onClose={() => !savingAddonEdit && setEditingAddon(null)}
           className="max-w-md"
         >
-          <HaloWeaponForm
-            editingAddon={editingWeaponAddon}
-            saving={savingWeaponEdit}
-            onCancel={() => setEditingWeaponAddon(null)}
+          <editingAddon.Form
+            editingAddon={editingAddon.addon}
+            saving={savingAddonEdit}
+            onCancel={() => setEditingAddon(null)}
             onSave={async (name, description, stats) => {
-              setSavingWeaponEdit(true);
+              setSavingAddonEdit(true);
               try {
                 const { error } = await supabase
                   .from('addons')
                   .update({ name, description, stats: stats as Json })
-                  .eq('id', editingWeaponAddon.id);
+                  .eq('id', editingAddon.addon.id);
                 if (error) throw error;
-                const savedId = editingWeaponAddon.id;
-                setEditingWeaponAddon(null);
+                const savedId = editingAddon.addon.id;
+                setEditingAddon(null);
                 await loadAll();
                 return savedId;
               } catch (err) {
-                console.error('[BattleCards] weapon edit error:', err);
+                console.error(`[BattleCards] ${editingAddon.typeLabel.toLowerCase()} edit error:`, err);
                 return '';
               } finally {
-                setSavingWeaponEdit(false);
+                setSavingAddonEdit(false);
               }
             }}
           />
