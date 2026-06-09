@@ -2982,7 +2982,7 @@ const ComponentGallery = () => {
         <div className="w-full max-w-[342px] space-y-6">
 
           <div className="flex flex-col gap-2">
-            <p className="font-body text-xs text-gray-400 dark:text-gray-500">Blood Bowl pack — two badges + description + download</p>
+            <p className="font-body text-xs text-gray-400 dark:text-gray-500">Public pack — Download CTA, no menu</p>
             <PackListItem
               name="Black Orc Player Cards"
               gameName="Blood Bowl"
@@ -2998,19 +2998,37 @@ const ComponentGallery = () => {
           </div>
 
           <div className="flex flex-col gap-2">
-            <p className="font-body text-xs text-gray-400 dark:text-gray-500">Halo pack — many badges + short description</p>
+            <p className="font-body text-xs text-gray-400 dark:text-gray-500">Owned pack — ⋯ menu with Delete, no Download CTA</p>
+            <PackListItem
+              name="My Custom Spartans"
+              gameName="Halo: Flashpoint"
+              thumbnailBg="bg-gradient-to-b from-[#252525] to-[#181d24]"
+              thumbnail={<img src={iconHalo} alt="" className="size-full object-cover" />}
+              badges={[
+                { label: '6 Units',   icon: <UserRounded className="size-3.5" /> },
+                { label: '8 Weapons', icon: <Star        className="size-3.5" /> },
+              ]}
+              description="A custom Spartan strike team I made for our home league."
+              onDelete={() => {}}
+              deleteLabel="Delete Pack"
+            />
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <p className="font-body text-xs text-gray-400 dark:text-gray-500">Imported pack — ⋯ menu with Uninstall</p>
             <PackListItem
               name="Spartan Strike Team"
               gameName="Halo: Flashpoint"
               thumbnailBg="bg-gradient-to-b from-[#252525] to-[#181d24]"
               thumbnail={<img src={iconHalo} alt="" className="size-full object-cover" />}
               badges={[
-                { label: '6 Units',    icon: <UserRounded className="size-3.5" /> },
-                { label: '8 Weapons',  icon: <Star        className="size-3.5" /> },
-                { label: '3 Rules',    icon: <FileText    className="size-3.5" /> },
+                { label: '6 Units',   icon: <UserRounded className="size-3.5" /> },
+                { label: '8 Weapons', icon: <Star        className="size-3.5" /> },
+                { label: '3 Rules',   icon: <FileText    className="size-3.5" /> },
               ]}
-              description="A starter pack for a Spartan strike team."
-              onDownload={() => {}}
+              description="A starter pack imported from the community."
+              onDelete={() => {}}
+              deleteLabel="Uninstall Pack"
             />
           </div>
 
@@ -3041,7 +3059,7 @@ const ComponentGallery = () => {
           </div>
 
           <div className="flex flex-col gap-2">
-            <p className="font-body text-xs text-gray-400 dark:text-gray-500">Minimal (header only — no download, no badges, no description)</p>
+            <p className="font-body text-xs text-gray-400 dark:text-gray-500">Minimal (header only — no menu, no download, no badges, no description)</p>
             <PackListItem
               name="Imported Pack"
               gameName="Blood Bowl"

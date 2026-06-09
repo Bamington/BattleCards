@@ -66,8 +66,15 @@ import type { DeckWithGame, PackWithGame } from '../lib/database.types';
 type DeckWithCards = DeckWithGame & { cards: [{ count: number }] };
 
 /** A pack ready to render in the home-screen list. Combines the
- *  pack row + joined game + a pre-computed list of content badges. */
-type PackForList = PackWithGame & { badges: PackBadge[] };
+ *  pack row + joined game + a pre-computed list of content badges.
+ *  `source` is set on rows in the "Your Packs" section and drives
+ *  the delete behaviour (own → DELETE pack; imported → DELETE
+ *  pack_imports row). Browse-list rows leave it undefined. */
+type PackSource = 'own' | 'imported';
+type PackForList = PackWithGame & {
+  badges: PackBadge[];
+  source?: PackSource;
+};
 
 // ── Asset imports ─────────────────────────────────────────────────────────────
 // Vite resolves these statically at build time.
@@ -169,6 +176,14 @@ export default function AppHome() {
   // most recent failed import. Cleared on next successful import or refresh.
   const [importingId,       setImportingId]       = useState<string | null>(null);
   const [importError,       setImportError]       = useState<string | null>(null);
+
+  // Pack delete / uninstall confirmation state. Shared by both Your
+  // Packs row actions. Drives the modal copy and decides whether
+  // Continue deletes the pack row outright (own) or just the
+  // pack_imports row (imported uninstall).
+  const [packToDelete,      setPackToDelete]      = useState<PackForList | null>(null);
+  const [deletingPack,      setDeletingPack]      = useState(false);
+  const [deletePackError,   setDeletePackError]   = useState<string | null>(null);
 
   // ── Create-pack flow state ────────────────────────────────────────────────
   // Two sequential modals: a confirmation step, then the form.
@@ -335,7 +350,11 @@ export default function AppHome() {
         importedPacks = (data ?? []) as PackWithGame[];
       }
 
-      // "Your Packs" = own + imported, dedup by id.
+      // Tag each Your Packs row with its source so the menu can show
+      // "Delete Pack" (own) or "Uninstall Pack" (imported). When a pack
+      // is both owned and imported (rare but possible), prefer 'own' so
+      // the user gets the full delete option.
+      const ownIds = new Set(((ownRes.data ?? []) as PackWithGame[]).map(p => p.id));
       const yourMap = new Map<string, PackWithGame>();
       for (const p of (ownRes.data ?? []) as PackWithGame[]) yourMap.set(p.id, p);
       for (const p of importedPacks)                        yourMap.set(p.id, p);
@@ -346,7 +365,10 @@ export default function AppHome() {
 
       // Enrich both lists with badges in parallel.
       const [yourEnriched, browseEnriched] = await Promise.all([
-        Promise.all(Array.from(yourMap.values()).map(enrichPackWithBadges)),
+        Promise.all(Array.from(yourMap.values()).map(async pack => ({
+          ...await enrichPackWithBadges(pack),
+          source: ownIds.has(pack.id) ? 'own' : 'imported' as PackSource,
+        }))),
         Promise.all(browseable.map(enrichPackWithBadges)),
       ]);
 
@@ -367,6 +389,53 @@ export default function AppHome() {
   // visible). On error we restore both pieces of state and surface the
   // message inline. import_pack runs as SECURITY DEFINER, so the success
   // path is "no error returned" rather than a row payload.
+
+  // ── Delete / uninstall an owned-or-imported pack ──────────────────────
+  // The same UX surface ("…" → Delete) covers two different DB operations
+  // depending on whether the pack is owned or imported. Confirmation is
+  // gated by a small modal so it's a deliberate action.
+
+  function requestDeletePack(pack: PackForList) {
+    setDeletePackError(null);
+    setPackToDelete(pack);
+  }
+
+  function cancelDeletePack() {
+    if (deletingPack) return;
+    setPackToDelete(null);
+    setDeletePackError(null);
+  }
+
+  async function handleConfirmDeletePack() {
+    if (!packToDelete) return;
+    setDeletingPack(true);
+    setDeletePackError(null);
+
+    const { error } = packToDelete.source === 'own'
+      // Own: cascade removes pack contents (cards / addons / keywords)
+      // via the existing FK ON DELETE CASCADE chain.
+      ? await supabase.from('packs').delete().eq('id', packToDelete.id)
+      // Imported: remove only the pack_imports row. The pack stays in
+      // the DB (still public for others) and our local clones survive.
+      : await supabase.from('pack_imports')
+          .delete()
+          .eq('pack_id', packToDelete.id)
+          .eq('user_id', userId!);
+
+    setDeletingPack(false);
+
+    if (error) {
+      setDeletePackError(`Couldn't ${packToDelete.source === 'own' ? 'delete' : 'uninstall'} "${packToDelete.name}". Please try again.`);
+      return;
+    }
+
+    // Optimistic: drop the row from yourPacks; reload to refresh
+    // anything else (browse list might now have this pack visible
+    // again after an uninstall).
+    setYourPacks(prev => prev.filter(p => p.id !== packToDelete.id));
+    setPackToDelete(null);
+    loadPacks(userId);
+  }
 
   const handleImport = async (pack: PackForList) => {
     if (importingId) return; // ignore concurrent clicks
@@ -622,6 +691,11 @@ export default function AppHome() {
                                     }
                                     badges={pack.badges}
                                     description={pack.description ?? undefined}
+                                    // PackListItem stops event propagation
+                                    // at the menu wrapper, so this click
+                                    // doesn't also navigate via the Link.
+                                    onDelete={() => requestDeletePack(pack)}
+                                    deleteLabel={pack.source === 'imported' ? 'Uninstall Pack' : 'Delete Pack'}
                                   />
                                 </Link>
                               );
@@ -958,6 +1032,71 @@ export default function AppHome() {
           navigate(`/app/builder/${gameSlug}?deckId=${deckId}`);
         }}
       />
+
+      {/* ── Delete / uninstall pack confirmation ────────────────────────── */}
+      {/* One shared modal for both Delete (own) and Uninstall (imported).
+          Copy + button labels switch based on packToDelete.source so the
+          user knows what's about to happen. */}
+      <Modal
+        open={packToDelete !== null}
+        onClose={cancelDeletePack}
+        className="max-w-xs"
+      >
+        {packToDelete && (
+          <div className="flex flex-col gap-3 p-5">
+
+            <TrashBinMinimalistic className="size-8 text-blue-400" />
+
+            <h2 className="font-heading text-xl text-white">
+              {packToDelete.source === 'imported'
+                ? 'Uninstall this pack?'
+                : 'Delete this pack?'}
+            </h2>
+
+            <p className="font-body text-base text-gray-300">
+              {packToDelete.source === 'imported' ? (
+                <>
+                  This removes
+                  {' '}<span className="font-bold text-white">{packToDelete.name}</span>{' '}
+                  from your library. It stays available to download again
+                  later. Cards you've already added to decks aren't affected.
+                </>
+              ) : (
+                <>
+                  This permanently deletes
+                  {' '}<span className="font-bold text-white">{packToDelete.name}</span>{' '}
+                  and all of its cards, addons, and keywords. This cannot
+                  be undone.
+                </>
+              )}
+            </p>
+
+            {deletePackError && (
+              <p className="font-body text-sm text-red-400">{deletePackError}</p>
+            )}
+
+            <div className="flex items-center gap-3 pt-1">
+              <Button
+                variant="ghost"
+                color="danger"
+                disabled={deletingPack}
+                onClick={cancelDeletePack}
+              >
+                Cancel
+              </Button>
+              <Button
+                color="danger"
+                loading={deletingPack}
+                rightIcon={<AltArrowRight className="size-4" />}
+                onClick={handleConfirmDeletePack}
+              >
+                Continue
+              </Button>
+            </div>
+
+          </div>
+        )}
+      </Modal>
 
       {/* ── Create Pack — step 1: confirmation ───────────────────────────── */}
       {/* Reassures the user they don't need a pack just to make a deck.
