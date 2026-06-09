@@ -66,6 +66,7 @@ import HamburgerMenu from '../icons/HamburgerMenu';
 import { supabase } from '../lib/supabase';
 import { fetchConstraints, getMaxLength, getMaxKeywords, isAtLimit } from '../lib/constraints';
 import type { BloodBowlStats, EntityConstraints } from '../lib/database.types';
+import { formatKeywordLabel } from '../lib/cardShape/util';
 import logoBloodBowl from '../assets/games/logo-blood-bowl.png';
 import iconBloodBowl from '../assets/games/card assets/blood-bowl/icon.png';
 
@@ -96,10 +97,10 @@ interface LocalKeywordAttachment {
   paramValue: number | null;
 }
 
+// Per-keyword "Name" / "Name (X)" formatting goes through the shared
+// formatKeywordLabel — same primitive the pack editor's shapers use.
 const buildSkillsDisplayString = (kws: LocalKeywordAttachment[]) =>
-  kws
-    .map(k => k.paramValue != null ? `${k.keywordName} (${k.paramValue})` : k.keywordName)
-    .join(', ');
+  kws.map(k => formatKeywordLabel(k.keywordName, k.paramValue)).join(', ');
 
 // ── Card data type ────────────────────────────────────────────────────────────
 

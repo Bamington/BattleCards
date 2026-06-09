@@ -29,6 +29,7 @@ import type {
 } from '../../components/KillTeamCard';
 import type { KillTeamRuleCardProps } from '../../components/KillTeamRuleCard';
 import type { KillTeamStats } from '../database.types';
+import { addonSlug, formatKeywordLabel } from './util';
 
 // ── Loose row types matching the select string above ────────────────────────
 
@@ -75,23 +76,12 @@ export interface KillTeamCardDbRow {
 
 // ── Internal helpers ────────────────────────────────────────────────────────
 
-/** Supabase nests the to-one addon_type join as either an object or a
- *  single-element array depending on schema introspection. Normalise. */
-function addonSlug(addon: CardAddonRow['addons']): string {
-  if (!addon?.addon_type) return '';
-  const at = addon.addon_type;
-  return Array.isArray(at) ? (at[0]?.slug ?? '') : at.slug;
-}
-
 /** Comma-joined display string for a list of attached keywords. */
 function joinKeywordLabels(rows: AddonKeywordRow[]): string {
   return rows
     .filter(r => r.keywords != null)
     .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
-    .map(r => {
-      const x = r.params?.X;
-      return x != null ? `${r.keywords!.name} (${x})` : r.keywords!.name;
-    })
+    .map(r => formatKeywordLabel(r.keywords!.name, r.params?.X))
     .join(', ');
 }
 
@@ -101,26 +91,24 @@ function keywordInfos(rows: AddonKeywordRow[]): CardKeywordInfo[] {
   return rows
     .filter(r => r.keywords != null)
     .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
-    .map(r => {
-      const x = r.params?.X;
-      return {
-        label:       x != null ? `${r.keywords!.name} (${x})` : r.keywords!.name,
-        name:        r.keywords!.name,
-        description: r.keywords!.description ?? '',
-      };
-    });
+    .map(r => ({
+      label:       formatKeywordLabel(r.keywords!.name, r.params?.X),
+      name:        r.keywords!.name,
+      description: r.keywords!.description ?? '',
+    }));
 }
 
-/** parseHit / parseDamageParts mirror the builder. Legacy stats stored
- *  hit as `"3+"` and damage as `"3/4"`; new stats use numeric baseDamage
- *  / critDamage fields. Handle both. */
-function parseHit(v: unknown): number {
+/** parseHit / parseDamageParts handle Kill Team's mix of legacy
+ *  string-shaped stats (hit `"3+"`, damage `"3/4"`) and the newer
+ *  numeric shape (`baseDamage`, `critDamage`). Exported so the
+ *  CardBuilderKillTeam can use the same logic at load time. */
+export function parseHit(v: unknown): number {
   if (typeof v === 'number' && Number.isFinite(v)) return v;
   const n = parseInt(String(v ?? ''), 10);
   return Number.isFinite(n) ? n : 0;
 }
 
-function parseDamageParts(s: Record<string, unknown>): { base: number; crit: number } {
+export function parseDamageParts(s: Record<string, unknown>): { base: number; crit: number } {
   if (s.baseDamage != null || s.critDamage != null) {
     return { base: Number(s.baseDamage) || 0, crit: Number(s.critDamage) || 0 };
   }
@@ -129,8 +117,8 @@ function parseDamageParts(s: Record<string, unknown>): { base: number; crit: num
   return { base: parseInt(b ?? '', 10) || 0, crit: parseInt(c ?? '', 10) || 0 };
 }
 
-const formatHit    = (hit: number) => hit > 0 ? `${hit}+` : '—';
-const formatDamage = (base: number, crit: number) =>
+export const formatHit    = (hit: number) => hit > 0 ? `${hit}+` : '—';
+export const formatDamage = (base: number, crit: number) =>
   base > 0 || crit > 0 ? `${base}/${crit}` : '—';
 
 const numStat = (v: unknown): number => {

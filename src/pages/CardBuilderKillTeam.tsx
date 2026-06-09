@@ -70,6 +70,7 @@ import HamburgerMenu from '../icons/HamburgerMenu';
 import Diskette from '../icons/Diskette';
 import { supabase } from '../lib/supabase';
 import type { Addon, KillTeamStats, TokenDefinition } from '../lib/database.types';
+import { formatKeywordLabel } from '../lib/cardShape/util';
 import logoKillTeam from '../assets/games/logo-kill-team.png';
 import iconKillTeam from '../assets/games/card assets/kill-team/icon.png';
 
@@ -118,10 +119,10 @@ interface LocalKeywordAttachment {
   paramValue:  number | null;
 }
 
+// Per-keyword "Name" / "Name (X)" formatting goes through the shared
+// formatKeywordLabel — same primitive the pack editor's shapers use.
 const buildKeywordsDisplayString = (kws: LocalKeywordAttachment[]) =>
-  kws
-    .map(k => k.paramValue != null ? `${k.keywordName} (${k.paramValue})` : k.keywordName)
-    .join(', ');
+  kws.map(k => formatKeywordLabel(k.keywordName, k.paramValue)).join(', ');
 
 // ── Local addon shapes ────────────────────────────────────────────────────────
 
@@ -137,32 +138,13 @@ interface LocalWeapon {
   weaponKeywords: LocalKeywordAttachment[];
 }
 
-// ── Weapon helpers (parse legacy strings + format display) ───────────────────
-// Backward compat: weapons saved before this migration have `hit: "3+"` and
-// `damage: "3/4"` as strings. parseInt strips the suffix; '/' splits damage.
-const parseHit = (v: unknown): number => {
-  if (typeof v === 'number' && Number.isFinite(v)) return v;
-  const n = parseInt(String(v ?? ''), 10);
-  return Number.isFinite(n) ? n : 0;
-};
-
-const parseDamageParts = (s: Record<string, unknown>): { base: number; crit: number } => {
-  // New shape: explicit baseDamage / critDamage fields
-  if (s.baseDamage != null || s.critDamage != null) {
-    return { base: Number(s.baseDamage) || 0, crit: Number(s.critDamage) || 0 };
-  }
-  // Legacy shape: damage as a "base/crit" string
-  const raw = String(s.damage ?? '');
-  const [b, c] = raw.split('/');
-  return { base: parseInt(b ?? '', 10) || 0, crit: parseInt(c ?? '', 10) || 0 };
-};
-
-/** Format a Hit value for display: `3+` / `—` */
-const formatHit = (hit: number) => hit > 0 ? `${hit}+` : '—';
-
-/** Format Damage values for display: `3/4` / `—` */
-const formatDamage = (base: number, crit: number) =>
-  base > 0 || crit > 0 ? `${base}/${crit}` : '—';
+// parseHit / parseDamageParts / formatHit / formatDamage are now exported
+// from the pack editor's Kill Team card shaper — same logic used in both
+// contexts. Importing here so any future change to the parsing rules
+// (e.g. a new legacy shape) only needs to happen in one place.
+import {
+  parseHit, parseDamageParts, formatHit, formatDamage,
+} from '../lib/cardShape/killTeam';
 
 interface LocalAbility {
   addonId:         string;

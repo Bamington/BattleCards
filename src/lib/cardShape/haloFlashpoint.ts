@@ -29,6 +29,7 @@
 
 import type { HaloFlashpointCardProps } from '../../components/HaloFlashpointCard';
 import type { HaloFlashpointStats } from '../database.types';
+import { formatKeywordLabel } from './util';
 
 // ── Loose row types matching the select string above ────────────────────────
 // Supabase TS narrowing of nested selects is brittle; we keep these
@@ -72,10 +73,7 @@ function joinKeywordLabels(rows: CardKeywordRow[]): string {
   return rows
     .filter(r => r.keywords != null)
     .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
-    .map(r => {
-      const x = r.params?.X;
-      return x != null ? `${r.keywords!.name} (${x})` : r.keywords!.name;
-    })
+    .map(r => formatKeywordLabel(r.keywords!.name, r.params?.X))
     .join(', ');
 }
 

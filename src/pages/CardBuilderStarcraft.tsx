@@ -45,7 +45,6 @@ import StarcraftCard, {
   type StarcraftAbility,
   type StarcraftWeapon,
   type StarcraftSupplyTier,
-  type StarcraftKeywordAttachment,
 } from '../components/StarcraftCard';
 import UploadPhotoModal     from '../components/UploadPhotoModal';
 import AddAddonModal        from '../components/AddAddonModal';
@@ -62,6 +61,10 @@ import Diskette              from '../icons/Diskette';
 import Pen2                  from '../icons/Pen2';
 import { supabase } from '../lib/supabase';
 import type { Addon, DeckWithGame, StarcraftStats, StarcraftWeaponStats, StarcraftRuleStats } from '../lib/database.types';
+// rowToKeywords is the same function the pack editor's StarCraft card
+// shaper uses to assemble keyword attachments — keep one canonical copy
+// in src/lib/cardShape/starcraft.ts so the two contexts stay in lockstep.
+import { rowToKeywords } from '../lib/cardShape/starcraft';
 import logoStarcraft from '../assets/games/logo-starcraft.svg';
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore — path contains spaces
@@ -216,18 +219,8 @@ const SELECT_CARD_ADDONS = `
   )
 `;
 
-/** Resolve the keyword-attachment list once — shared by weapons + abilities. */
-const rowToKeywords = (a: NonNullable<AttachedAddonRow['addons']>): StarcraftKeywordAttachment[] =>
-  (a.addon_keywords ?? [])
-    .filter(ak => ak.keywords != null)
-    .sort((x, y) => (x.sort_order ?? 0) - (y.sort_order ?? 0))
-    .map(ak => ({
-      keywordId:   ak.keywords!.id,
-      name:        ak.keywords!.name,
-      description: ak.keywords!.description ?? '',
-      hasValue:    Array.isArray(ak.keywords!.params_schema) && ak.keywords!.params_schema.length > 0,
-      value:       typeof ak.params?.value === 'string' ? (ak.params!.value as string) : null,
-    }));
+// rowToKeywords is imported from src/lib/cardShape/starcraft.ts — same
+// function the pack editor uses. Keeps the two contexts in lockstep.
 
 const rowsToWeapons = (rows: AttachedAddonRow[]): StarcraftWeapon[] =>
   rows

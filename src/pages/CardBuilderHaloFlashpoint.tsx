@@ -71,6 +71,7 @@ import { supabase } from '../lib/supabase';
 import { fetchConstraints, getMaxLength, getMaxAddons, getMaxKeywords, getMaxRules, isAtLimit } from '../lib/constraints';
 import TokenMenu from '../components/TokenMenu';
 import type { Addon, HaloFlashpointStats, EntityConstraints, TokenDefinition } from '../lib/database.types';
+import { formatKeywordLabel } from '../lib/cardShape/util';
 import logoHaloFlashpoint from '../assets/games/logo-halo-flashpoint.png';
 import iconHaloFlashpoint from '../assets/games/card assets/halo/icon.png';
 
@@ -177,10 +178,10 @@ const toHaloStats = (c: HaloCardData): HaloFlashpointStats => ({
   pointsCost:   c.pointsCost,
 });
 
+// Per-keyword "Name" / "Name (X)" formatting goes through the shared
+// formatKeywordLabel — same primitive the pack editor's shapers use.
 const buildKeywordsDisplayString = (kws: LocalKeywordAttachment[]) =>
-  kws
-    .map(k => k.paramValue != null ? `${k.keywordName} (${k.paramValue})` : k.keywordName)
-    .join(', ');
+  kws.map(k => formatKeywordLabel(k.keywordName, k.paramValue)).join(', ');
 
 // ── Weapon subtitle builder ────────────────────────────────────────────────────
 // Used in the picker list to summarise a weapon from its Supabase addon row.

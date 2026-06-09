@@ -36,6 +36,7 @@ import type {
   StarcraftRuleStats,
   StarcraftSupplyTier,
 } from '../database.types';
+import { addonSlug } from './util';
 
 // ── Loose row types ─────────────────────────────────────────────────────────
 
@@ -77,14 +78,17 @@ export interface StarcraftCardDbRow {
 
 // ── Internal helpers ────────────────────────────────────────────────────────
 
-function addonSlug(addon: CardAddonRow['addons']): string {
-  if (!addon?.addon_type) return '';
-  const at = addon.addon_type;
-  return Array.isArray(at) ? (at[0]?.slug ?? '') : at.slug;
-}
-
-function rowToKeywords(addon: NonNullable<CardAddonRow['addons']>): StarcraftKeywordAttachment[] {
-  return (addon.addon_keywords ?? [])
+/** Convert an addon's addon_keywords join into StarCraft's
+ *  keyword-attachment shape. Exported for reuse from
+ *  CardBuilderStarcraft, which builds the same array at load time.
+ *
+ *  Signature only requires `addon_keywords` — the function doesn't
+ *  read any other field of the addon, so callers can pass their own
+ *  stricter row shapes without coupling to CardAddonRow. */
+export function rowToKeywords(
+  addon: { addon_keywords?: AddonKeywordRow[] | null } | null | undefined,
+): StarcraftKeywordAttachment[] {
+  return (addon?.addon_keywords ?? [])
     .filter(ak => ak.keywords != null)
     .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
     .map(ak => ({

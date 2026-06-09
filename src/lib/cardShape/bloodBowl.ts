@@ -19,6 +19,7 @@
 
 import type { BloodBowlCardProps } from '../../components/BloodBowlCard';
 import type { BloodBowlStats } from '../database.types';
+import { formatKeywordLabel } from './util';
 
 // ── Loose row types matching the select string above ────────────────────────
 
@@ -57,10 +58,9 @@ export function dbRowsToBloodBowlProps(
     .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
 
   // Skill labels: "Name" or "Name (X)" if the keyword has a numeric param.
-  const skillLabels = sortedKws.map(ck => {
-    const x = ck.params?.X;
-    return x != null ? `${ck.keywords!.name} (${x})` : ck.keywords!.name;
-  });
+  const skillLabels = sortedKws.map(ck =>
+    formatKeywordLabel(ck.keywords!.name, ck.params?.X),
+  );
 
   const skillData = sortedKws.map((ck, i) => ({
     label:       skillLabels[i],
