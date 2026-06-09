@@ -39,7 +39,11 @@ import FileText from '../icons/FileText';
 import Star from '../icons/Star';
 import Bookmark from '../icons/Bookmark';
 import MenuDots from '../icons/MenuDots';
+import TrashBinMinimalistic from '../icons/TrashBinMinimalistic';
 import AltArrowLeft from '../icons/AltArrowLeft';
+import AltArrowRight from '../icons/AltArrowRight';
+import Dropdown, { DropdownItem } from '../components/Dropdown';
+import Modal from '../components/Modal';
 import { supabase } from '../lib/supabase';
 import type {
   PackWithGame, Card, Addon, Keyword, AddonType, Json,
@@ -119,6 +123,18 @@ export default function PackEditor() {
   // The AddToPackModal is reused for every "Add X" button. Null when closed;
   // a context object describing what to show otherwise.
   const [addModal, setAddModal] = useState<AddModalCtx | null>(null);
+
+  // Delete-confirmation state. One shared modal for every entity type;
+  // `kind` picks the supabase table and the "this cannot be undone"
+  // copy in the body. Cleared after a successful delete or cancel.
+  const [confirmDelete, setConfirmDelete] = useState<{
+    kind:      'card' | 'addon' | 'keyword';
+    id:        string;
+    name:      string;
+    typeLabel: string;
+  } | null>(null);
+  const [deleting,   setDeleting]   = useState(false);
+  const [deleteErr,  setDeleteErr]  = useState<string | null>(null);
 
   // ── Load everything in parallel ──────────────────────────────────────────
 
@@ -235,6 +251,52 @@ export default function PackEditor() {
     }
     setPack({ ...pack, name: trimmed });
     setEditingName(false);
+  }
+
+  // ── Delete (cards / addons / keywords) ─────────────────────────────────
+  // The user can request a delete from any ⋯ menu; this opens the shared
+  // confirmation modal. Continue then runs the DELETE through Supabase.
+  // RLS (pack owner can delete pack rows) handles authz; FK ON DELETE
+  // CASCADE on join tables takes care of card_addons / card_keywords /
+  // addon_keywords cleanup automatically.
+
+  const DELETE_TABLE: Record<'card' | 'addon' | 'keyword', 'cards' | 'addons' | 'keywords'> = {
+    card:    'cards',
+    addon:   'addons',
+    keyword: 'keywords',
+  };
+
+  function requestDelete(
+    kind: 'card' | 'addon' | 'keyword',
+    id:   string,
+    name: string,
+    typeLabel: string,
+  ) {
+    setDeleteErr(null);
+    setConfirmDelete({ kind, id, name, typeLabel });
+  }
+
+  function cancelDelete() {
+    if (deleting) return;
+    setConfirmDelete(null);
+    setDeleteErr(null);
+  }
+
+  async function handleConfirmDelete() {
+    if (!confirmDelete) return;
+    setDeleting(true);
+    setDeleteErr(null);
+    const { error } = await supabase
+      .from(DELETE_TABLE[confirmDelete.kind])
+      .delete()
+      .eq('id', confirmDelete.id);
+    setDeleting(false);
+    if (error) {
+      setDeleteErr(`Couldn't delete "${confirmDelete.name}". Please try again.`);
+      return;
+    }
+    setConfirmDelete(null);
+    loadAll();
   }
 
   // ── Derived data per panel ───────────────────────────────────────────────
@@ -360,7 +422,11 @@ export default function PackEditor() {
               {operativeCards.length === 0 ? (
                 <EmptyPanelState message="No units yet. Click Add Unit to create one." />
               ) : (
-                <CardPreviewRow cards={operativeCards} gameSlug={pack.game.slug} />
+                <CardPreviewRow
+                  cards={operativeCards}
+                  gameSlug={pack.game.slug}
+                  onDeleteCard={card => requestDelete('card', card.id, card.name, 'Unit')}
+                />
               )}
             </PackPanel>
 
@@ -382,7 +448,11 @@ export default function PackEditor() {
                 {ruleCards.length === 0 ? (
                   <EmptyPanelState message="No rule cards yet. Click Add Rule Card to create one." />
                 ) : (
-                  <CardPreviewRow cards={ruleCards} gameSlug={pack.game.slug} />
+                  <CardPreviewRow
+                    cards={ruleCards}
+                    gameSlug={pack.game.slug}
+                    onDeleteCard={card => requestDelete('card', card.id, card.name, 'Rule Card')}
+                  />
                 )}
               </PackPanel>
             )}
@@ -426,8 +496,7 @@ export default function PackEditor() {
                               name={a.name}
                               subtitle={addonSubtitle(a, at)}
                               addonTypeName={singular}
-                              onEdit={() => stubNotImplemented(`Edit ${singular}`)}
-                              onDelete={() => stubNotImplemented(`Delete ${singular}`)}
+                              onDelete={() => requestDelete('addon', a.id, a.name, singular)}
                             />
                           ))}
                         </div>
@@ -459,8 +528,7 @@ export default function PackEditor() {
                         name={k.name}
                         subtitle={k.description ?? ''}
                         addonTypeName="Keyword"
-                        onEdit={() => stubNotImplemented('Edit Keyword')}
-                        onDelete={() => stubNotImplemented('Delete Keyword')}
+                        onDelete={() => requestDelete('keyword', k.id, k.name, 'Keyword')}
                       />
                     ))}
                   </div>
@@ -495,6 +563,58 @@ export default function PackEditor() {
           }}
         />
       )}
+
+      {/* Shared delete confirmation modal — used by every ⋯ menu. */}
+      <Modal
+        open={confirmDelete !== null}
+        onClose={cancelDelete}
+        className="max-w-xs"
+      >
+        {confirmDelete && (
+          <div className="flex flex-col gap-3 p-5">
+
+            <TrashBinMinimalistic className="size-8 text-blue-400" />
+
+            <h2 className="font-heading text-xl text-white">
+              Delete this {confirmDelete.typeLabel.toLowerCase()}?
+            </h2>
+
+            <p className="font-body text-base text-gray-300">
+              This will remove
+              {' '}
+              <span className="font-bold text-white">
+                {confirmDelete.name || `(unnamed ${confirmDelete.typeLabel.toLowerCase()})`}
+              </span>
+              {' '}
+              from this pack. This cannot be undone.
+            </p>
+
+            {deleteErr && (
+              <p className="font-body text-sm text-red-400">{deleteErr}</p>
+            )}
+
+            <div className="flex items-center gap-3 pt-1">
+              <Button
+                variant="ghost"
+                color="danger"
+                disabled={deleting}
+                onClick={cancelDelete}
+              >
+                Cancel
+              </Button>
+              <Button
+                color="danger"
+                loading={deleting}
+                rightIcon={<AltArrowRight className="size-4" />}
+                onClick={handleConfirmDelete}
+              >
+                Continue
+              </Button>
+            </div>
+
+          </div>
+        )}
+      </Modal>
     </div>
   );
 }
@@ -604,28 +724,43 @@ const STARCRAFT_DIMS      = dimsFor(1270, 890);
 
 /** Shared wrapper that draws the card-shaped bounding box, applies the
  *  CSS transform that scales the native-size card into the tile, and
- *  renders the footer label (uppercase card name + ⋯ menu icon) below
- *  the preview. Matches Figma node 919:16810. */
+ *  renders the footer label (uppercase card name + ⋯ menu) below the
+ *  preview. Matches Figma node 919:16810.
+ *
+ *  ⋯ renders a Dropdown with Edit / Delete items when their handlers
+ *  are provided. The outer container deliberately omits overflow-hidden
+ *  so the Dropdown panel can escape — the card area applies its own
+ *  overflow-hidden + rounded-t-[6px] to keep the scaled card clipped. */
 function PreviewTile({
   dims,
   title,
   children,
-  onMenuClick,
+  typeLabel = 'Card',
+  onEdit,
+  onDelete,
 }: {
   dims:   PreviewDims;
   title?: string;
   children: React.ReactNode;
-  /** Called when the user clicks the ⋯ icon. Wire to a real menu when
-   *  card actions (edit/delete/etc.) ship; currently stubbed. */
-  onMenuClick?: () => void;
+  /** Used in the menu item copy: "Delete {typeLabel}", "Edit {typeLabel}". */
+  typeLabel?: string;
+  onEdit?:   () => void;
+  onDelete?: () => void;
 }) {
   return (
     <div
-      className="shrink-0 rounded-[6px] border border-gray-700 overflow-hidden bg-gray-800"
+      // No overflow-hidden so the Dropdown panel can escape the tile.
+      className="shrink-0 rounded-[6px] border border-gray-700 bg-gray-800"
       style={{ width: dims.w }}
     >
-      {/* Card area — fixed height, clips the scaled-down native card */}
-      <div className="overflow-hidden" style={{ height: dims.h }} title={title}>
+      {/* Card area — fixed height, clips the scaled-down native card.
+          Has its own rounded-t so the top corners match the outer's
+          rounded-[6px] without relying on the outer's overflow-hidden. */}
+      <div
+        className="overflow-hidden rounded-t-[6px]"
+        style={{ height: dims.h }}
+        title={title}
+      >
         <div
           style={{
             width:           dims.nativeW,
@@ -640,32 +775,62 @@ function PreviewTile({
 
       {/* Footer band — card name (uppercase Space Grotesk Bold) + ⋯ */}
       <div className="flex items-center p-1">
-        <p className="flex-1 min-w-0 truncate font-body font-bold text-xs leading-4 tracking-[1.2px] uppercase text-gray-300">
+        <p className="flex-1 min-w-0 truncate font-body font-bold text-xs leading-4 tracking-[1.2px] uppercase text-gray-300 px-1">
           {title ?? ''}
         </p>
-        <button
-          type="button"
-          aria-label="Card options"
-          onClick={onMenuClick}
-          className="shrink-0 p-1 opacity-50 hover:opacity-100 transition-opacity text-gray-300 hover:text-white"
-        >
-          <MenuDots className="size-4" />
-        </button>
+
+        {(onEdit || onDelete) && (
+          <Dropdown
+            align="right"
+            menuClassName="w-36"
+            trigger={
+              <button
+                type="button"
+                aria-label={`${typeLabel} options`}
+                className="shrink-0 p-1 opacity-50 hover:opacity-100 transition-opacity text-gray-300 hover:text-white"
+              >
+                <MenuDots className="size-4" />
+              </button>
+            }
+          >
+            {onEdit && (
+              <DropdownItem onClick={onEdit}>
+                Edit {typeLabel}
+              </DropdownItem>
+            )}
+            {onDelete && (
+              <DropdownItem
+                icon={<TrashBinMinimalistic className="size-4" />}
+                onClick={onDelete}
+                className="!text-red-400 hover:!text-red-300 dark:!text-red-400 dark:hover:!text-red-300"
+              >
+                Delete {typeLabel}
+              </DropdownItem>
+            )}
+          </Dropdown>
+        )}
       </div>
     </div>
   );
 }
 
 /** Per-card preview render — switches on game slug + card_type and
- *  delegates to the right shaper + card component. */
-function renderPreview(c: CardWithJoins, gameSlug: string): React.ReactNode {
-  // Per-card menu stub. Wire to a real Edit/Delete/etc. menu when
-  // those card actions are designed.
-  const onMenuClick = () => stubNotImplemented('Card options');
+ *  delegates to the right shaper + card component. The caller-supplied
+ *  onDelete is wired into PreviewTile's Dropdown so each card's
+ *  ⋯ menu can request a delete confirmation. */
+function renderPreview(
+  c: CardWithJoins,
+  gameSlug: string,
+  onDelete: () => void,
+): React.ReactNode {
+  // Operative cards are called "Unit" in copy, rule cards "Rule Card".
+  const typeLabel = c.card_type === 'rule' ? 'Rule Card' : 'Unit';
+
+  const common = { key: c.id, title: c.name, typeLabel, onDelete };
 
   if (gameSlug === 'halo-flashpoint') {
     return (
-      <PreviewTile key={c.id} dims={HALO_DIMS} title={c.name} onMenuClick={onMenuClick}>
+      <PreviewTile {...common} dims={HALO_DIMS}>
         <HaloFlashpointCard
           {...dbRowsToHaloFlashpointProps(c as unknown as HaloCardDbRow)}
         />
@@ -675,7 +840,7 @@ function renderPreview(c: CardWithJoins, gameSlug: string): React.ReactNode {
 
   if (gameSlug === 'blood-bowl') {
     return (
-      <PreviewTile key={c.id} dims={BLOOD_BOWL_DIMS} title={c.name} onMenuClick={onMenuClick}>
+      <PreviewTile {...common} dims={BLOOD_BOWL_DIMS}>
         <BloodBowlCard
           {...dbRowsToBloodBowlProps(c as unknown as BloodBowlCardDbRow)}
         />
@@ -686,7 +851,7 @@ function renderPreview(c: CardWithJoins, gameSlug: string): React.ReactNode {
   if (gameSlug === 'kill-team') {
     if (c.card_type === 'rule') {
       return (
-        <PreviewTile key={c.id} dims={KILL_TEAM_RULE_DIMS} title={c.name} onMenuClick={onMenuClick}>
+        <PreviewTile {...common} dims={KILL_TEAM_RULE_DIMS}>
           <KillTeamRuleCard
             {...dbRowsToKillTeamRuleProps(c as unknown as KillTeamCardDbRow)}
           />
@@ -694,7 +859,7 @@ function renderPreview(c: CardWithJoins, gameSlug: string): React.ReactNode {
       );
     }
     return (
-      <PreviewTile key={c.id} dims={KILL_TEAM_DIMS} title={c.name} onMenuClick={onMenuClick}>
+      <PreviewTile {...common} dims={KILL_TEAM_DIMS}>
         {/* Force the desktop (landscape) layout so the scale assumption
             holds — without this the card flips to a portrait mobile
             layout on narrow viewports. */}
@@ -708,7 +873,7 @@ function renderPreview(c: CardWithJoins, gameSlug: string): React.ReactNode {
 
   if (gameSlug === 'starcraft') {
     return (
-      <PreviewTile key={c.id} dims={STARCRAFT_DIMS} title={c.name} onMenuClick={onMenuClick}>
+      <PreviewTile {...common} dims={STARCRAFT_DIMS}>
         <StarcraftCard
           {...dbRowsToStarcraftProps(c as unknown as StarcraftCardDbRow)}
         />
@@ -720,7 +885,7 @@ function renderPreview(c: CardWithJoins, gameSlug: string): React.ReactNode {
   // Uses PreviewTile so the footer chrome is consistent; the card area
   // shows a name placeholder instead of a real game card.
   return (
-    <PreviewTile key={c.id} dims={HALO_DIMS} title={c.name} onMenuClick={onMenuClick}>
+    <PreviewTile {...common} dims={HALO_DIMS}>
       <div
         className="flex items-center justify-center p-3 bg-gray-700"
         style={{ width: HALO_DIMS.nativeW, height: HALO_DIMS.nativeH }}
@@ -736,13 +901,16 @@ function renderPreview(c: CardWithJoins, gameSlug: string): React.ReactNode {
 function CardPreviewRow({
   cards,
   gameSlug,
+  onDeleteCard,
 }: {
   cards:    CardWithJoins[];
   gameSlug: string;
+  /** Per-card delete request — opens the shared confirmation modal. */
+  onDeleteCard: (card: CardWithJoins) => void;
 }) {
   return (
     <div className="flex gap-3 overflow-x-auto">
-      {cards.map(c => renderPreview(c, gameSlug))}
+      {cards.map(c => renderPreview(c, gameSlug, () => onDeleteCard(c)))}
     </div>
   );
 }
