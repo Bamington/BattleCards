@@ -57,6 +57,10 @@ import AddonListItem from '../components/AddonListItem';
 import RichTextEditor from '../components/RichTextEditor';
 import AddAddonModal, { type AddonFormProps } from '../components/AddAddonModal';
 import AddKeywordModal from '../components/AddKeywordModal';
+import HaloCardForm from '../components/HaloCardForm';
+import BloodBowlCardForm from '../components/BloodBowlCardForm';
+import KillTeamCardForm from '../components/KillTeamCardForm';
+import StarcraftCardForm from '../components/StarcraftCardForm';
 import KeywordInfoModal from '../components/KeywordInfoModal';
 import WeaponInfoModal from '../components/WeaponInfoModal';
 import ImportListModal from '../components/ImportListModal';
@@ -3901,6 +3905,40 @@ const ComponentGallery = () => {
               mobilePanelOpen — logo hidden, main collapsed
             </div>
           </CenterViewport>
+        </div>
+      </GallerySection>
+
+      <GallerySection title="Card Forms / Halo Flashpoint">
+        <p className="font-body text-sm text-gray-400 mb-4">
+          Phase 1 stats form — fills in card stats and creates the row in the DB before proceeding to weapons/keywords.
+          Phase 2 (content) opens after create. Cancel/Done are non-functional in the gallery.
+        </p>
+        <div className="max-w-xl bg-gray-900 border border-gray-700 rounded-lg overflow-hidden">
+          <HaloCardForm packId="" gameId="" addonTypes={[]} onSaved={() => {}} onCancel={() => {}} />
+        </div>
+      </GallerySection>
+
+      <GallerySection title="Card Forms / Blood Bowl">
+        <div className="max-w-xl bg-gray-900 border border-gray-700 rounded-lg overflow-hidden">
+          <BloodBowlCardForm packId="" gameId="" onSaved={() => {}} onCancel={() => {}} />
+        </div>
+      </GallerySection>
+
+      <GallerySection title="Card Forms / Kill Team — Operative">
+        <div className="max-w-xl bg-gray-900 border border-gray-700 rounded-lg overflow-hidden">
+          <KillTeamCardForm packId="" gameId="" addonTypes={[]} cardType="operative" onSaved={() => {}} onCancel={() => {}} />
+        </div>
+      </GallerySection>
+
+      <GallerySection title="Card Forms / Kill Team — Rule Card">
+        <div className="max-w-xl bg-gray-900 border border-gray-700 rounded-lg overflow-hidden">
+          <KillTeamCardForm packId="" gameId="" addonTypes={[]} cardType="rule" onSaved={() => {}} onCancel={() => {}} />
+        </div>
+      </GallerySection>
+
+      <GallerySection title="Card Forms / StarCraft">
+        <div className="max-w-xl bg-gray-900 border border-gray-700 rounded-lg overflow-hidden">
+          <StarcraftCardForm packId="" gameId="" addonTypes={[]} onSaved={() => {}} onCancel={() => {}} />
         </div>
       </GallerySection>
 

@@ -41,6 +41,10 @@ import BloodBowlCard from '../components/BloodBowlCard';
 import KillTeamCard from '../components/KillTeamCard';
 import KillTeamRuleCard from '../components/KillTeamRuleCard';
 import StarcraftCard from '../components/StarcraftCard';
+import HaloCardForm from '../components/HaloCardForm';
+import BloodBowlCardForm from '../components/BloodBowlCardForm';
+import KillTeamCardForm from '../components/KillTeamCardForm';
+import StarcraftCardForm from '../components/StarcraftCardForm';
 import AddCircle from '../icons/AddCircle';
 import UserRounded from '../icons/UserRounded';
 import FileText from '../icons/FileText';
@@ -142,6 +146,28 @@ const ADDON_EDIT_FORMS: Record<string, Record<string, ComponentType<PackAddonFor
   'starcraft':       { weapons: StarcraftWeaponForm, rules: StarcraftAbilityForm },
 };
 
+// ── Per-game card creation forms ──────────────────────────────────────────────
+// Each form handles the two-phase creation flow (stats → weapons/abilities/
+// keywords) for its game. PackEditor resolves the right form from this map
+// and renders it in a Modal when the user clicks "New Unit" / "New Rule Card".
+
+type PackCardFormProps = {
+  packId:     string;
+  gameId:     string;
+  addonTypes: AddonType[];
+  cardType?:  'operative' | 'rule';
+  onSaved:    (cardId: string) => void;
+  onCancel:   () => void;
+};
+const CARD_EDIT_FORMS: Record<string, ComponentType<PackCardFormProps>> = {
+  'halo-flashpoint': HaloCardForm,
+  // BloodBowlCardForm has no addonTypes/cardType — cast to shared props type;
+  // React ignores extra props that the component doesn't declare.
+  'blood-bowl':      BloodBowlCardForm as ComponentType<PackCardFormProps>,
+  'kill-team':       KillTeamCardForm,
+  'starcraft':       StarcraftCardForm,
+};
+
 // ── Page ─────────────────────────────────────────────────────────────────────
 
 export default function PackEditor() {
@@ -197,6 +223,13 @@ export default function PackEditor() {
   } | null>(null);
   const [savingAddonCreate, setSavingAddonCreate] = useState(false);
   const [creatingKeyword,   setCreatingKeyword]   = useState(false);
+
+  // Card creation flow — resolves the per-game form from CARD_EDIT_FORMS and
+  // renders it in a Modal when the user clicks "New Unit" or "New Rule Card".
+  const [creatingCard, setCreatingCard] = useState<{
+    cardType: 'operative' | 'rule';
+    Form:     ComponentType<PackCardFormProps>;
+  } | null>(null);
 
   // Delete-confirmation state. One shared modal for every entity type;
   // `kind` picks the supabase table and the "this cannot be undone"
@@ -645,9 +678,17 @@ export default function PackEditor() {
           newButtonLabel={addModal.newButtonLabel}
           getAddonSubtitle={addModal.getAddonSubtitle}
           onCreateNew={() => {
-            // Addons with a registered form and keywords get real create
-            // flows; cards (and Blood Bowl skills) stay stubbed.
-            if (addModal.entityType === 'addon' && addModal.addonTypeId) {
+            if (addModal.entityType === 'card') {
+              const CardForm = CARD_EDIT_FORMS[pack.game.slug];
+              if (CardForm) {
+                setAddModal(null);
+                setCreatingCard({
+                  cardType: addModal.cardType ?? 'operative',
+                  Form:     CardForm,
+                });
+                return;
+              }
+            } else if (addModal.entityType === 'addon' && addModal.addonTypeId) {
               const at = addonTypes.find(t => t.id === addModal.addonTypeId);
               const Form = at ? ADDON_EDIT_FORMS[pack.game.slug]?.[at.slug] : undefined;
               if (at && Form) {
@@ -829,6 +870,26 @@ export default function PackEditor() {
             }}
           />
         )
+      )}
+
+      {/* Card creation modal — two-phase flow (stats → content). The form
+          is resolved from CARD_EDIT_FORMS by game slug and stored with the
+          state so it doesn't need re-resolution on each render. After the
+          user clicks Done the pack is reloaded to show the new card. */}
+      {pack && creatingCard && (
+        <Modal open onClose={() => setCreatingCard(null)} className="max-w-xl">
+          <creatingCard.Form
+            packId={pack.id}
+            gameId={pack.game_id}
+            addonTypes={addonTypes}
+            cardType={creatingCard.cardType}
+            onSaved={() => {
+              setCreatingCard(null);
+              loadAll();
+            }}
+            onCancel={() => setCreatingCard(null)}
+          />
+        </Modal>
       )}
 
       {/* Shared delete confirmation modal — used by every ⋯ menu. */}
