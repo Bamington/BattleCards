@@ -70,15 +70,28 @@ export interface AddToPackModalProps {
   description?:    string;
   newButtonLabel:  string;
 
+  /** Builds the descriptive subtitle for ADDON rows (e.g. Halo weapons
+   *  "Ranged, R5, AP 1"). The pack editor passes its stat-schema
+   *  formatter here. Falls back to the addon's description when omitted.
+   *  Keyword rows always use the keyword's description; card rows keep
+   *  their source label. */
+  getAddonSubtitle?: (row: {
+    description?: string | null;
+    stats?:       Record<string, unknown>;
+  }) => string;
+
   onCreateNew: () => void;
   onAdded:     (count: number) => void;
 }
 
 interface PickerItem {
   id:       string;
+  /** Addon/keyword rows: "Name (source deck or pack)". Card rows: the
+   *  plain name (their source stays in the subtitle). */
   name:     string;
-  /** Where this row came from — shown as a subtitle, e.g. "Pack: …",
-   *  "Deck: …", "My Templates", "My Library". */
+  /** Addon rows: the per-game stat string. Keyword rows: the keyword's
+   *  description. Card rows: the source label ("Deck: …", "Pack: …",
+   *  "My Templates"). */
   subtitle: string;
 }
 
@@ -136,6 +149,7 @@ export default function AddToPackModal({
   title,
   description,
   newButtonLabel,
+  getAddonSubtitle,
   onCreateNew,
   onAdded,
 }: AddToPackModalProps) {
@@ -213,14 +227,14 @@ export default function AddToPackModal({
           .eq('game_id', gameId)
           .neq('id', targetPackId),
 
-        // b) Cards-only: caller's decks (same game) — for the source label.
-        entityType === 'card'
-          ? supabase
-              .from('decks')
-              .select('id, name')
-              .eq('user_id', user.id)
-              .eq('game_id', gameId)
-          : Promise.resolve({ data: [] as { id: string; name: string }[], error: null }),
+        // b) Caller's decks (same game). Cards use these for the source
+        //    label; addons/keywords use them to resolve which deck a
+        //    library row is used in (via the usage joins fetched below).
+        supabase
+          .from('decks')
+          .select('id, name')
+          .eq('user_id', user.id)
+          .eq('game_id', gameId),
 
         // c) Entities in the caller's other packs (deferred filter — we
         //    don't know the source pack ids yet, so we fetch ALL and
@@ -307,12 +321,80 @@ export default function AddToPackModal({
       const libraryRows = ((libraryRes.data ?? []) as unknown as Row[])
         .filter(r => entityType !== 'addon' || !addonTypeId || r.addon_type_id === addonTypeId);
 
-      // Build the unified picker list with source labels.
-      const labelFor = (r: Row): string => {
+      // ── Resolve a concrete source for library addons/keywords ──────────
+      // Library rows have no deck of their own — they're user-scoped —
+      // but the user thinks of them as belonging to the deck where
+      // they're used. Walk the usage joins to find that deck: addons via
+      // card_addons; keywords via card_keywords (attached to a card
+      // directly) or addon_keywords → card_addons (attached to a weapon/
+      // ability). An item used in several decks gets the first deck
+      // found; an unused item falls back to "My Library".
+      const libraryDeckName = new Map<string, string>(); // row id → deck name
+      if (entityType !== 'card' && libraryRows.length > 0) {
+        // NOTE: deck cards carry a NULL game_id (the deck owns the game),
+        // so don't filter on it here — ownDeckMap is already scoped to
+        // this game and user, and the client-side filter below applies it.
+        const { data: deckCards } = await supabase
+          .from('cards')
+          .select('id, deck_id')
+          .not('deck_id', 'is', null);
+        const cardDeck = new Map(
+          ((deckCards ?? []) as { id: string; deck_id: string }[])
+            .filter(c => ownDeckMap.has(c.deck_id))
+            .map(c => [c.id, c.deck_id]),
+        );
+
+        const claim = (rowId: string, cardId: string) => {
+          if (libraryDeckName.has(rowId)) return;
+          const deckId = cardDeck.get(cardId);
+          if (deckId) libraryDeckName.set(rowId, ownDeckMap.get(deckId)!);
+        };
+
+        if (entityType === 'addon') {
+          const { data: ca } = await supabase
+            .from('card_addons')
+            .select('card_id, addon_id');
+          for (const j of (ca ?? []) as { card_id: string; addon_id: string }[]) {
+            claim(j.addon_id, j.card_id);
+          }
+        } else {
+          const [ckRes, akRes, caRes] = await Promise.all([
+            supabase.from('card_keywords').select('card_id, keyword_id'),
+            supabase.from('addon_keywords').select('addon_id, keyword_id'),
+            supabase.from('card_addons').select('card_id, addon_id'),
+          ]);
+          for (const j of (ckRes.data ?? []) as { card_id: string; keyword_id: string }[]) {
+            claim(j.keyword_id, j.card_id);
+          }
+          // keyword → addon → card → deck
+          const addonCard = new Map(
+            ((caRes.data ?? []) as { card_id: string; addon_id: string }[])
+              .filter(j => cardDeck.has(j.card_id))
+              .map(j => [j.addon_id, j.card_id]),
+          );
+          for (const j of (akRes.data ?? []) as { addon_id: string; keyword_id: string }[]) {
+            const cardId = addonCard.get(j.addon_id);
+            if (cardId) claim(j.keyword_id, cardId);
+          }
+        }
+      }
+
+      // ── Build the unified picker list ───────────────────────────────────
+      // Cards keep the original layout (plain name, source as subtitle).
+      // Addons/keywords show "Name (source)" as the title and descriptive
+      // content as the subtitle.
+      const cardLabelFor = (r: Row): string => {
         if (r.pack_id && ownPackMap.has(r.pack_id)) return `Pack: ${ownPackMap.get(r.pack_id)}`;
         if (r.deck_id && ownDeckMap.has(r.deck_id)) return `Deck: ${ownDeckMap.get(r.deck_id)}`;
-        if (entityType === 'card') return 'My Templates';
-        return 'My Library';
+        return 'My Templates';
+      };
+      const sourceFor = (r: Row): string => {
+        if (r.pack_id && ownPackMap.has(r.pack_id)) return ownPackMap.get(r.pack_id)!;
+        return libraryDeckName.get(r.id) ?? 'My Library';
+      };
+      const contentSubtitle = (r: Row): string => {
+        if (entityType === 'keyword') return r.description ?? '';
+        return getAddonSubtitle?.(r) ?? r.description ?? '';
       };
 
       const candidates: { row: Row; pick: PickerItem }[] = [];
@@ -320,7 +402,9 @@ export default function AddToPackModal({
         for (const r of rows) {
           candidates.push({
             row: r,
-            pick: { id: r.id, name: r.name, subtitle: labelFor(r) },
+            pick: entityType === 'card'
+              ? { id: r.id, name: r.name, subtitle: cardLabelFor(r) }
+              : { id: r.id, name: `${r.name} (${sourceFor(r)})`, subtitle: contentSubtitle(r) },
           });
         }
       };

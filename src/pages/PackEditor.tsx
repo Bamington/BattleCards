@@ -96,6 +96,13 @@ type AddModalCtx = {
   title:          string;
   description?:   string;
   newButtonLabel: string;
+  /** Formats addon rows' descriptive subtitle in the picker — bound to
+   *  the panel's addon type so the stat-schema formatter knows which
+   *  fields to read. */
+  getAddonSubtitle?: (row: {
+    description?: string | null;
+    stats?:       Record<string, unknown>;
+  }) => string;
 };
 
 // ── Stub for actions still awaiting their own flow ───────────────────────────
@@ -546,6 +553,7 @@ export default function PackEditor() {
                       title:         `Add ${singular} to Pack`,
                       description:   `Adding this ${singular.toLowerCase()} will also add all keywords associated with it to the pack.`,
                       newButtonLabel:`New ${singular}`,
+                      getAddonSubtitle: row => addonSubtitle(row, at),
                     })}
                   >
                     {(() => {
@@ -629,6 +637,7 @@ export default function PackEditor() {
           title={addModal.title}
           description={addModal.description}
           newButtonLabel={addModal.newButtonLabel}
+          getAddonSubtitle={addModal.getAddonSubtitle}
           onCreateNew={() => {
             // Addons with a registered form and keywords get real create
             // flows; cards (and Blood Bowl skills) stay stubbed.
@@ -1170,10 +1179,13 @@ function CardPreviewRow({
 /** Crude but readable subtitle for an addon row. The real subtitle would
  *  come from a per-game formatter (Halo formats weapons "Ranged, R5, AP 1");
  *  for v1 we list the stat values present, in stat-schema order. */
-function addonSubtitle(addon: Addon, addonType: AddonType): string {
+function addonSubtitle(
+  addon: { description?: string | null; stats?: unknown },
+  addonType: AddonType,
+): string {
   const parts: string[] = [];
   for (const f of addonType.stat_schema) {
-    const v = (addon.stats as Record<string, Json>)[f.key];
+    const v = ((addon.stats ?? {}) as Record<string, Json>)[f.key];
     if (v === undefined || v === null || v === '') continue;
     parts.push(String(v));
   }
