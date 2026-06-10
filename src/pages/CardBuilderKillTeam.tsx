@@ -118,6 +118,9 @@ interface LocalWeapon {
 import {
   parseHit, parseDamageParts, formatHit, formatDamage,
 } from '../lib/cardShape/killTeam';
+import {
+  killTeamWeaponSubtitle, killTeamAbilitySubtitle,
+} from '../lib/addonSubtitles';
 
 interface LocalAbility {
   addonId:         string;
@@ -252,26 +255,6 @@ const toKillTeamStats = (c: KillTeamCardData): Record<string, unknown> => {
 const cardDisplayName = (c: KillTeamCardData): string => {
   if (c.cardType === 'rule') return c.ruleTitle || 'Untitled Rule';
   return c.operativeName || 'Unnamed Operative';
-};
-
-// ── Subtitles for the addon picker ────────────────────────────────────────────
-
-const getWeaponSubtitle = (addon: Addon): string => {
-  const s = addon.stats as Record<string, unknown>;
-  const parts: string[] = [];
-  if (s.meleeOrRanged) parts.push(s.meleeOrRanged === 'melee' ? 'Melee' : 'Ranged');
-  if (s.attack)        parts.push(`A${s.attack}`);
-  const hit = parseHit(s.hit);
-  if (hit > 0)         parts.push(`Hit ${hit}+`);
-  const dmg = parseDamageParts(s);
-  if (dmg.base > 0 || dmg.crit > 0) parts.push(`Dmg ${dmg.base}/${dmg.crit}`);
-  return parts.join(' · ') || addon.name;
-};
-
-const getAbilitySubtitle = (addon: Addon): string => {
-  const s = addon.stats as Record<string, unknown>;
-  const ap = Number(s.apCost ?? 0);
-  return ap > 0 ? `${ap} AP` : 'Free';
 };
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -2411,7 +2394,7 @@ const CardBuilderKillTeam = () => {
         excludeAddonIds={activeCard.weapons.map(w => w.addonId)}
         onAdd={handleWeaponAdded}
         onDeleted={handleWeaponDeleted}
-        getSubtitle={getWeaponSubtitle}
+        getSubtitle={killTeamWeaponSubtitle}
         CreateFormComponent={WeaponFormWithContext}
       />
 
@@ -2425,7 +2408,7 @@ const CardBuilderKillTeam = () => {
         excludeAddonIds={activeCard.abilities.map(a => a.addonId)}
         onAdd={handleAbilityAdded}
         onDeleted={handleAbilityDeleted}
-        getSubtitle={getAbilitySubtitle}
+        getSubtitle={killTeamAbilitySubtitle}
         CreateFormComponent={AbilityFormWithContext}
       />
 

@@ -49,6 +49,9 @@ import StarcraftCard, {
 import UploadPhotoModal     from '../components/UploadPhotoModal';
 import AddAddonModal        from '../components/AddAddonModal';
 import StarcraftWeaponForm  from '../components/StarcraftWeaponForm';
+import {
+  starcraftWeaponSubtitle, starcraftAbilitySubtitle,
+} from '../lib/addonSubtitles';
 import StarcraftAbilityForm from '../components/StarcraftAbilityForm';
 import UnitListEntry        from '../components/UnitListEntry';
 import CardCarousel         from '../components/CardCarousel';
@@ -572,57 +575,27 @@ const CardBuilderStarcraft = () => {
     await refreshActiveCardAddons();
   }, [activeCard, refreshActiveCardAddons]);
 
-  /**
-   * Capitalize a single phase / state value, mapping the multi-word
-   * `special_abilities` to `Special`. Used for weapon subtitles in both
-   * the picker and the attached-weapon list.
-   */
-  const formatPhase = (p: string | null | undefined): string | null => {
-    if (!p) return null;
-    if (p === 'special_abilities') return 'Special';
-    return p[0].toUpperCase() + p.slice(1);
-  };
-
-  /** Subtitle for an attached weapon in the editor list (and the picker). */
+  /** Subtitle for an attached weapon in the editor list — the shared
+   *  stats formatter plus a trailing keyword summary (names only,
+   *  comma-joined, truncated by CSS). The picker passes the shared
+   *  formatter directly since it has no keyword data. */
   const formatWeaponSubtitle = useCallback((stats: StarcraftWeaponStats, weapon?: StarcraftWeapon): string => {
-    const parts: string[] = [];
-    const phase  = formatPhase(stats.phase);
-    const timing = formatPhase(stats.timing);
-    if (phase)               parts.push(phase);
-    if (timing)              parts.push(timing);
-    if (stats.range != null) parts.push(stats.range === 0 ? 'Melee' : `R${stats.range}`);
-    if (stats.hit   != null) parts.push(`${stats.hit}+ Hit`);
-    if (stats.dmg   != null) parts.push(`${stats.dmg} Dmg`);
-    // Trailing keyword summary — only the names, comma-joined, truncated by CSS.
-    if (weapon?.keywords && weapon.keywords.length > 0) {
-      parts.push(weapon.keywords.map(k => k.name).join(', '));
-    }
-    return parts.join(', ');
+    const base = starcraftWeaponSubtitle({ stats });
+    const kws  = weapon?.keywords && weapon.keywords.length > 0
+      ? weapon.keywords.map(k => k.name).join(', ')
+      : '';
+    return [base, kws].filter(Boolean).join(', ');
   }, []);
 
-  /** Subtitle in the picker list — same formatter, no keyword data available. */
-  const getWeaponSubtitle = useCallback((addon: Addon): string =>
-    formatWeaponSubtitle((addon.stats ?? {}) as StarcraftWeaponStats),
-  [formatWeaponSubtitle]);
-
-  /** Subtitle for an attached ability in the editor list (and the picker). */
+  /** Subtitle for an attached ability in the editor list — same shape
+   *  as formatWeaponSubtitle. */
   const formatAbilitySubtitle = useCallback((stats: StarcraftRuleStats, ability?: StarcraftAbility): string => {
-    const parts: string[] = [];
-    const phase  = formatPhase(stats.phase);
-    const timing = formatPhase(stats.timing);
-    if (phase)                  parts.push(phase);
-    if (timing)                 parts.push(timing);
-    if (stats.cpCost)           parts.push(`${stats.cpCost} Cost`);
-    if (stats.isUpgrade && stats.upgradeCost) parts.push(`${stats.upgradeCost} Min`);
-    if (ability?.keywords && ability.keywords.length > 0) {
-      parts.push(ability.keywords.map(k => k.name).join(', '));
-    }
-    return parts.join(', ');
+    const base = starcraftAbilitySubtitle({ stats });
+    const kws  = ability?.keywords && ability.keywords.length > 0
+      ? ability.keywords.map(k => k.name).join(', ')
+      : '';
+    return [base, kws].filter(Boolean).join(', ');
   }, []);
-
-  const getAbilitySubtitle = useCallback((addon: Addon): string =>
-    formatAbilitySubtitle((addon.stats ?? {}) as StarcraftRuleStats),
-  [formatAbilitySubtitle]);
 
   // ── Render ────────────────────────────────────────────────────────────────
 
@@ -825,7 +798,7 @@ const CardBuilderStarcraft = () => {
           excludeAddonIds={activeCard?.weapons.map(w => w.id) ?? []}
           onAdd={addon => { void handleAttachWeapon(addon); }}
           onDeleted={handleAddonLibraryDeleted}
-          getSubtitle={getWeaponSubtitle}
+          getSubtitle={starcraftWeaponSubtitle}
           CreateFormComponent={StarcraftWeaponForm}
         />
 
@@ -839,7 +812,7 @@ const CardBuilderStarcraft = () => {
           excludeAddonIds={activeCard?.abilities.map(a => a.id) ?? []}
           onAdd={addon => { void handleAttachAbility(addon); }}
           onDeleted={handleAddonLibraryDeleted}
-          getSubtitle={getAbilitySubtitle}
+          getSubtitle={starcraftAbilitySubtitle}
           CreateFormComponent={StarcraftAbilityForm}
         />
 

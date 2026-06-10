@@ -71,6 +71,7 @@ import { fetchConstraints, getMaxLength, getMaxAddons, getMaxKeywords, getMaxRul
 import TokenMenu from '../components/TokenMenu';
 import type { Addon, HaloFlashpointStats, EntityConstraints, TokenDefinition } from '../lib/database.types';
 import { formatKeywordLabel } from '../lib/cardShape/util';
+import { haloWeaponSubtitle } from '../lib/addonSubtitles';
 import logoHaloFlashpoint from '../assets/games/logo-halo-flashpoint.png';
 import iconHaloFlashpoint from '../assets/games/card assets/halo/icon.png';
 
@@ -174,19 +175,6 @@ const toHaloStats = (c: HaloCardData): HaloFlashpointStats => ({
 // formatKeywordLabel — same primitive the pack editor's shapers use.
 const buildKeywordsDisplayString = (kws: LocalKeywordAttachment[]) =>
   kws.map(k => formatKeywordLabel(k.keywordName, k.paramValue)).join(', ');
-
-// ── Weapon subtitle builder ────────────────────────────────────────────────────
-// Used in the picker list to summarise a weapon from its Supabase addon row.
-
-const getWeaponSubtitle = (addon: Addon): string => {
-  const s = addon.stats as Record<string, unknown>;
-  const parts: string[] = [];
-  if (s.type)     parts.push(String(s.type));
-  if (s.range)    parts.push(`R${s.range}`);
-  if (s.ap)       parts.push(`AP ${s.ap}`);
-  if (s.keywords) parts.push(String(s.keywords));
-  return parts.join(', ') || addon.name;
-};
 
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -2418,7 +2406,7 @@ const CardBuilderHaloFlashpoint = () => {
         excludeAddonIds={activeCard.weapons.map(w => w.addonId)}
         onAdd={handleWeaponAdded}
         onDeleted={handleWeaponDeleted}
-        getSubtitle={getWeaponSubtitle}
+        getSubtitle={haloWeaponSubtitle}
         CreateFormComponent={WeaponFormWithContext}
       />
 

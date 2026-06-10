@@ -73,6 +73,7 @@ import {
   dbRowsToStarcraftProps,
   type StarcraftCardDbRow,
 } from '../lib/cardShape/starcraft';
+import { ADDON_SUBTITLE_FORMATTERS } from '../lib/addonSubtitles';
 
 // ── Local types ──────────────────────────────────────────────────────────────
 
@@ -540,6 +541,11 @@ export default function PackEditor() {
                 // Games register their addon edit forms in ADDON_EDIT_FORMS;
                 // combos without one (Blood Bowl skills) get no Edit item.
                 const EditForm = ADDON_EDIT_FORMS[pack.game.slug]?.[at.slug];
+                // Builder-style subtitle ("Ranged, R5, AP 1") where the game
+                // registers one; otherwise the generic stat-schema dump.
+                const subtitleFmt = ADDON_SUBTITLE_FORMATTERS[pack.game.slug]?.[at.slug];
+                const describe = (a: { name?: string; description?: string | null; stats?: unknown }) =>
+                  subtitleFmt ? subtitleFmt(a) : addonSubtitle(a, at);
                 return (
                   <PackPanel
                     key={at.id}
@@ -553,7 +559,7 @@ export default function PackEditor() {
                       title:         `Add ${singular} to Pack`,
                       description:   `Adding this ${singular.toLowerCase()} will also add all keywords associated with it to the pack.`,
                       newButtonLabel:`New ${singular}`,
-                      getAddonSubtitle: row => addonSubtitle(row, at),
+                      getAddonSubtitle: describe,
                     })}
                   >
                     {(() => {
@@ -571,7 +577,7 @@ export default function PackEditor() {
                             <AddonListItem
                               key={a.id}
                               name={a.name}
-                              subtitle={addonSubtitle(a, at)}
+                              subtitle={describe(a)}
                               addonTypeName={singular}
                               onEdit={EditForm
                                 ? () => setEditingAddon({ addon: a, Form: EditForm, typeLabel: singular })
