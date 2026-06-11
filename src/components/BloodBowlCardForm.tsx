@@ -70,6 +70,7 @@ export default function BloodBowlCardForm({
             ma: f.move, st: f.strength, ag: f.agility, pa: f.passing, av: f.armor,
           } as Json,
           card_type: 'operative',
+          is_template: true,
         })
         .select('id').single();
       if (err) throw err;

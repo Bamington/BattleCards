@@ -83,6 +83,7 @@ export default function HaloCardForm({
             keywords: '',
           } as Json,
           card_type: 'operative',
+          is_template: true,
         })
         .select('id').single();
       if (err) throw err;

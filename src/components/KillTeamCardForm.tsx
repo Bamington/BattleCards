@@ -100,6 +100,7 @@ export default function KillTeamCardForm({
                 wounds:   opF.wounds,   baseSize: opF.baseSize,
               } as Json),
           card_type: cardType,
+          is_template: true,
         })
         .select('id').single();
       if (err) throw err;
