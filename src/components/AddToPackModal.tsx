@@ -41,7 +41,7 @@
  *                   reloads its panel data.
  */
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import Modal from './Modal';
 import Button from './Button';
 import Input from './Input';
@@ -175,6 +175,9 @@ export default function AddToPackModal({
   const [loading,  setLoading]  = useState(false);
   const [error,    setError]    = useState<string | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  // IDs of items that already live in the target pack (populated when
+  // includeTargetPack=true). These bypass the copy RPC at commit time.
+  const samePackIds = useRef<Set<string>>(new Set());
   const [search,   setSearch]   = useState('');
   const [adding,   setAdding]   = useState(false);
 
@@ -309,6 +312,7 @@ export default function AddToPackModal({
       );
       // When showing same-pack items (card-form context), inject the target
       // pack into the map so packRows doesn't filter its items out.
+      samePackIds.current = new Set();
       if (includeTargetPack) ownPackMap.set(targetPackId, 'This Pack');
       const ownDeckMap = new Map(
         ((ownDecksRes.data ?? []) as { id: string; name: string }[]).map(d => [d.id, d.name]),
@@ -427,6 +431,13 @@ export default function AddToPackModal({
         }
       };
       pushAll(packRows);
+      // Record which items came directly from the target pack so commit()
+      // can skip the copy RPC for those IDs.
+      if (includeTargetPack) {
+        for (const r of packRows) {
+          if (r.pack_id === targetPackId) samePackIds.current.add(r.id);
+        }
+      }
       pushAll(deckRows);
       pushAll(libraryRows);
 
@@ -528,31 +539,50 @@ export default function AddToPackModal({
     setAdding(true);
     setError(null);
 
-    const args: Record<string, unknown> = {
-      p_target_pack_id: targetPackId,
-      p_source_ids:     Array.from(selected),
-    };
-    if (entityType === 'card' && overrides) {
-      args.p_card_overrides = overrides;
-    }
+    const selectedArr = Array.from(selected);
 
-    const { data, error: rpcErr } = await supabase.rpc(RPC_NAME[entityType], args);
+    // Items that already live in the target pack don't need to be copied —
+    // we can deliver their IDs directly and skip the RPC for them.
+    const directIds  = selectedArr.filter(id =>  samePackIds.current.has(id));
+    const copyIds    = selectedArr.filter(id => !samePackIds.current.has(id));
 
-    setAdding(false);
+    // Cards always use the RPC (the rename step fills copyIds=selectedArr).
+    const rpcIds = entityType === 'card' ? selectedArr : copyIds;
 
-    if (rpcErr) {
-      setError("Couldn't add the selected items. Please try again.");
-      return;
-    }
+    let resultIds: string[] = [...directIds];
 
-    if (entityType === 'card') {
-      onAdded(Number(data ?? selected.size));
+    if (rpcIds.length > 0) {
+      const args: Record<string, unknown> = {
+        p_target_pack_id: targetPackId,
+        p_source_ids:     rpcIds,
+      };
+      if (entityType === 'card' && overrides) {
+        args.p_card_overrides = overrides;
+      }
+
+      const { data, error: rpcErr } = await supabase.rpc(RPC_NAME[entityType], args);
+
+      setAdding(false);
+
+      if (rpcErr) {
+        setError("Couldn't add the selected items. Please try again.");
+        return;
+      }
+
+      if (entityType === 'card') {
+        onAdded(Number(data ?? selected.size));
+        return;
+      }
+
+      // copy_addons_to_pack / copy_keywords_to_pack return uuid[].
+      const rpcReturned = Array.isArray(data) ? (data as string[]) : [];
+      resultIds = [...resultIds, ...rpcReturned];
     } else {
-      // copy_addons_to_pack / copy_keywords_to_pack now return uuid[].
-      const ids = Array.isArray(data) ? (data as string[]) : [];
-      onAddedWithIds?.(ids);
-      onAdded(ids.length);
+      setAdding(false);
     }
+
+    onAddedWithIds?.(resultIds);
+    onAdded(resultIds.length);
   }
 
   // True only on the rename step when every input has trimmed content.
