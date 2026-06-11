@@ -230,7 +230,7 @@ export default function HaloCardForm({
       {pickingW && weaponType && (
         <AddToPackModal open onClose={() => setPickingW(false)}
           entityType="addon" addonTypeId={weaponType.id}
-          gameId={gameId} targetPackId={packId}
+          gameId={gameId} targetPackId={packId} includeTargetPack
           title="Add Weapon" newButtonLabel="New Weapon"
           getAddonSubtitle={haloWeaponSubtitle}
           onCreateNew={() => { setPickingW(false); setAddingW(true); }}
@@ -259,7 +259,7 @@ export default function HaloCardForm({
       {pickingKw && (
         <AddToPackModal open onClose={() => setPickingKw(false)}
           entityType="keyword"
-          gameId={gameId} targetPackId={packId}
+          gameId={gameId} targetPackId={packId} includeTargetPack
           title="Add Keyword" newButtonLabel="New Keyword"
           onCreateNew={() => { setPickingKw(false); setAddingKw(true); }}
           onAdded={() => setPickingKw(false)}

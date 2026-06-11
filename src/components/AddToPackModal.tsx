@@ -80,6 +80,14 @@ export interface AddToPackModalProps {
     stats?:       Record<string, unknown>;
   }) => string;
 
+  /** When true, items already in the target pack are included in the
+   *  picker list (labelled "This Pack") instead of being hidden. Use
+   *  this when the goal is to attach existing pack items to a specific
+   *  card rather than to copy new items into the pack. The fingerprint
+   *  dedup still collapses identical rows from other sources so you
+   *  never see the same item twice. */
+  includeTargetPack?: boolean;
+
   onCreateNew:      () => void;
   onAdded:          (count: number) => void;
   /** Called after a successful copy with the resulting pack-scoped IDs
@@ -154,6 +162,7 @@ export default function AddToPackModal({
   title,
   description,
   newButtonLabel,
+  includeTargetPack = false,
   getAddonSubtitle,
   onCreateNew,
   onAdded,
@@ -298,6 +307,9 @@ export default function AddToPackModal({
       const ownPackMap = new Map(
         ((ownPacksRes.data ?? []) as { id: string; name: string }[]).map(p => [p.id, p.name]),
       );
+      // When showing same-pack items (card-form context), inject the target
+      // pack into the map so packRows doesn't filter its items out.
+      if (includeTargetPack) ownPackMap.set(targetPackId, 'This Pack');
       const ownDeckMap = new Map(
         ((ownDecksRes.data ?? []) as { id: string; name: string }[]).map(d => [d.id, d.name]),
       );
@@ -421,8 +433,13 @@ export default function AddToPackModal({
       // Content-fingerprint dedup: skip any candidate whose fingerprint
       // already exists in the target pack OR has already been added to
       // the picker (collapses identical rows from multiple sources).
+      // When includeTargetPack is true, don't pre-seed from target-pack
+      // rows — we WANT those to show up; the per-candidate dedup still
+      // collapses identical rows from other sources.
       const seen = new Set<string>(
-        ((targetRowsRes.data ?? []) as unknown as Row[]).map(r => fingerprint(r, entityType)),
+        includeTargetPack
+          ? []
+          : ((targetRowsRes.data ?? []) as unknown as Row[]).map(r => fingerprint(r, entityType)),
       );
       const final: PickerItem[] = [];
       for (const { row, pick } of candidates) {
@@ -600,7 +617,9 @@ export default function AddToPackModal({
               ) : filtered.length === 0 ? (
                 <p className="font-body text-sm text-gray-400 text-center py-6">
                   {items.length === 0
-                    ? "Nothing in your other packs to copy from yet."
+                    ? (includeTargetPack
+                        ? `No ${title.replace(/^Add /, '').toLowerCase()}s available yet.`
+                        : "Nothing in your other packs to copy from yet.")
                     : "No matches."}
                 </p>
               ) : (

@@ -171,7 +171,7 @@ export default function BloodBowlCardForm({
       {pickingKw && (
         <AddToPackModal open onClose={() => setPickingKw(false)}
           entityType="keyword"
-          gameId={gameId} targetPackId={packId}
+          gameId={gameId} targetPackId={packId} includeTargetPack
           title="Add Skill" newButtonLabel="New Skill"
           onCreateNew={() => { setPickingKw(false); setAddingKw(true); }}
           onAdded={() => setPickingKw(false)}

@@ -312,7 +312,7 @@ export default function StarcraftCardForm({
       {pickingW && weaponType && (
         <AddToPackModal open onClose={() => setPickingW(false)}
           entityType="addon" addonTypeId={weaponType.id}
-          gameId={gameId} targetPackId={packId}
+          gameId={gameId} targetPackId={packId} includeTargetPack
           title="Add Weapon" newButtonLabel="New Weapon"
           getAddonSubtitle={starcraftWeaponSubtitle}
           onCreateNew={() => { setPickingW(false); setAddingW(true); }}
@@ -329,7 +329,7 @@ export default function StarcraftCardForm({
       {pickingR && ruleType && (
         <AddToPackModal open onClose={() => setPickingR(false)}
           entityType="addon" addonTypeId={ruleType.id}
-          gameId={gameId} targetPackId={packId}
+          gameId={gameId} targetPackId={packId} includeTargetPack
           title="Add Special Rule" newButtonLabel="New Rule"
           getAddonSubtitle={starcraftAbilitySubtitle}
           onCreateNew={() => { setPickingR(false); setAddingR(true); }}
@@ -346,7 +346,7 @@ export default function StarcraftCardForm({
       {pickingKw && (
         <AddToPackModal open onClose={() => setPickingKw(false)}
           entityType="keyword"
-          gameId={gameId} targetPackId={packId}
+          gameId={gameId} targetPackId={packId} includeTargetPack
           title="Add Keyword" newButtonLabel="New Keyword"
           onCreateNew={() => { setPickingKw(false); setAddingKw(true); }}
           onAdded={() => setPickingKw(false)}
