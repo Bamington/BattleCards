@@ -431,8 +431,14 @@ export default function AddToPackModal({
         }
       };
       pushAll(packRows);
-      // Record which items came directly from the target pack so commit()
-      // can skip the copy RPC for those IDs.
+      // Record which items can bypass the copy RPC at commit time.
+      // In the card-form context (includeTargetPack=true) we're attaching
+      // existing items to a card, not importing from elsewhere, so:
+      //   • target-pack items  — already in the pack, use ID directly
+      //   • library items      — user-owned, no pack scope conflict;
+      //                          attach directly via card_addons/card_keywords
+      // Items from OTHER packs still go through the copy RPC so they get
+      // cloned into the target pack first.
       if (includeTargetPack) {
         for (const r of packRows) {
           if (r.pack_id === targetPackId) samePackIds.current.add(r.id);
@@ -440,6 +446,9 @@ export default function AddToPackModal({
       }
       pushAll(deckRows);
       pushAll(libraryRows);
+      if (includeTargetPack) {
+        for (const r of libraryRows) samePackIds.current.add(r.id);
+      }
 
       // Content-fingerprint dedup: skip any candidate whose fingerprint
       // already exists in the target pack OR has already been added to
