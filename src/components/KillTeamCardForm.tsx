@@ -151,7 +151,7 @@ export default function KillTeamCardForm({
 
   // ── Weapon callbacks ────────────────────────────────────────────────────────
 
-  const handleWeaponSave = useCallback(async (name: string, desc: string, stats: unknown): Promise<string> => {
+  const handleWeaponSave = useCallback(async (name: string, desc: string | null, stats: unknown): Promise<string> => {
     if (!weaponType) return '';
     setSavingW(true);
     const { data: { user } } = await supabase.auth.getUser();
@@ -172,7 +172,7 @@ export default function KillTeamCardForm({
     setAddingW(false); setSavingW(false);
   }, [phase, weapons.length, loadContent]);
 
-  const handleWeaponEditSave = useCallback(async (name: string, desc: string, stats: unknown): Promise<string> => {
+  const handleWeaponEditSave = useCallback(async (name: string, desc: string | null, stats: unknown): Promise<string> => {
     if (!editingW) return '';
     setSavingW(true);
     await supabase.from('addons').update({ name, description: desc, stats: stats as Json }).eq('id', editingW.id);
@@ -186,7 +186,7 @@ export default function KillTeamCardForm({
 
   // ── Ability callbacks ───────────────────────────────────────────────────────
 
-  const handleAbilitySave = useCallback(async (name: string, desc: string, stats: unknown): Promise<string> => {
+  const handleAbilitySave = useCallback(async (name: string, desc: string | null, stats: unknown): Promise<string> => {
     if (!abilityType) return '';
     setSavingA(true);
     const { data: { user } } = await supabase.auth.getUser();
@@ -207,7 +207,7 @@ export default function KillTeamCardForm({
     setAddingA(false); setSavingA(false);
   }, [phase, weapons.length, abilities.length, loadContent]);
 
-  const handleAbilityEditSave = useCallback(async (name: string, desc: string, stats: unknown): Promise<string> => {
+  const handleAbilityEditSave = useCallback(async (name: string, desc: string | null, stats: unknown): Promise<string> => {
     if (!editingA) return '';
     setSavingA(true);
     await supabase.from('addons').update({ name, description: desc, stats: stats as Json }).eq('id', editingA.id);

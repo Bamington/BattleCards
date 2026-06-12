@@ -109,14 +109,14 @@ export default function StarcraftCardForm({
     try {
       if (editingCard) {
         const { error: err } = await supabase.from('cards')
-          .update({ name: f.unitType || 'Unnamed Unit', stats: newStats as Json })
+          .update({ name: f.unitType || 'Unnamed Unit', stats: newStats as unknown as Json })
           .eq('id', editingCard.id);
         if (err) throw err;
         await loadContent(editingCard.id);
         setPhase({ type: 'content', cardId: editingCard.id });
       } else {
         const { data, error: err } = await supabase.from('cards')
-          .insert({ pack_id: packId, game_id: gameId, name: f.unitType || 'Unnamed Unit', stats: newStats as Json, card_type: 'operative', is_template: true })
+          .insert({ pack_id: packId, game_id: gameId, name: f.unitType || 'Unnamed Unit', stats: newStats as unknown as Json, card_type: 'operative', is_template: true })
           .select('id').single();
         if (err) throw err;
         setPhase({ type: 'content', cardId: (data as { id: string }).id });
@@ -130,7 +130,7 @@ export default function StarcraftCardForm({
 
   // ── Weapon callbacks ────────────────────────────────────────────────────────
 
-  const handleWeaponSave = useCallback(async (name: string, desc: string, stats: unknown): Promise<string> => {
+  const handleWeaponSave = useCallback(async (name: string, desc: string | null, stats: unknown): Promise<string> => {
     if (!weaponType) return '';
     setSavingW(true);
     const { data: { user } } = await supabase.auth.getUser();
@@ -151,7 +151,7 @@ export default function StarcraftCardForm({
     setAddingW(false); setSavingW(false);
   }, [phase, weapons.length, loadContent]);
 
-  const handleWeaponEditSave = useCallback(async (name: string, desc: string, stats: unknown): Promise<string> => {
+  const handleWeaponEditSave = useCallback(async (name: string, desc: string | null, stats: unknown): Promise<string> => {
     if (!editingW) return '';
     setSavingW(true);
     await supabase.from('addons').update({ name, description: desc, stats: stats as Json }).eq('id', editingW.id);
@@ -165,7 +165,7 @@ export default function StarcraftCardForm({
 
   // ── Rule (ability) callbacks ────────────────────────────────────────────────
 
-  const handleRuleSave = useCallback(async (name: string, desc: string, stats: unknown): Promise<string> => {
+  const handleRuleSave = useCallback(async (name: string, desc: string | null, stats: unknown): Promise<string> => {
     if (!ruleType) return '';
     setSavingR(true);
     const { data: { user } } = await supabase.auth.getUser();
@@ -186,7 +186,7 @@ export default function StarcraftCardForm({
     setAddingR(false); setSavingR(false);
   }, [phase, weapons.length, rules.length, loadContent]);
 
-  const handleRuleEditSave = useCallback(async (name: string, desc: string, stats: unknown): Promise<string> => {
+  const handleRuleEditSave = useCallback(async (name: string, desc: string | null, stats: unknown): Promise<string> => {
     if (!editingR) return '';
     setSavingR(true);
     await supabase.from('addons').update({ name, description: desc, stats: stats as Json }).eq('id', editingR.id);
