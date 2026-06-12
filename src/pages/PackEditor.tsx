@@ -1256,8 +1256,7 @@ function EmptyPanelState({ message }: { message: string }) {
  *  layout tweaks. All tiles are sized so their long edge is ~237px,
  *  matching the Figma "Unit List Item" cell. */
 
-const PREVIEW_LONG_EDGE = 237;
-const MODAL_LONG_EDGE   = 660;
+const MODAL_LONG_EDGE = 660;
 
 interface PreviewDims {
   nativeW: number;
