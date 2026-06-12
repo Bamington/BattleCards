@@ -1027,7 +1027,6 @@ const CardBuilderKillTeam = () => {
       break;
     }
 
-    const s = (src.stats ?? {}) as KillTeamStats;
     const localCard: KillTeamCardData = {
       id:              crypto.randomUUID(),
       dbId:            newRow.id,
