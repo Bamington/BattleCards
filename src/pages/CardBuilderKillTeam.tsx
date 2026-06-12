@@ -621,7 +621,7 @@ const CardBuilderKillTeam = () => {
         return kws.length ? kws.join(', ') : undefined;
       };
       const libTemplates: NewCardModalTemplate[] =
-        ((libRes.data ?? []) as TemplateRow[]).map(t => ({
+        ((libRes.data ?? []) as unknown as TemplateRow[]).map(t => ({
           id: t.id, name: t.name, source: 'library' as const, addonSummary: addonSummaryFor(t),
         }));
 
@@ -637,7 +637,7 @@ const CardBuilderKillTeam = () => {
           .eq('is_template', true)
           .eq('card_type', 'operative')
           .order('name');
-        packTemplates = ((packCards ?? []) as (TemplateRow & { pack_id: string })[]).map(t => ({
+        packTemplates = ((packCards ?? []) as unknown as (TemplateRow & { pack_id: string })[]).map(t => ({
           id: t.id, name: t.name, source: 'pack' as const, packName: packsMap.get(t.pack_id), addonSummary: addonSummaryFor(t),
         }));
       }
@@ -1044,7 +1044,7 @@ const CardBuilderKillTeam = () => {
       weapons:         [],
       abilities:       [],
       ruleTitle:       src.name,
-      ruleDescription: String(s.description ?? ''),
+      ruleDescription: String((src.stats as Record<string, unknown>)?.description ?? ''),
       ruleAbility,
       portraitUrl:     null,
       portraitStyle:   null,

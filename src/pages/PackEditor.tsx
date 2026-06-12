@@ -1269,11 +1269,6 @@ interface PreviewDims {
   h:       number;
 }
 
-function dimsFor(nativeW: number, nativeH: number): PreviewDims {
-  const scale = PREVIEW_LONG_EDGE / Math.max(nativeW, nativeH);
-  return { nativeW, nativeH, scale, w: Math.round(nativeW * scale), h: Math.round(nativeH * scale) };
-}
-
 function modalDimsFor(nativeW: number, nativeH: number): PreviewDims {
   const scale = MODAL_LONG_EDGE / Math.max(nativeW, nativeH);
   return { nativeW, nativeH, scale, w: Math.round(nativeW * scale), h: Math.round(nativeH * scale) };

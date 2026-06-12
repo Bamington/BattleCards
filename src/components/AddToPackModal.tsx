@@ -441,11 +441,6 @@ export default function AddToPackModal({
       // Cards keep the original layout (plain name, source as subtitle).
       // Addons/keywords show "Name (source)" as the title and descriptive
       // content as the subtitle.
-      const cardLabelFor = (r: Row): string => {
-        if (r.pack_id && ownPackMap.has(r.pack_id)) return `Pack: ${ownPackMap.get(r.pack_id)}`;
-        if (r.deck_id && ownDeckMap.has(r.deck_id)) return `Deck: ${ownDeckMap.get(r.deck_id)}`;
-        return 'My Templates';
-      };
       const sourceFor = (r: Row): string => {
         if (r.pack_id && ownPackMap.has(r.pack_id)) return ownPackMap.get(r.pack_id)!;
         return libraryDeckName.get(r.id) ?? 'My Library';

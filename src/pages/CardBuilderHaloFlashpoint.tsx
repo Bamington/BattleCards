@@ -565,7 +565,7 @@ const CardBuilderHaloFlashpoint = () => {
         return kws.length ? kws.join(', ') : undefined;
       };
       const libTemplates: NewCardModalTemplate[] =
-        ((libRes.data ?? []) as TemplateRow[]).map(t => ({
+        ((libRes.data ?? []) as unknown as TemplateRow[]).map(t => ({
           id: t.id, name: t.name, source: 'library' as const, addonSummary: addonSummaryFor(t),
         }));
 
@@ -580,7 +580,7 @@ const CardBuilderHaloFlashpoint = () => {
           .in('pack_id', [...packsMap.keys()])
           .eq('is_template', true)
           .order('name');
-        packTemplates = ((packCards ?? []) as (TemplateRow & { pack_id: string })[]).map(t => ({
+        packTemplates = ((packCards ?? []) as unknown as (TemplateRow & { pack_id: string })[]).map(t => ({
           id: t.id, name: t.name, source: 'pack' as const, packName: packsMap.get(t.pack_id), addonSummary: addonSummaryFor(t),
         }));
       }

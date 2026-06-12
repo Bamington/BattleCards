@@ -149,7 +149,7 @@ export default function HaloCardForm({
     }
   }
 
-  const handleWeaponSave = useCallback(async (name: string, description: string, stats: unknown): Promise<string> => {
+  const handleWeaponSave = useCallback(async (name: string, description: string | null, stats: unknown): Promise<string> => {
     if (!weaponType) return '';
     setSavingW(true);
     const { data: { user } } = await supabase.auth.getUser();
@@ -170,7 +170,7 @@ export default function HaloCardForm({
     setAddingW(false); setSavingW(false);
   }, [phase, weapons.length, loadContent]);
 
-  const handleWeaponEditSave = useCallback(async (name: string, description: string, stats: unknown): Promise<string> => {
+  const handleWeaponEditSave = useCallback(async (name: string, description: string | null, stats: unknown): Promise<string> => {
     if (!editingW) return '';
     setSavingW(true);
     await supabase.from('addons').update({ name, description, stats: stats as Json }).eq('id', editingW.id);
