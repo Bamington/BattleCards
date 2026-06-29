@@ -32,7 +32,7 @@
  *   Numeric stats: Counter via the editor panel (no inline click on the card).
  */
 
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect } from 'react';
 // @ts-ignore â€" path contains spaces
 import bgSvg from '../assets/games/card assets/ryg/bg.svg';
 
@@ -276,7 +276,6 @@ export default function RygCard({
   const hasArmor      = armor.length > 0;
   const hasItems      = items.length > 0;
   const hasSpells     = spells.length > 0;
-  const hasEquipment  = hasWeapons || hasArmor || hasItems;
   const hasAbility    = Boolean(specialAbilityDesc);
 
   return (
