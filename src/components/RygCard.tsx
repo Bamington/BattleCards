@@ -1,30 +1,30 @@
 ﻿/**
- * RygCard.tsx â€” Repent Ye Foolish Gods warrior card
+ * RygCard.tsx â€" Repent Ye Foolish Gods warrior card
  *
  * Architecture:
- *   Layer 1 â€” bg.svg            : full-card rock texture background
- *   Layer 2 â€” Dark header band  : positioned div covering the top-right area,
+ *   Layer 1 â€" bg.svg            : full-card rock texture background
+ *   Layer 2 â€" Dark header band  : positioned div covering the top-right area,
  *                                  providing the dark stone background for the
  *                                  name / stats region
- *   Layer 3 â€” Dynamic content   : warrior name, type, sept, stat values,
+ *   Layer 3 â€" Dynamic content   : warrior name, type, sept, stat values,
  *                                  talents, portrait, and all content sections
  *
  * Native size: 890 Ã— 1270 px (portrait). Wrap in a scaled container for display.
  *
  * Layout (from Figma node 959:15634):
- *   â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¬â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
- *   â”‚  Portrait     â”‚  Dark header band                      â”‚
- *   â”‚  298 Ã— 354    â”‚  Name (LLTextur, 82px, white)          â”‚
- *   â”‚               â”‚  â”€â”€ divider â”€â”€                         â”‚
- *   â”‚               â”‚  TYPE â€¢ SEPT                           â”‚
- *   â”‚               â”‚  [OFF] [DEF] [TAC] [FATE]  stat boxes  â”‚
- *   â”œâ”€â”€â”€â”¬â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”´â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¤
- *   â”‚[L]â”‚  Talents: comma-separated keywords                 â”‚
- *   â”œâ”€â”€â”€â”´â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¤
- *   â”‚  SPECIAL ABILITY  (header + description)               â”‚
- *   â”‚  â”€â”€ weapon rows â”€â”€                                     â”‚
- *   â”‚  â”€â”€ armor / item rows â”€â”€                               â”‚
- *   â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
+ *   â"Œâ"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"¬â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"
+ *   â"‚  Portrait     â"‚  Dark header band                      â"‚
+ *   â"‚  298 Ã— 354    â"‚  Name (LLTextur, 82px, white)          â"‚
+ *   â"‚               â"‚  â"€â"€ divider â"€â"€                         â"‚
+ *   â"‚               â"‚  TYPE â€¢ SEPT                           â"‚
+ *   â"‚               â"‚  [OFF] [DEF] [TAC] [FATE]  stat boxes  â"‚
+ *   â"œâ"€â"€â"€â"¬â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"´â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"¤
+ *   â"‚[L]â"‚  Talents: comma-separated keywords                 â"‚
+ *   â"œâ"€â"€â"€â"´â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"¤
+ *   â"‚  SPECIAL ABILITY  (header + description)               â"‚
+ *   â"‚  â"€â"€ weapon rows â"€â"€                                     â"‚
+ *   â"‚  â"€â"€ armor / item rows â"€â"€                               â"‚
+ *   â""â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"˜
  *
  * Inline editing:
  *   Pass onChange callbacks to enable editing on individual fields.
@@ -33,26 +33,26 @@
  */
 
 import { useState, useRef, useEffect, useCallback } from 'react';
-// @ts-ignore â€” path contains spaces
+// @ts-ignore â€" path contains spaces
 import bgSvg from '../assets/games/card assets/ryg/bg.svg';
 
-// â”€â”€ Native size â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// â"€â"€ Native size â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
 export const CARD_W = 890;
 export const CARD_H = 1270;
 
-// â”€â”€ Theme â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// â"€â"€ Theme â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
 // const DARK_BAND_BG   = 'rgba(10, 8, 6, 0.88)'; // reserved for future use
 const LIFE_RED       = '#890000';
 const CREAM          = '#e8e5dd';
 const BORDER_TAN     = '#87816e';
 const TEXT_DARK      = '#141414';
 
-// â”€â”€ Fonts â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// â"€â"€ Fonts â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
 const TEXTUR = { fontFamily: "'LLTextur', 'IM Fell English', serif" } as const;
 const BASKERVILLE      = { fontFamily: "'Libre Baskerville', 'Georgia', serif" } as const;
 const BASKERVILLE_BOLD = { ...BASKERVILLE, fontWeight: 700 } as const;
 
-// â”€â”€ Geometry (matches Figma node 959:15634) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// â"€â"€ Geometry (matches Figma node 959:15634) â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
 // Portrait area
 const PORTRAIT_LEFT = 0;
 const PORTRAIT_TOP  = 0;
@@ -74,7 +74,7 @@ const NAME_H    = 124;
 const TYPESEPT_CENTER_X = 584;
 const TYPESEPT_TOP      = 147;
 
-// 4 stat boxes (Offense, Defense, Tactics, Fate) â€” top=204, h=102
+// 4 stat boxes (Offense, Defense, Tactics, Fate) â€" top=204, h=102
 const STAT_TOP    = 204;
 const STAT_H      = 102;
 const STAT_BOXES = [
@@ -102,7 +102,7 @@ const CONTENT_TOP  = 432;
 const CONTENT_W    = 806;
 const CONTENT_GAP  = 20;
 
-// â”€â”€ Inline editable text â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// â"€â"€ Inline editable text â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
 
 interface EditableTextProps {
   value:       string;
@@ -176,7 +176,7 @@ function EditableText({ value, onChange, style, className, placeholder }: Editab
   );
 }
 
-// â”€â”€ Public types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// â"€â"€ Public types â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
 
 export interface RygWeapon {
   id:            string;
@@ -236,7 +236,7 @@ export interface RygCardProps {
   /** URL of the user-uploaded portrait photo. */
   portrait?:           string;
 
-  // Inline editing callbacks â€” omit to make read-only
+  // Inline editing callbacks â€" omit to make read-only
   onChangeName?:         (v: string) => void;
   onChangeType?:         (v: string) => void;
   onChangeSept?:         (v: string) => void;
@@ -244,7 +244,7 @@ export interface RygCardProps {
   onChangeAbilityDesc?:  (v: string) => void;
 }
 
-// â”€â”€ Component â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// â"€â"€ Component â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
 
 export default function RygCard({
   warriorName, type, sept,
@@ -259,17 +259,16 @@ export default function RygCard({
 
   const statVal = (n: number) => String(n);
 
-  // Scale the warrior name horizontally if it overflows the name box
-  const nameContainerRef = useRef<HTMLDivElement>(null);
+  // Scale the warrior name horizontally if it overflows the name box.
+  // We measure with a hidden off-screen span to avoid Chrome's scrollWidth
+  // being capped by the overflow:hidden ancestor.
+  const nameMeasureRef = useRef<HTMLSpanElement>(null);
   const [nameScaleX, setNameScaleX] = useState(1);
-  const measureName = useCallback(() => {
-    const container = nameContainerRef.current;
-    if (!container) return;
-    const span = container.querySelector('span') as HTMLSpanElement | null;
-    if (!span) return;
-    setNameScaleX(Math.min(1, NAME_W / span.scrollWidth));
-  }, []);
-  useEffect(() => { measureName(); }, [warriorName, measureName]);
+  useEffect(() => {
+    const el = nameMeasureRef.current;
+    if (!el) return;
+    setNameScaleX(Math.min(1, NAME_W / el.offsetWidth));
+  }, [warriorName]);
 
   const typeSeptParts = [type, sept].filter(Boolean);
 
@@ -291,7 +290,7 @@ export default function RygCard({
         fontFamily: BASKERVILLE.fontFamily,
       }}
     >
-      {/* Layer 1 â€” background texture */}
+      {/* Layer 1 â€" background texture */}
       <img
         src={bgSvg}
         alt=""
@@ -299,7 +298,7 @@ export default function RygCard({
         draggable={false}
       />
 
-      {/* Layer 2 â€” portrait photo area */}
+      {/* Layer 2 â€" portrait photo area */}
       <div
         style={{
           position:   'absolute',
@@ -322,9 +321,27 @@ export default function RygCard({
       </div>
 
 
-      {/* Layer 3 â€” Warrior name */}
+      {/* Hidden span for measuring warrior name natural width */}
+      <span
+        ref={nameMeasureRef}
+        aria-hidden
+        style={{
+          ...TEXTUR,
+          fontSize:   72,
+          lineHeight: 1,
+          whiteSpace: 'nowrap',
+          position:   'fixed',
+          visibility: 'hidden',
+          pointerEvents: 'none',
+          left: -9999,
+          top:  -9999,
+        }}
+      >
+        {warriorName || 'Warrior Name'}
+      </span>
+
+      {/* Layer 3 â€" Warrior name */}
       <div
-        ref={nameContainerRef}
         style={{
           position:        'absolute',
           left:            NAME_LEFT,
@@ -355,7 +372,7 @@ export default function RygCard({
       </div>
 
 
-      {/* Layer 3 â€” Type â€¢ Sept */}
+      {/* Layer 3 â€" Type â€¢ Sept */}
       <div
         style={{
           position:  'absolute',
@@ -397,7 +414,7 @@ export default function RygCard({
         />
       </div>
 
-      {/* Layer 3 â€” Four stat boxes (Offense, Defense, Tactics, Fate) */}
+      {/* Layer 3 â€" Four stat boxes (Offense, Defense, Tactics, Fate) */}
       {STAT_BOXES.map(box => (
         <div
           key={box.key}
@@ -423,7 +440,7 @@ export default function RygCard({
         </div>
       ))}
 
-      {/* Layer 3 â€” Life box (left side, red) */}
+      {/* Layer 3 â€" Life box (left side, red) */}
       <div
         style={{
           position:       'absolute',
@@ -447,7 +464,7 @@ export default function RygCard({
         </span>
       </div>
 
-      {/* Layer 3 â€” Talents strip */}
+      {/* Layer 3 â€" Talents strip */}
       <div
         style={{
           position:  'absolute',
@@ -498,7 +515,7 @@ export default function RygCard({
         )}
       </div>
 
-      {/* Layer 3 â€” Content area */}
+      {/* Layer 3 â€" Content area */}
       <div
         style={{
           position:      'absolute',
@@ -534,38 +551,37 @@ export default function RygCard({
                   background: '#ffffff',
                   border:     `2px solid ${BORDER_TAN}`,
                   borderTop:  i === 0 ? `2px solid ${BORDER_TAN}` : 'none',
-                  padding:    '8px 10px',
+                  padding:    '6px 10px',
                   display:    'flex',
-                  gap:        0,
+                  gap:        6,
                   alignItems: 'stretch',
                 }}
               >
-                {/* Left 50%: name + stats */}
-                <div style={{ width: '50%', display: 'flex', gap: 8, alignItems: 'center', flexShrink: 0, paddingRight: 10 }}>
-                  <span style={{ ...BASKERVILLE_BOLD, fontSize: 21, textTransform: 'uppercase', letterSpacing: '-0.04em', color: TEXT_DARK, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {/* Name — 200px, wraps */}
+                <div style={{ width: 200, flexShrink: 0, display: 'flex', alignItems: 'center' }}>
+                  <span style={{ ...BASKERVILLE_BOLD, fontSize: 21, textTransform: 'uppercase', letterSpacing: '-0.04em', color: TEXT_DARK, lineHeight: 1.2 }}>
                     {w.name}
                   </span>
-                  <span style={{ ...BASKERVILLE, fontSize: 19, color: TEXT_DARK, flexShrink: 0 }}>
+                </div>
+                {/* Damage — 100px */}
+                <div style={{ width: 100, flexShrink: 0, display: 'flex', alignItems: 'center' }}>
+                  <span style={{ ...BASKERVILLE, fontSize: 19, color: TEXT_DARK }}>
                     {w.damage || '—'}
                   </span>
-                  {w.range > 0 && (
-                    <span style={{ ...BASKERVILLE, fontSize: 19, color: TEXT_DARK, flexShrink: 0 }}>
-                      {w.range}{'”'}
-                    </span>
-                  )}
-                  <span style={{ ...BASKERVILLE, fontSize: 19, color: TEXT_DARK, flexShrink: 0 }}>
-                    {w.cost > 0 ? `${w.cost}gp` : '—'}
+                </div>
+                {/* Range — 100px (always present) */}
+                <div style={{ width: 100, flexShrink: 0, display: 'flex', alignItems: 'center' }}>
+                  <span style={{ ...BASKERVILLE, fontSize: 19, color: TEXT_DARK }}>
+                    {w.range > 0 ? `${w.range}"` : '—'}
                   </span>
                 </div>
-                {/* Divider */}
-                <div style={{ width: 1, background: BORDER_TAN, flexShrink: 0, margin: '2px 0' }} />
-                {/* Right 50%: keywords then description */}
-                <div style={{ flex: 1, paddingLeft: 10, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 2 }}>
+                {/* Description / keywords — remaining width */}
+                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 2 }}>
                   {(w.keywordList && w.keywordList.length > 0) ? (
                     <span style={{ ...BASKERVILLE, fontStyle: 'italic', fontSize: 20, color: TEXT_DARK, lineHeight: 1.3 }}>
-                      {w.keywordList.map((kw, i) => (
+                      {w.keywordList.map((kw, ki) => (
                         <span key={kw.name}>
-                          {i > 0 && ', '}
+                          {ki > 0 && ', '}
                           {onTalentClick ? (
                             <button
                               type="button"
@@ -598,22 +614,23 @@ export default function RygCard({
                   background: '#ffffff',
                   border:     `2px solid ${BORDER_TAN}`,
                   borderTop:  i === 0 ? `2px solid ${BORDER_TAN}` : 'none',
-                  padding:    '8px 10px',
+                  padding:    '6px 10px',
                   display:    'flex',
-                  gap:        0,
+                  gap:        6,
                   alignItems: 'stretch',
                 }}
               >
-                <div style={{ width: '50%', display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 2, flexShrink: 0, paddingRight: 10 }}>
-                  <span style={{ ...BASKERVILLE_BOLD, fontSize: 21, textTransform: 'uppercase', letterSpacing: '-0.04em', color: TEXT_DARK, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {/* Name — 200px, wraps */}
+                <div style={{ width: 200, flexShrink: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 2 }}>
+                  <span style={{ ...BASKERVILLE_BOLD, fontSize: 21, textTransform: 'uppercase', letterSpacing: '-0.04em', color: TEXT_DARK, lineHeight: 1.2 }}>
                     {sp.name}
                   </span>
                   <span style={{ ...BASKERVILLE, fontSize: 18, color: TEXT_DARK, opacity: 0.7 }}>
                     {[sp.spellType, sp.fateModifier ? `Fate ${sp.fateModifier}` : ''].filter(Boolean).join(' · ')}
                   </span>
                 </div>
-                <div style={{ width: 1, background: BORDER_TAN, flexShrink: 0, margin: '2px 0' }} />
-                <div style={{ flex: 1, paddingLeft: 10, display: 'flex', alignItems: 'center' }}>
+                {/* Description — remaining width */}
+                <div style={{ flex: 1, display: 'flex', alignItems: 'center' }}>
                   <span style={{ ...BASKERVILLE, fontSize: 20, color: TEXT_DARK, lineHeight: 1.3 }}>
                     {sp.description}
                   </span>
@@ -624,7 +641,7 @@ export default function RygCard({
         )}
 
         {/* Armor + Items group */}
-        {hasEquipment && (hasArmor || hasItems) && (
+        {(hasArmor || hasItems) && (
           <div style={{ flexShrink: 0 }}>
             {[...armor, ...items].map((eq, i) => (
               <div
@@ -633,26 +650,21 @@ export default function RygCard({
                   background: '#ffffff',
                   border:     `2px solid ${BORDER_TAN}`,
                   borderTop:  i === 0 ? `2px solid ${BORDER_TAN}` : 'none',
-                  padding:    '8px 10px',
+                  padding:    '6px 10px',
                   display:    'flex',
-                  gap:        0,
+                  gap:        6,
                   alignItems: 'stretch',
                 }}
               >
-                {/* Left 50%: name + cost */}
-                <div style={{ width: '50%', display: 'flex', gap: 8, alignItems: 'center', flexShrink: 0, paddingRight: 10 }}>
-                  <span style={{ ...BASKERVILLE_BOLD, fontSize: 21, textTransform: 'uppercase', letterSpacing: '-0.04em', color: TEXT_DARK, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {/* Name — 200px, wraps */}
+                <div style={{ width: 200, flexShrink: 0, display: 'flex', alignItems: 'center' }}>
+                  <span style={{ ...BASKERVILLE_BOLD, fontSize: 21, textTransform: 'uppercase', letterSpacing: '-0.04em', color: TEXT_DARK, lineHeight: 1.2 }}>
                     {eq.name}
                   </span>
-                  <span style={{ ...BASKERVILLE, fontSize: 19, color: TEXT_DARK, flexShrink: 0 }}>
-                    {eq.cost > 0 ? `${eq.cost}gp` : '—'}
-                  </span>
                 </div>
-                {/* Divider */}
-                <div style={{ width: 1, background: BORDER_TAN, flexShrink: 0, margin: '2px 0' }} />
-                {/* Right 50%: description */}
-                <div style={{ flex: 1, paddingLeft: 10, display: 'flex', alignItems: 'center' }}>
-                  <span style={{ ...BASKERVILLE, fontSize: 22, color: TEXT_DARK, lineHeight: 1.3 }}>
+                {/* Description — remaining width */}
+                <div style={{ flex: 1, display: 'flex', alignItems: 'center' }}>
+                  <span style={{ ...BASKERVILLE, fontSize: 20, color: TEXT_DARK, lineHeight: 1.3 }}>
                     {eq.description}
                   </span>
                 </div>

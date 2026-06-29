@@ -987,9 +987,9 @@ export default function AppHome() {
 
         {/* ── Version footer ────────────────────────────────────────────────── */}
         <div className="flex items-center justify-center gap-3 py-1.5 font-body font-bold text-xs text-gray-800 tracking-[1.2px] uppercase whitespace-nowrap">
-          <span>Battlecards version 0.10</span>
+          <span>Battlecards version {__APP_VERSION__}</span>
           <span>–</span>
-          <span>Build date 31/03/2026</span>
+          <span>Build date {__APP_BUILD_DATE__}</span>
         </div>
 
       </div>
