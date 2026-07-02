@@ -20,6 +20,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import type { CardBuilderConfig } from '../types/cardBuilder';
 
@@ -56,6 +57,15 @@ export interface UseCardBuilderResult {
 
 export function useCardBuilder(config: CardBuilderConfig): UseCardBuilderResult {
   const { deckId, decksTable = 'decks' } = config;
+  const navigate = useNavigate();
+
+  // ── Redirect to login if session expires while on the builder ────────────
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+      if (event === 'SIGNED_OUT') navigate('/login', { replace: true });
+    });
+    return () => subscription.unsubscribe();
+  }, [navigate]);
 
   // ── Panel toggle state ─────────────────────────────────────────────────────
   const [cardListOpen, setCardListOpen] = useState(false);

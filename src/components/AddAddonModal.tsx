@@ -105,7 +105,7 @@ function meetsPrerequisites(
   context: Array<{ addonId: string; typeSlug: string; name?: string; params?: Record<string, string[]> }>,
 ): boolean {
   const prereqs = addon.prerequisites as AddonPrerequisites | null;
-  if (!prereqs || prereqs.items.length === 0) return true;
+  if (!prereqs || !Array.isArray(prereqs.items) || prereqs.items.length === 0) return true;
 
   const check = (item: AddonPrerequisites['items'][number]) => {
     return context.some(ca => {
@@ -114,10 +114,10 @@ function meetsPrerequisites(
       const nameMatch = !!ca.name && ca.name === item.name;
       if (!idMatch && !nameMatch) return false;
       // If the prerequisite specifies params, they must match
-      const requiredParams = Object.entries(item.params);
+      const requiredParams = Object.entries(item.params ?? {});
       if (requiredParams.length === 0) return true;
       return requiredParams.every(([key, vals]) =>
-        vals.length === 0 || (ca.params?.[key] ?? []).some(v => vals.includes(v)),
+        !Array.isArray(vals) || vals.length === 0 || (ca.params?.[key] ?? []).some(v => vals.includes(v)),
       );
     });
   };
