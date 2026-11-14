@@ -101,6 +101,7 @@ import logoBloodBowl from '../assets/games/logo-blood-bowl.png';
 import logoKillTeam from '../assets/games/logo-kill-team.png';
 // Placeholder SVG for now — swap to logo-starcraft.png once branded art lands.
 import logoStarcraft from '../assets/games/logo-starcraft.svg';
+import { deckUrl } from './DeckPage';
 
 // ── Game definitions ──────────────────────────────────────────────────────────
 // Keyed by the game's slug (matches the value seeded into public.games).
@@ -627,7 +628,7 @@ export default function AppHome() {
       );
     }
 
-    navigate(`/app/builder/${selectedGame}?deckId=${(data as DeckWithGame).id}`);
+    navigate(deckUrl(selectedGame, (data as DeckWithGame).id));
   };
 
   // ── Render ─────────────────────────────────────────────────────────────────
@@ -930,7 +931,7 @@ export default function AppHome() {
                                   ? <img src={assets.thumbnailSrc} alt="" className="size-full object-cover" />
                                   : undefined
                               }
-                              onClick={() => navigate(`/app/builder/${deck.game.slug}?deckId=${deck.id}`)}
+                              onClick={() => navigate(deckUrl(deck.game.slug, deck.id))}
                               onDuplicate={() => handleDuplicate(deck.id)}
                               onDelete={() => confirmDelete(deck.id)}
                             />
@@ -1124,7 +1125,7 @@ export default function AppHome() {
         onClose={() => setShowImport(false)}
         onImported={(deckId, gameSlug) => {
           setShowImport(false);
-          navigate(`/app/builder/${gameSlug}?deckId=${deckId}`);
+          navigate(deckUrl(gameSlug, deckId));
         }}
       />
 
