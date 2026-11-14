@@ -87,7 +87,7 @@ select
   g.id,
   'Gundam Assemble Starter Set',
   'Official unit and tactics cards from the Starter Set.',
-  true,
+  false,   -- private until its cards are loaded; flip to public at launch
   true
 from public.games g
 where g.slug = 'gundam-assemble'
