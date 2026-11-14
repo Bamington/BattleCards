@@ -75,15 +75,13 @@ const StaticCard = ({
   const showImage = Boolean(faceUrl) && failedUrl !== faceUrl;
 
   return (
-    <div
-      className={`relative overflow-hidden ${className}`.trim()}
-      style={{
-        width,
-        height,
-        borderRadius: radius,
-        filter: dimmed ? 'grayscale(1) opacity(0.5)' : undefined,
-      }}
-    >
+    // Outer box is NOT clipped, so overlay children (e.g. a token bar placed
+    // beneath the card) can extend past the card edge. Only the face is clipped.
+    <div className={`relative ${className}`.trim()} style={{ width, height }}>
+      <div
+        className="absolute inset-0 overflow-hidden"
+        style={{ borderRadius: radius, filter: dimmed ? 'grayscale(1) opacity(0.5)' : undefined }}
+      >
       {showImage ? (
         <img
           src={faceUrl!}
@@ -112,6 +110,7 @@ const StaticCard = ({
           </div>
         </div>
       )}
+      </div>
       {children}
     </div>
   );

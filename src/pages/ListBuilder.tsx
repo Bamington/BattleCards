@@ -98,7 +98,7 @@ const ListBuilder = () => {
   const builder = useCardBuilder({ deckId });
   const {
     cardListOpen, toggleCardList, isMobile, isShortHeight, mobilePanelOpen,
-    deckName, editingDeckName, setEditingDeckName, deckNameInputRef,
+    deckName, setDeckName, editingDeckName, setEditingDeckName, deckNameInputRef,
     startDeckNameEdit, commitDeckName,
   } = builder;
 
@@ -128,13 +128,14 @@ const ListBuilder = () => {
     (async () => {
       const { data: deck, error } = await supabase
         .from('decks')
-        .select('id, game:games(id, name, slug, print_size)')
+        .select('id, name, game:games(id, name, slug, print_size)')
         .eq('id', deckId)
         .single();
       if (error || !deck) { setLoadError('Deck not found.'); setLoading(false); return; }
       const g = (deck as unknown as { game: GameInfo }).game;
       if (g.slug !== slug) { navigate(`/app/deck/${g.slug}?deckId=${deckId}`, { replace: true }); return; }
       setGame(g);
+      setDeckName((deck as unknown as { name: string }).name);
 
       const [cardsRes, tokensRes] = await Promise.all([
         supabase.from('cards').select(CARD_COLUMNS)
@@ -149,7 +150,7 @@ const ListBuilder = () => {
       setTokenDefinitions((tokensRes.data ?? []) as TokenDefinition[]);
       setLoading(false);
     })();
-  }, [deckId, slug, navigate]);
+  }, [deckId, slug, navigate, setDeckName]);
 
   // ── Picker data: own library templates + cards in packs the user owns ─────
   const loadAvailable = useCallback(async () => {
