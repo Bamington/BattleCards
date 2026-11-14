@@ -12,21 +12,35 @@ import Flag from '../icons/Flag';
 import MenuDots from '../icons/MenuDots';
 import Pen2 from '../icons/Pen2';
 import TrashBinMinimalistic from '../icons/TrashBinMinimalistic';
-import type { Game, GameStatus } from '../lib/database.types';
+import Select from '../components/Select';
+import { GAME_PAGES } from './DeckPage';
+import type { Game, AccessLevel } from '../lib/database.types';
 
-const STATUS_COLOR: Record<GameStatus, BadgeColor> = {
-  published: 'success',
-  beta:      'warning',
-  draft:     'gray',
+// Each game has two capabilities, each with its own access level.
+//   Simple cards   — static card faces from packs (ListBuilder)
+//   Custom builder — the game's custom card builder page
+const ACCESS_COLOR: Record<AccessLevel, BadgeColor> = {
+  everyone: 'success',
+  beta:     'warning',
+  admin:    'purple',
+  off:      'gray',
 };
 
-const STATUS_LABEL: Record<GameStatus, string> = {
-  published: 'Published',
-  beta:      'Beta',
-  draft:     'Draft',
+const ACCESS_LABEL: Record<AccessLevel, string> = {
+  everyone: 'Everyone',
+  beta:     'Beta',
+  admin:    'Admin',
+  off:      'Off',
 };
 
-const ALL_STATUSES: GameStatus[] = ['published', 'beta', 'draft'];
+const ACCESS_OPTIONS = [
+  { value: 'off',      label: 'Off — nobody' },
+  { value: 'admin',    label: 'Admin — admins only' },
+  { value: 'beta',     label: 'Beta — admins + beta testers' },
+  { value: 'everyone', label: 'Everyone — all users' },
+];
+
+const isEnabled = (g: Game) => g.simple_access !== 'off' || g.custom_access !== 'off';
 
 export default function ManageGames() {
   const navigate = useNavigate();
@@ -36,7 +50,9 @@ export default function ManageGames() {
 
   // ── Edit modal state ────────────────────────────────────────────────────────
   const [editTarget, setEditTarget]   = useState<Game | null>(null);
-  const [editStatus, setEditStatus]   = useState<GameStatus>('draft');
+  const [editSimple, setEditSimple]   = useState<AccessLevel>('off');
+  const [editCustom, setEditCustom]   = useState<AccessLevel>('off');
+  const [showAll, setShowAll]         = useState(false);
   const [saving, setSaving]           = useState(false);
   const [editError, setEditError]     = useState<string | null>(null);
 
@@ -64,7 +80,8 @@ export default function ManageGames() {
 
   function openEdit(game: Game) {
     setEditTarget(game);
-    setEditStatus(game.status);
+    setEditSimple(game.simple_access ?? 'off');
+    setEditCustom(game.custom_access ?? 'off');
     setEditError(null);
   }
 
@@ -75,7 +92,7 @@ export default function ManageGames() {
 
     const { data: updated, error } = await supabase
       .from('games')
-      .update({ status: editStatus })
+      .update({ simple_access: editSimple, custom_access: editCustom })
       .eq('id', editTarget.id)
       .select('id');
 
@@ -92,7 +109,7 @@ export default function ManageGames() {
     }
 
     setGames(prev =>
-      prev.map(g => g.id === editTarget.id ? { ...g, status: editStatus } : g)
+      prev.map(g => g.id === editTarget.id ? { ...g, simple_access: editSimple, custom_access: editCustom } : g)
     );
     setSaving(false);
     setEditTarget(null);
@@ -140,9 +157,19 @@ export default function ManageGames() {
             <h1 className="font-heading text-xl text-white">Manage Games</h1>
             {!loading && (
               <span className="font-body text-sm text-gray-500 ml-auto">
-                {games.length} {games.length === 1 ? 'game' : 'games'}
+                {games.filter(isEnabled).length} enabled of {games.length}
               </span>
             )}
+          </div>
+
+          {/* The games catalog is shared with other apps — default to enabled ones. */}
+          <div className="flex items-center gap-3">
+            <Button size="xs" variant={showAll ? 'outline' : 'filled'} color="secondary" onClick={() => setShowAll(false)}>
+              Enabled in BattleCards
+            </Button>
+            <Button size="xs" variant={showAll ? 'filled' : 'outline'} color="secondary" onClick={() => setShowAll(true)}>
+              All games
+            </Button>
           </div>
 
           {/* List */}
@@ -165,7 +192,7 @@ export default function ManageGames() {
               </div>
             )}
 
-            {!loading && !error && games.map(g => (
+            {!loading && !error && games.filter(g => showAll || isEnabled(g)).map(g => (
               <div
                 key={g.id}
                 className="flex items-center gap-4 px-5 py-3.5 bg-gray-900 hover:bg-gray-800 transition-colors"
@@ -176,10 +203,15 @@ export default function ManageGames() {
                   <span className="font-body text-xs text-gray-500">{g.slug}</span>
                 </div>
 
-                {/* Status badge */}
-                <Badge color={STATUS_COLOR[g.status]} variant="solid" size="sm">
-                  {STATUS_LABEL[g.status]}
-                </Badge>
+                {/* Capability badges */}
+                <div className="flex flex-col items-end gap-1 shrink-0">
+                  <Badge color={ACCESS_COLOR[g.simple_access ?? 'off']} variant="solid" size="sm">
+                    Simple: {ACCESS_LABEL[g.simple_access ?? 'off']}
+                  </Badge>
+                  <Badge color={ACCESS_COLOR[g.custom_access ?? 'off']} variant="solid" size="sm">
+                    Custom: {ACCESS_LABEL[g.custom_access ?? 'off']}
+                  </Badge>
+                </div>
 
                 {/* ⋯ menu */}
                 <div
@@ -247,38 +279,29 @@ export default function ManageGames() {
               <p className="font-body text-sm text-gray-400">{editTarget.name}</p>
             </div>
 
-            {/* Status picker */}
-            <div className="flex flex-col gap-2">
-              <span className="font-body text-xs text-gray-400 uppercase tracking-wider">
-                Visibility Status
-              </span>
-              <div className="flex flex-col gap-1.5">
-                {ALL_STATUSES.map(s => (
-                  <button
-                    key={s}
-                    type="button"
-                    disabled={saving}
-                    onClick={() => setEditStatus(s)}
-                    className={[
-                      'flex items-center gap-3 px-4 py-2.5 rounded-lg border text-left transition-colors',
-                      editStatus === s
-                        ? 'border-blue-600 bg-blue-950/50'
-                        : 'border-gray-700 bg-gray-900 hover:border-gray-600',
-                      saving ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer',
-                    ].join(' ')}
-                  >
-                    <Badge color={STATUS_COLOR[s]} variant="solid" size="sm">
-                      {STATUS_LABEL[s]}
-                    </Badge>
-                    <span className="font-body text-sm text-gray-300">
-                      {s === 'published' && 'Visible to all users'}
-                      {s === 'beta'      && 'Visible to admins and beta testers'}
-                      {s === 'draft'     && 'Visible to admins and draft testers only'}
-                    </span>
-                  </button>
-                ))}
-              </div>
-            </div>
+            {/* Capability access levels */}
+            <Select
+              label="Simple cards"
+              helperText="Build decks from static card images in packs."
+              options={ACCESS_OPTIONS}
+              value={editSimple}
+              disabled={saving}
+              onChange={e => setEditSimple(e.target.value as AccessLevel)}
+            />
+            <Select
+              label="Custom builder"
+              helperText={GAME_PAGES[editTarget.slug]
+                ? 'Design cards with this game\'s custom card builder.'
+                : 'This game has no custom builder in the app yet, so this has no effect until one is built.'}
+              options={ACCESS_OPTIONS}
+              value={editCustom}
+              disabled={saving}
+              onChange={e => setEditCustom(e.target.value as AccessLevel)}
+            />
+            <p className="font-body text-xs text-gray-500">
+              Beta testers are users with the Beta Tester role, or testers added for this game.
+              The game is listed for anyone who can use at least one option.
+            </p>
 
             {editError && (
               <p className="font-body text-sm text-red-400">{editError}</p>

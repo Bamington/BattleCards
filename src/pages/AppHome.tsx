@@ -45,6 +45,7 @@ import DeckListItem from '../components/DeckListItem';
 import PackListItem, { type PackBadge } from '../components/PackListItem';
 import BlogEntryPreview from '../components/BlogEntryPreview';
 import Modal from '../components/Modal';
+import Markdown from 'react-markdown';
 import GamePickerItem from '../components/GamePickerItem';
 import Input from '../components/Input';
 import HR from '../components/HR';
@@ -101,6 +102,12 @@ import logoBloodBowl from '../assets/games/logo-blood-bowl.png';
 import logoKillTeam from '../assets/games/logo-kill-team.png';
 // Placeholder SVG for now — swap to logo-starcraft.png once branded art lands.
 import logoStarcraft from '../assets/games/logo-starcraft.svg';
+import logoGundamAssemble from '../assets/games/logo-gundam-assemble.svg';
+import iconGundamAssemble from '../assets/games/card assets/gundam-assemble/icon.svg';
+import { deckUrl, GAME_PAGES } from './DeckPage';
+import Select from '../components/Select';
+import { useGameCapabilities, availableModes } from '../hooks/useGameCapabilities';
+import type { CardMode } from '../lib/database.types';
 
 // ── Game definitions ──────────────────────────────────────────────────────────
 // Keyed by the game's slug (matches the value seeded into public.games).
@@ -142,25 +149,76 @@ const GAMES = [
     thumbnailSrc: iconRyg as string,
     thumbnailBg: 'bg-[#1a1612]',
   },
+  {
+    id: 'gundam-assemble',
+    name: 'Gundam Assemble',
+    logoSrc: logoGundamAssemble,
+    thumbnailSrc: iconGundamAssemble as string,
+    thumbnailBg: 'bg-gradient-to-b from-[#1e2a44] to-[#0f1626]',
+  },
 ] as const;
+// Which games appear in the pickers (and in which modes) is no longer decided
+// here: it comes from each game's simple_access / custom_access levels via
+// useGameCapabilities(). Games without an entry above show their name instead
+// of a logo.
 
-type GameSlug = typeof GAMES[number]['id'];
+const MODE_OPTIONS: Record<CardMode, { value: CardMode; label: string }> = {
+  custom: { value: 'custom', label: 'Custom cards — design your own with the card builder' },
+  simple: { value: 'simple', label: 'Simple cards — pick official cards from packs' },
+};
 
 /** Returns the UI assets for a game slug, or undefined if unknown. */
 const gameAssets = (slug: string) => GAMES.find(g => g.id === slug);
 
-// ── Placeholder news post ─────────────────────────────────────────────────────
+// ── News & Updates ────────────────────────────────────────────────────────────
+// Release notes live in the `updates` table shared with the other apps
+// (Battleplan, BattleBench); each row lists the apps it belongs to.
 
-const PLACEHOLDER_POST = {
-  title: 'Example Release Note',
-  body: "This is a placeholder release note. It has a maximum of 3 lines, after which the text will be truncated. But don't worry, there's a button to view the full update!",
-};
+interface UpdatePost {
+  id:           string;
+  title:        string;
+  body:         string;
+  version:      string | null;
+  published_at: string | null;
+}
+
+/** Plain-text excerpt of a Markdown body for the 3-line preview. */
+const markdownToPreview = (md: string): string =>
+  md
+    .replace(/^#{1,6}\s+/gm, '')            // headings
+    .replace(/!\[[^\]]*\]\([^)]*\)/g, '')   // images
+    .replace(/\[([^\]]+)\]\([^)]*\)/g, '$1') // links → text
+    .replace(/[*_`~]/g, '')                  // emphasis / code marks
+    .replace(/^\s*[-+]\s+/gm, '')            // list bullets
+    .replace(/\s+/g, ' ')
+    .trim();
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function AppHome() {
   const navigate = useNavigate();
   const { isAdmin } = useIsAdmin();
+
+  // ── News & Updates ─────────────────────────────────────────────────────────
+  const [latestUpdate,  setLatestUpdate]  = useState<UpdatePost | null>(null);
+  const [updateLoaded,  setUpdateLoaded]  = useState(false);
+  const [readingUpdate, setReadingUpdate] = useState(false);
+
+  useEffect(() => {
+    (async () => {
+      // Filter on published explicitly: admins can read drafts via RLS.
+      const { data } = await supabase
+        .from('updates')
+        .select('id, title, body, version, published_at')
+        .eq('published', true)
+        .eq('visible', true)
+        .contains('apps', ['battlecards'])
+        .order('published_at', { ascending: false, nullsFirst: false })
+        .limit(1);
+      setLatestUpdate(((data ?? []) as UpdatePost[])[0] ?? null);
+      setUpdateLoaded(true);
+    })();
+  }, []);
 
   // ── Deck list state ────────────────────────────────────────────────────────
   const [decks,      setDecks]      = useState<DeckWithCards[]>([]);
@@ -202,7 +260,7 @@ export default function AppHome() {
   const [showPackCreate,    setShowPackCreate]    = useState(false);
   const [packName,          setPackName]          = useState('');
   const [packDescription,   setPackDescription]   = useState('');
-  const [packGame,          setPackGame]          = useState<GameSlug | null>(null);
+  const [packGame,          setPackGame]          = useState<string | null>(null);
   const [creatingPack,      setCreatingPack]      = useState(false);
   const [packCreateError,   setPackCreateError]   = useState<string | null>(null);
 
@@ -229,12 +287,26 @@ export default function AppHome() {
   // ── Modal state ────────────────────────────────────────────────────────────
   const [showModal,    setShowModal]    = useState(false);
   const [deckName,     setDeckName]     = useState('');
-  const [selectedGame, setSelectedGame] = useState<GameSlug | null>(null);
+  const [selectedGame, setSelectedGame] = useState<string | null>(null);
+  const [selectedMode, setSelectedMode] = useState<CardMode | null>(null);
+
+  // ── Game capabilities (role-aware) ─────────────────────────────────────────
+  const { games: capGames, bySlug: capBySlug } = useGameCapabilities();
+  const modesFor = (slug: string) => availableModes(capBySlug[slug], Boolean(GAME_PAGES[slug]));
+  /** Games this user can start a deck (or pack) for, with logo assets if any. */
+  const pickerGames = capGames
+    .filter(g => modesFor(g.slug).length > 0)
+    .map(g => ({ id: g.slug, name: g.name, logoSrc: gameAssets(g.slug)?.logoSrc as string | undefined }));
+  const selectedModes = selectedGame ? modesFor(selectedGame) : [];
+  const pickGame = (slug: string) => {
+    setSelectedGame(slug);
+    setSelectedMode(modesFor(slug)[0] ?? null);
+  };
   const [creating,     setCreating]     = useState(false);
   const [createError,  setCreateError]  = useState<string | null>(null);
 
   const trimmed   = deckName.trim();
-  const canCreate = trimmed.length >= 1 && trimmed.length <= 99 && selectedGame !== null;
+  const canCreate = trimmed.length >= 1 && trimmed.length <= 99 && selectedGame !== null && selectedMode !== null;
 
   // ── Load data ──────────────────────────────────────────────────────────────
 
@@ -579,6 +651,7 @@ export default function AppHome() {
   const openModal = () => {
     setDeckName('');
     setSelectedGame(null);
+    setSelectedMode(null);
     setCreateError(null);
     setShowModal(true);
   };
@@ -587,7 +660,7 @@ export default function AppHome() {
 
   const handleCreate = async () => {
     if (!canCreate || !userId) return;
-    const gameId = gameIdMap[selectedGame!];
+    const gameId = capBySlug[selectedGame!]?.gameId ?? gameIdMap[selectedGame!];
     if (!gameId) return;
 
     setCreating(true);
@@ -595,7 +668,7 @@ export default function AppHome() {
 
     const { data, error } = await supabase
       .from('decks')
-      .insert({ name: trimmed, game_id: gameId, user_id: userId })
+      .insert({ name: trimmed, game_id: gameId, user_id: userId, card_mode: selectedMode })
       .select('*, game:games(id, name, slug, stat_schema, created_at)')
       .single();
 
@@ -627,7 +700,7 @@ export default function AppHome() {
       );
     }
 
-    navigate(`/app/builder/${selectedGame}?deckId=${(data as DeckWithGame).id}`);
+    navigate(deckUrl(selectedGame!, (data as DeckWithGame).id));
   };
 
   // ── Render ─────────────────────────────────────────────────────────────────
@@ -930,7 +1003,7 @@ export default function AppHome() {
                                   ? <img src={assets.thumbnailSrc} alt="" className="size-full object-cover" />
                                   : undefined
                               }
-                              onClick={() => navigate(`/app/builder/${deck.game.slug}?deckId=${deck.id}`)}
+                              onClick={() => navigate(deckUrl(deck.game.slug, deck.id))}
                               onDuplicate={() => handleDuplicate(deck.id)}
                               onDelete={() => confirmDelete(deck.id)}
                             />
@@ -973,11 +1046,15 @@ export default function AppHome() {
                   Find out what's happening with Battlecards.
                 </p>
 
-                <BlogEntryPreview
-                  title={PLACEHOLDER_POST.title}
-                  body={PLACEHOLDER_POST.body}
-                  onRead={() => {}}
-                />
+                {latestUpdate ? (
+                  <BlogEntryPreview
+                    title={latestUpdate.title}
+                    body={markdownToPreview(latestUpdate.body)}
+                    onRead={() => setReadingUpdate(true)}
+                  />
+                ) : updateLoaded ? (
+                  <p className="font-body text-sm text-gray-500 text-center">No updates yet.</p>
+                ) : null}
 
               </div>
             </div>
@@ -993,6 +1070,38 @@ export default function AppHome() {
         </div>
 
       </div>
+
+      {/* ── Full update (News & Updates "Read Update") ──────────────────── */}
+      <Modal open={readingUpdate && latestUpdate !== null} onClose={() => setReadingUpdate(false)} className="max-w-xl w-full">
+        {latestUpdate && (
+          <div className="flex flex-col max-h-[85vh]">
+            <div className="px-5 pt-5 pb-3 border-b border-gray-700">
+              <h2 className="font-heading text-[22px] leading-7 text-white">{latestUpdate.title}</h2>
+              <p className="font-body text-xs text-gray-400 mt-1">
+                {[
+                  latestUpdate.version && `Version ${latestUpdate.version}`,
+                  latestUpdate.published_at && new Date(latestUpdate.published_at).toLocaleDateString('en-GB'),
+                ].filter(Boolean).join(' · ')}
+              </p>
+            </div>
+            <div
+              className={[
+                'overflow-y-auto px-5 py-4 font-body text-sm text-gray-300 space-y-3',
+                '[&_h1]:font-heading [&_h1]:text-lg [&_h1]:text-white',
+                '[&_h2]:font-heading [&_h2]:text-lg [&_h2]:text-white',
+                '[&_h3]:font-heading [&_h3]:text-base [&_h3]:text-white [&_h3]:pt-2',
+                '[&_strong]:text-white [&_ul]:list-disc [&_ul]:pl-5 [&_ul]:space-y-2',
+                '[&_ol]:list-decimal [&_ol]:pl-5 [&_a]:text-blue-400 [&_a]:underline',
+              ].join(' ')}
+            >
+              <Markdown>{latestUpdate.body}</Markdown>
+            </div>
+            <div className="flex justify-end px-5 py-3 border-t border-gray-700">
+              <Button size="sm" onClick={() => setReadingUpdate(false)}>Close</Button>
+            </div>
+          </div>
+        )}
+      </Modal>
 
       {/* ── Duplicating progress modal ───────────────────────────────────── */}
       {/* Non-dismissible: stays up for the whole clone (which can be slow for
@@ -1080,16 +1189,27 @@ export default function AppHome() {
           </p>
 
           <div className="flex flex-col gap-1.5">
-            {GAMES.map(game => (
+            {pickerGames.map(game => (
               <GamePickerItem
                 key={game.id}
                 logoSrc={game.logoSrc}
                 logoAlt={game.name}
                 selected={selectedGame === game.id}
-                onClick={() => !creating && setSelectedGame(game.id)}
+                onClick={() => !creating && pickGame(game.id)}
               />
             ))}
           </div>
+
+          {/* Card style — only when the selected game offers more than one mode */}
+          {selectedModes.length > 1 && (
+            <Select
+              label="Card style"
+              options={selectedModes.map(m => MODE_OPTIONS[m])}
+              value={selectedMode ?? ''}
+              disabled={creating}
+              onChange={e => setSelectedMode(e.target.value as CardMode)}
+            />
+          )}
 
           {/* Inline error */}
           {createError && (
@@ -1124,7 +1244,7 @@ export default function AppHome() {
         onClose={() => setShowImport(false)}
         onImported={(deckId, gameSlug) => {
           setShowImport(false);
-          navigate(`/app/builder/${gameSlug}?deckId=${deckId}`);
+          navigate(deckUrl(gameSlug, deckId));
         }}
       />
 
@@ -1286,7 +1406,7 @@ export default function AppHome() {
           </p>
 
           <div className="flex flex-col gap-1.5">
-            {GAMES.map(game => (
+            {pickerGames.map(game => (
               <GamePickerItem
                 key={game.id}
                 logoSrc={game.logoSrc}

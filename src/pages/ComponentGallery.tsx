@@ -42,6 +42,8 @@ import StarcraftPhaseFrame from '../components/StarcraftPhaseFrame';
 import HaloFlashpointRuleCard from '../components/HaloFlashpointRuleCard';
 import KillTeamCard from '../components/KillTeamCard';
 import KillTeamRuleCard from '../components/KillTeamRuleCard';
+import StaticCard from '../components/StaticCard';
+import StaticCardModal from '../components/StaticCardModal';
 import AddonInfoModal from '../components/AddonInfoModal';
 import Card3DWrapper from '../components/Card3DWrapper';
 import MultiSelectDropdown from '../components/MultiSelectDropdown';
@@ -232,6 +234,41 @@ const DISMISSIBLE_BADGES: { id: number; color: React.ComponentProps<typeof Badge
 ];
 
 // ── AddToPackModalGalleryDemo ────────────────────────────────────────────────
+
+/** StaticCardModal preview in create and edit modes. Uses stub pack/game IDs,
+ *  so Save will fail (storage/RLS) — the point is the form chrome. */
+const StaticCardModalGalleryDemo = () => {
+  const [mode, setMode] = useState<'create-unit' | 'create-rule' | 'edit' | null>(null);
+  const STUB_ID = '00000000-0000-0000-0000-000000000000';
+  const schema = [
+    { key: 'hp',       label: 'HP',                type: 'number' as const },
+    { key: 'vp',       label: 'VP',                type: 'number' as const },
+    { key: 'timeline', label: 'Starting Timeline', type: 'number' as const },
+  ];
+  return (
+    <div className="flex flex-wrap items-center gap-3">
+      <Button onClick={() => setMode('create-unit')}>Add Unit (create)</Button>
+      <Button variant="outline" onClick={() => setMode('create-rule')}>Add Tactic (create)</Button>
+      <Button variant="outline" onClick={() => setMode('edit')}>Edit existing card</Button>
+      <p className="font-body text-xs text-gray-400 dark:text-gray-500">
+        Stub IDs — saving will fail; use this to review the form and image preview.
+      </p>
+      <StaticCardModal
+        open={mode !== null}
+        onClose={() => setMode(null)}
+        packId={STUB_ID}
+        gameId={STUB_ID}
+        statSchema={schema}
+        printSize={[63, 88]}
+        defaultCardType={mode === 'create-rule' ? 'rule' : 'operative'}
+        card={mode === 'edit'
+          ? { id: STUB_ID, name: 'RX-78-2 Gundam', card_type: 'operative', stats: { hp: 6, vp: 3, timeline: 2 }, face_path: null }
+          : null}
+        onSaved={() => {}}
+      />
+    </div>
+  );
+};
 
 /** Live AddToPackModal preview. The picker hits Supabase with stubbed
  *  pack/game IDs, so the list will be empty unless you happen to be
@@ -433,6 +470,8 @@ const ComponentGallery = () => {
         <SidebarItem href="#nav-sc-phase-frame" icon={<Shield className="w-5 h-5" />}          label="SC Phase Frame" />
         <SidebarItem href="#nav-kill-team-card" icon={<Shield className="w-5 h-5" />}          label="KT Card" />
         <SidebarItem href="#nav-kill-team-rule-card" icon={<Shield className="w-5 h-5" />}     label="KT Rule Card" />
+        <SidebarItem href="#nav-static-card" icon={<Shield className="w-5 h-5" />}             label="Static Card" />
+        <SidebarItem href="#nav-static-card-modal" icon={<Shield className="w-5 h-5" />}       label="Static Card Modal" />
         <SidebarItem href="#nav-addon-info-modal" icon={<Shield className="w-5 h-5" />}        label="Addon Info Modal" />
         <SidebarItem href="#nav-multi-select" icon={<CheckCircle className="w-5 h-5" />}        label="Multi-Select" />
         <SidebarItem href="#nav-vr"           icon={<MinusCircle className="w-5 h-5" />}        label="VR"           />
@@ -2574,6 +2613,47 @@ const ComponentGallery = () => {
         </div>
       </GallerySection>
 
+      {/* ── Static Card ──────────────────────────────────────────── */}
+      <GallerySection id="nav-static-card" title="Static Card / Default">
+        <p className="font-body text-sm text-gray-500 dark:text-gray-400 mb-6">
+          Image-only card for List Builder games — renders a static card face at native size (750 × 1050 shown at 250px wide).
+          Children layer above the face (tokens, photo overlay).
+        </p>
+        <div className="flex flex-wrap gap-8 items-start">
+          {([
+            { label: 'Face loaded',            faceUrl: heroImage,               dimmed: false, overlay: false },
+            { label: 'No face (placeholder)',  faceUrl: null,                    dimmed: false, overlay: false },
+            { label: 'Broken image URL',       faceUrl: '/does-not-exist.png',   dimmed: false, overlay: false },
+            { label: 'Dimmed',                 faceUrl: heroImage,               dimmed: true,  overlay: false },
+            { label: 'With overlay layer',     faceUrl: heroImage,               dimmed: false, overlay: true  },
+          ] as const).map(v => (
+            <div key={v.label} className="flex flex-col gap-2 items-center">
+              <p className="font-body text-xs text-gray-400 dark:text-gray-500">{v.label}</p>
+              <div className="relative overflow-hidden shrink-0" style={{ width: 250, height: Math.round(1050 * (250 / 750)) }}>
+                <div style={{ transform: `scale(${250 / 750})`, transformOrigin: 'top left', position: 'absolute', top: 0, left: 0 }}>
+                  <StaticCard faceUrl={v.faceUrl} name="RX-78-2 Gundam" width={750} height={1050} dimmed={v.dimmed}>
+                    {v.overlay && (
+                      <div style={{ position: 'absolute', top: 40, right: 40 }}>
+                        <Badge color="purple" size="lg">Overlay</Badge>
+                      </div>
+                    )}
+                  </StaticCard>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </GallerySection>
+
+      {/* ── Static Card Modal ────────────────────────────────────── */}
+      <GallerySection id="nav-static-card-modal" title="Static Card Modal / Create & Edit">
+        <p className="font-body text-sm text-gray-500 dark:text-gray-400 mb-6">
+          Pack Editor form for List Builder games — upload a card face, name it, pick Unit or Tactic, and set the
+          stats that drive play-mode tokens. Create mode adds "Save &amp; Add Another".
+        </p>
+        <StaticCardModalGalleryDemo />
+      </GallerySection>
+
       {/* ── Kill Team Rule Card ───────────────────────────────────── */}
       <GallerySection id="nav-kill-team-rule-card" title="Kill Team Rule Card / Default">
         <p className="font-body text-sm text-gray-500 dark:text-gray-400 mb-6">
@@ -3549,6 +3629,14 @@ const ComponentGallery = () => {
             <div className="flex flex-col gap-1.5 max-w-lg">
               <GamePickerItem logoSrc={logoHaloFlashpoint} logoAlt="Halo: Flashpoint" selected />
               <GamePickerItem logoSrc={logoBloodBowl} logoAlt="Blood Bowl" />
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <p className="font-body text-xs text-gray-400 dark:text-gray-500">No logo asset — falls back to the game name</p>
+            <div className="flex flex-col gap-1.5 max-w-lg">
+              <GamePickerItem logoAlt="Warhammer Underworlds" />
+              <GamePickerItem logoAlt="Star Wars: Shatterpoint" selected />
             </div>
           </div>
 

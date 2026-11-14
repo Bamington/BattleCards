@@ -291,11 +291,22 @@ export interface Profile {
 
 export type GameStatus = 'draft' | 'beta' | 'published'
 
+/** Who can use a game capability (simple cards / custom builder). */
+export type AccessLevel = 'off' | 'admin' | 'beta' | 'everyone'
+
+/** How a deck is built: static faces (ListBuilder) or the custom builder. */
+export type CardMode = 'simple' | 'custom'
+
 export interface Game {
   id:          string
   name:        string
   slug:        string
-  status:      GameStatus
+  /** Live column is battlecards_status; superseded by the access levels below. */
+  battlecards_status?: GameStatus
+  /** Who can build decks from static card faces (ListBuilder). */
+  simple_access: AccessLevel
+  /** Who can use the game's custom card builder. */
+  custom_access: AccessLevel
   stat_schema: StatField[]
   /** [width_mm, height_mm] â€” card dimensions for printing (no bleed) */
   print_size:  [number, number]
@@ -427,6 +438,8 @@ export interface Deck {
   user_id:    string
   game_id:    string
   name:       string
+  /** Mode the deck was created in; decides which page opens it. */
+  card_mode:  CardMode
   created_at: string
 }
 
@@ -448,6 +461,11 @@ export interface Card {
   sort_order:     number | null
   /** null = default layout; 'portraitFramed' = show portrait frame overlay */
   portrait_style: string | null
+  /** Static card face image path (card-images bucket, packs/{pack_id}/...).
+   *  Generic card chrome shared by reference: never copied or deleted with the
+   *  card. Separate from card_images, which holds the user's own photos.
+   *  When set, the card renders as this image instead of the game's layout. */
+  face_path:      string | null
   is_template:    boolean
   /** Set when this row IS a pack source card (template living inside a pack). */
   pack_id:              string | null
