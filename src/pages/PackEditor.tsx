@@ -60,6 +60,7 @@ import UploadPhotoModal from '../components/UploadPhotoModal';
 import StaticCardModal, { type StaticCardType } from '../components/StaticCardModal';
 import StaticCard, { cardFaceUrl, nativeCardHeight } from '../components/StaticCard';
 import { GAME_PAGES } from './DeckPage';
+import { useGameCapabilities } from '../hooks/useGameCapabilities';
 import AddCircle from '../icons/AddCircle';
 import UserRounded from '../icons/UserRounded';
 import FileText from '../icons/FileText';
@@ -708,7 +709,13 @@ export default function PackEditor() {
 
   // List Builder games have no custom builder page: their cards are static
   // images (face_path) created via StaticCardModal.
-  const isListGame = pack ? !GAME_PAGES[pack.game.slug] : false;
+  // A pack uses the static-card flow when the game has no builder page, or
+  // when only simple cards are available to this user for the game.
+  const { bySlug: capBySlug } = useGameCapabilities();
+  const packCap = pack ? capBySlug[pack.game.slug] : undefined;
+  const isListGame = pack
+    ? !GAME_PAGES[pack.game.slug] || Boolean(packCap?.simple && !packCap?.custom)
+    : false;
   const listCardDims = useMemo<[number, number]>(
     () => [750, nativeCardHeight(750, (pack?.game as { print_size?: unknown } | undefined)?.print_size)],
     [pack],

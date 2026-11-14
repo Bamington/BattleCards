@@ -3633,6 +3633,14 @@ const ComponentGallery = () => {
           </div>
 
           <div className="flex flex-col gap-2">
+            <p className="font-body text-xs text-gray-400 dark:text-gray-500">No logo asset — falls back to the game name</p>
+            <div className="flex flex-col gap-1.5 max-w-lg">
+              <GamePickerItem logoAlt="Warhammer Underworlds" />
+              <GamePickerItem logoAlt="Star Wars: Shatterpoint" selected />
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-2">
             <p className="font-body text-xs text-gray-400 dark:text-gray-500">Interactive (single-select)</p>
             <div className="flex flex-col gap-1.5 max-w-lg">
               <GamePickerItem

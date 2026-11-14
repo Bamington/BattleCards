@@ -144,7 +144,7 @@ const PrintDeck = () => {
       // 1. Fetch deck with game info
       const { data: deck, error: deckErr } = await supabase
         .from('decks')
-        .select('name, game_id, games(slug, print_size, bleed_size)')
+        .select('name, game_id, card_mode, games(slug, print_size, bleed_size)')
         .eq('id', deckId)
         .single();
 
@@ -154,8 +154,8 @@ const PrintDeck = () => {
       const slug = game?.slug as string;
       setDeckName(deck.name);
 
-      // List Builder games (no custom builder page) print their static faces.
-      if (!GAME_PAGES[slug]) {
+      // Simple decks (and games with no custom builder page) print their static faces.
+      if ((deck as { card_mode?: string }).card_mode === 'simple' || !GAME_PAGES[slug]) {
         setRealSlug(slug);
         setPrintSize(resolvePrintDim(game?.print_size, LIST_PRINT_FALLBACK.print, 'print_size', slug));
         setBleedSize(resolvePrintDim(game?.bleed_size, LIST_PRINT_FALLBACK.bleed, 'bleed_size', slug));
