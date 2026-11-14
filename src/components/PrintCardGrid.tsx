@@ -19,6 +19,7 @@ import type { HaloWeapon } from './HaloFlashpointCard';
 import RygCard, { type RygWeapon, type RygArmor, type RygItem, type RygSpell } from './RygCard';
 import SeptCard from './SeptCard';
 import GodCard from './GodCard';
+import StaticCard, { nativeCardHeight } from './StaticCard';
 
 // Print background assets — each is sized to the BLEED area (includes the
 // 3mm margin on each edge that the trimmer cuts away).
@@ -153,9 +154,18 @@ export interface PrintableRygGod {
   champions: string;
 }
 
+/** A List Builder card: printed straight from its static card face. */
+export interface PrintableStaticCard {
+  id: string;
+  name: string;
+  /** Public URL of the card face, or null (prints the name placeholder). */
+  faceUrl: string | null;
+}
+
 export type PaperSize = 'a4' | 'letter';
 
-export type PrintGameSlug = 'blood-bowl' | 'halo-flashpoint' | 'kill-team' | 'ryg';
+/** 'list' = any List Builder game (static card faces, no custom card layout). */
+export type PrintGameSlug = 'blood-bowl' | 'halo-flashpoint' | 'kill-team' | 'ryg' | 'list';
 
 export interface PrintCardGridProps {
   gameSlug: PrintGameSlug;
@@ -177,6 +187,8 @@ export interface PrintCardGridProps {
   rygCards?: PrintableRygCard[];
   rygSeptCard?: PrintableRygSept | null;
   rygGodCard?: PrintableRygGod | null;
+  /** List Builder games: cards printed from their static faces. */
+  staticCards?: PrintableStaticCard[];
 }
 
 // ── Constants ────────────────────────────────────────────────────────────────
@@ -206,7 +218,10 @@ const MARGIN_MM = 10;
 // `ITEM_PROFILE_OVERRIDES` table below. Each profile-grouping prints on its
 // own set of pages so the page-level grid never has to mix slot sizes.
 
-type PrintItemType = 'blood-bowl' | 'halo-unit' | 'halo-rule' | 'kt-unit' | 'kt-rule' | 'ryg-warrior' | 'ryg-sept' | 'ryg-god';
+type PrintItemType = 'blood-bowl' | 'halo-unit' | 'halo-rule' | 'kt-unit' | 'kt-rule' | 'ryg-warrior' | 'ryg-sept' | 'ryg-god' | 'static';
+
+/** Native width of a static card; height follows the game's print_size. */
+const STATIC_NATIVE_W = 750;
 
 interface PrintProfile {
   /** Native pixel dimensions of the card component (matches its SVG canvas). */
@@ -270,6 +285,7 @@ const DEFAULT_NATIVE: Record<PrintItemType, { w: number; h: number }> = {
   'ryg-warrior': { w: 890,  h: 1270 },
   'ryg-sept':    { w: 890,  h: 1270 },
   'ryg-god':     { w: 890,  h: 1270 },
+  'static':      { w: STATIC_NATIVE_W, h: 1048 }, // replaced per game in profileForItem
 };
 
 const profileForItem = (
@@ -281,6 +297,18 @@ const profileForItem = (
   const override = ITEM_PROFILE_OVERRIDES[type];
   if (override) {
     return { ...override, key: `${type}` };
+  }
+  if (type === 'static') {
+    // Native canvas matches the print aspect ratio so the face fills the
+    // print area exactly. No bleed artwork exists for official card scans,
+    // so the bleed margin is filled solid black (bg = '').
+    return {
+      native:  { w: STATIC_NATIVE_W, h: nativeCardHeight(STATIC_NATIVE_W, defaultPrintMm) },
+      printMm: defaultPrintMm,
+      bleedMm: defaultBleedMm,
+      bg:      '',
+      key:     `static-${defaultBleedMm[0]}x${defaultBleedMm[1]}`,
+    };
   }
   return {
     native:  DEFAULT_NATIVE[type],
@@ -342,6 +370,7 @@ const PrintCardGrid = ({
   rygCards = [],
   rygSeptCard = null,
   rygGodCard = null,
+  staticCards = [],
 }: PrintCardGridProps) => {
   const paper = PAPER[paperSize];
   const pageW = (paper.w - MARGIN_MM * 2) * MM;
@@ -359,7 +388,11 @@ const PrintCardGrid = ({
   type PrintItem = { id: string; type: PrintItemType; data: unknown };
   const items: PrintItem[] = [];
 
-  if (gameSlug === 'blood-bowl') {
+  if (gameSlug === 'list') {
+    for (const c of staticCards) {
+      if (!excludedIds.has(c.id)) items.push({ id: c.id, type: 'static', data: c });
+    }
+  } else if (gameSlug === 'blood-bowl') {
     for (const c of bloodBowlCards) {
       if (!excludedIds.has(c.id)) items.push({ id: c.id, type: 'blood-bowl', data: c });
     }
@@ -392,6 +425,7 @@ const PrintCardGrid = ({
   // Total cards/rules loaded for this game (before exclusion filter). Used
   // to distinguish "deck is empty" from "user toggled everything off".
   const totalLoaded =
+    gameSlug === 'list'       ? staticCards.length :
     gameSlug === 'blood-bowl' ? bloodBowlCards.length :
     gameSlug === 'kill-team'  ? killTeamCards.length + killTeamRules.length :
     gameSlug === 'ryg'        ? rygCards.length + (rygSeptCard ? 1 : 0) + (rygGodCard ? 1 : 0) :
@@ -494,19 +528,23 @@ const PrintCardGrid = ({
                     inset: 0,
                   }}
                 >
-                  {/* Layer 1 — Bleed background (per-profile) */}
-                  <img
-                    src={profile.bg}
-                    alt=""
-                    draggable={false}
-                    style={{
-                      position: 'absolute',
-                      inset: 0,
-                      width: bleedW_px,
-                      height: bleedH_px,
-                      pointerEvents: 'none',
-                    }}
-                  />
+                  {/* Layer 1 — Bleed background (per-profile; solid black for static faces) */}
+                  {profile.bg ? (
+                    <img
+                      src={profile.bg}
+                      alt=""
+                      draggable={false}
+                      style={{
+                        position: 'absolute',
+                        inset: 0,
+                        width: bleedW_px,
+                        height: bleedH_px,
+                        pointerEvents: 'none',
+                      }}
+                    />
+                  ) : (
+                    <div style={{ position: 'absolute', inset: 0, background: '#000', pointerEvents: 'none' }} />
+                  )}
 
                   {/* Layer 2 — Card content, centred within the bleed area. */}
                   <div
@@ -642,6 +680,18 @@ const PrintCardGrid = ({
                           />
                         );
                       })()}
+                      {item.type === 'static' && (() => {
+                        const s = item.data as PrintableStaticCard;
+                        return (
+                          <StaticCard
+                            faceUrl={s.faceUrl}
+                            name={s.name}
+                            width={profile.native.w}
+                            height={profile.native.h}
+                            radius={0}
+                          />
+                        );
+                      })()}
                       {item.type === 'ryg-god' && (() => {
                         const g = item.data as PrintableRygGod;
                         return (
@@ -667,7 +717,8 @@ const PrintCardGrid = ({
                         top: offsetY,
                         width: printW_px,
                         height: printH_px,
-                        border: '0.5px dashed rgba(0, 0, 0, 0.4)',
+                        // White on the black static-card bleed, dark elsewhere.
+                        border: profile.bg ? '0.5px dashed rgba(0, 0, 0, 0.4)' : '0.5px dashed rgba(255, 255, 255, 0.5)',
                         pointerEvents: 'none',
                       }}
                     />

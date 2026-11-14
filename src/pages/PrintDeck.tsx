@@ -27,7 +27,11 @@ import type {
   PrintableRygCard,
   PrintableRygSept,
   PrintableRygGod,
+  PrintableStaticCard,
+  PrintGameSlug,
 } from '../components/PrintCardGrid';
+import { cardFaceUrl } from '../components/StaticCard';
+import { GAME_PAGES, deckUrl } from './DeckPage';
 import type { RygWeapon, RygArmor, RygItem, RygSpell } from '../components/RygCard';
 import type { BloodBowlStats, HaloFlashpointStats, KillTeamStats, RygSeptStats, RygDestinyStats, RygGodStats } from '../lib/database.types';
 
@@ -63,6 +67,11 @@ const GAME_PRINT_FALLBACKS: Record<string, { print: [number, number]; bleed: [nu
   'ryg':             { print: [63,  89], bleed: [69,  95] },
 };
 
+/** List Builder games without a print_size fall back to a standard card. */
+const LIST_PRINT_FALLBACK: { print: [number, number]; bleed: [number, number] } = {
+  print: [63, 88], bleed: [69, 94],
+};
+
 /** Pick a valid [w, h] mm pair: prefer DB value, fall back to the per-game
  *  canonical size. Logs a warning when the DB value looks unusable so the
  *  underlying schema gap is visible in dev tools. */
@@ -96,7 +105,10 @@ const PrintDeck = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [, setDeckName] = useState('');
-  const [gameSlug, setGameSlug] = useState<'blood-bowl' | 'halo-flashpoint' | 'kill-team' | 'ryg' | null>(null);
+  const [gameSlug, setGameSlug] = useState<PrintGameSlug | null>(null);
+  /** The game's actual slug ('list' games keep theirs here for the back link). */
+  const [realSlug, setRealSlug] = useState<string | null>(null);
+  const [staticCards, setStaticCards] = useState<(PrintableStaticCard & { cardType: string })[]>([]);
   const [paperSize, setPaperSize] = useState<PaperSize>('a4');
   const [excludedIds, setExcludedIds] = useState<Set<string>>(new Set());
   const [showBleed, setShowBleed] = useState(true);
@@ -142,12 +154,24 @@ const PrintDeck = () => {
       const slug = game?.slug as string;
       setDeckName(deck.name);
 
+      // List Builder games (no custom builder page) print their static faces.
+      if (!GAME_PAGES[slug]) {
+        setRealSlug(slug);
+        setPrintSize(resolvePrintDim(game?.print_size, LIST_PRINT_FALLBACK.print, 'print_size', slug));
+        setBleedSize(resolvePrintDim(game?.bleed_size, LIST_PRINT_FALLBACK.bleed, 'bleed_size', slug));
+        setGameSlug('list');
+        await loadStaticCards(deckId);
+        setLoading(false);
+        return;
+      }
+
       const SUPPORTED = ['blood-bowl', 'halo-flashpoint', 'kill-team', 'ryg'];
       if (!SUPPORTED.includes(slug)) {
         setError(`Unsupported game: ${slug}`);
         setLoading(false);
         return;
       }
+      setRealSlug(slug);
 
       // Store print dimensions from game, with a per-game fallback so the
       // preview still renders if the DB seed is stale or the kill-team game
@@ -177,6 +201,23 @@ const PrintDeck = () => {
 
     load();
   }, [deckId]);
+
+  // ── List Builder loader (static card faces) ─────────────────────────────
+  const loadStaticCards = async (deckId: string) => {
+    const { data, error } = await supabase
+      .from('cards')
+      .select('id, name, card_type, face_path')
+      .eq('deck_id', deckId)
+      .order('sort_order', { ascending: true, nullsFirst: false });
+    if (error) { console.error('[PrintDeck] static cards:', error); return; }
+    const rows = (data ?? []) as { id: string; name: string; card_type: string; face_path: string | null }[];
+    // Units first, then tactics/rules — matching the List Builder sidebar.
+    const rank = (t: string) => (t === 'operative' ? 0 : t === 'rule' ? 1 : 2);
+    const sorted = rows.map((r, i) => ({ r, i })).sort((a, b) => rank(a.r.card_type) - rank(b.r.card_type) || a.i - b.i);
+    setStaticCards(sorted.map(({ r }) => ({
+      id: r.id, name: r.name, cardType: r.card_type, faceUrl: cardFaceUrl(r.face_path),
+    })));
+  };
 
   // ── Blood Bowl loader ────────────────────────────────────────────────────
   const loadBloodBowlCards = async (deckId: string) => {
@@ -693,11 +734,7 @@ const PrintDeck = () => {
   };
 
   // ── Determine builder back-link ──────────────────────────────────────────
-  const builderPath =
-    gameSlug === 'blood-bowl'      ? `/app/builder/blood-bowl?deckId=${deckId}`      :
-    gameSlug === 'kill-team'       ? `/app/builder/kill-team?deckId=${deckId}`       :
-    gameSlug === 'ryg'             ? `/app/builder/ryg?deckId=${deckId}`             :
-    `/app/builder/halo-flashpoint?deckId=${deckId}`;
+  const builderPath = realSlug && deckId ? deckUrl(realSlug, deckId) : '/app';
 
   // ── Render ────────────────────────────────────────────────────────────────
 
@@ -728,6 +765,7 @@ const PrintDeck = () => {
   // ── Build sidebar card list data ───────────────────────────────────────
   type SidebarItem = { id: string; name: string; subtitle: string; avatarUrl: string | null };
   const sidebarUnits: SidebarItem[] =
+    gameSlug === 'list' ? staticCards.filter(c => c.cardType !== 'rule').map(c => ({ id: c.id, name: c.name, subtitle: 'Unit', avatarUrl: c.faceUrl })) :
     gameSlug === 'blood-bowl' ? bloodBowlCards.map(c => ({ id: c.id, name: c.unitName || 'New Unit', subtitle: c.playerRole || c.teamName || '', avatarUrl: c.avatarUrl })) :
     gameSlug === 'kill-team'  ? killTeamCards.map(c => ({ id: c.id, name: c.operativeName || 'New Operative', subtitle: c.role || c.teamName || '', avatarUrl: c.avatarUrl })) :
     gameSlug === 'ryg'        ? [
@@ -738,7 +776,9 @@ const PrintDeck = () => {
     haloCards.map(c => ({ id: c.id, name: c.unitName || 'New Unit', subtitle: c.keywords || '', avatarUrl: c.avatarUrl }));
 
   const sidebarRules: SidebarItem[] =
-    gameSlug === 'kill-team'
+    gameSlug === 'list'
+      ? staticCards.filter(c => c.cardType === 'rule').map(c => ({ id: c.id, name: c.name, subtitle: 'Tactic', avatarUrl: null }))
+      : gameSlug === 'kill-team'
       ? killTeamRules.map(r => ({ id: r.id, name: r.title || 'New Rule', subtitle: 'Faction Rule', avatarUrl: null }))
       : gameSlug === 'ryg' ? []
       : rules.map(r => ({ id: r.id, name: r.title || 'New Rule', subtitle: 'Rule', avatarUrl: null }));
@@ -807,7 +847,7 @@ const PrintDeck = () => {
               >
                 <div className="flex-1 min-w-0 flex flex-col justify-center">
                   <p className="text-base font-medium font-body leading-6 truncate text-gray-100">{item.name}</p>
-                  <p className="text-xs font-bold font-body uppercase tracking-[1.2px] leading-4 truncate text-gray-500">Rule</p>
+                  <p className="text-xs font-bold font-body uppercase tracking-[1.2px] leading-4 truncate text-gray-500">{item.subtitle || 'Rule'}</p>
                 </div>
                 {included
                   ? <Eye className="size-4 shrink-0 text-green-400" />
@@ -871,6 +911,7 @@ const PrintDeck = () => {
           rygCards={rygCards}
           rygSeptCard={rygSeptCard ?? undefined}
           rygGodCard={rygGodCard ?? undefined}
+          staticCards={staticCards}
         />
       </div>
     </div>
