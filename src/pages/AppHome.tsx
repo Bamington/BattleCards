@@ -101,6 +101,8 @@ import logoBloodBowl from '../assets/games/logo-blood-bowl.png';
 import logoKillTeam from '../assets/games/logo-kill-team.png';
 // Placeholder SVG for now — swap to logo-starcraft.png once branded art lands.
 import logoStarcraft from '../assets/games/logo-starcraft.svg';
+import logoGundamAssemble from '../assets/games/logo-gundam-assemble.svg';
+import iconGundamAssemble from '../assets/games/card assets/gundam-assemble/icon.svg';
 import { deckUrl } from './DeckPage';
 
 // ── Game definitions ──────────────────────────────────────────────────────────
@@ -143,7 +145,20 @@ const GAMES = [
     thumbnailSrc: iconRyg as string,
     thumbnailBg: 'bg-[#1a1612]',
   },
+  {
+    // List Builder game (static official cards) — admin-only while in draft.
+    id: 'gundam-assemble',
+    name: 'Gundam Assemble',
+    logoSrc: logoGundamAssemble,
+    thumbnailSrc: iconGundamAssemble as string,
+    thumbnailBg: 'bg-gradient-to-b from-[#1e2a44] to-[#0f1626]',
+    adminOnly: true,
+  },
 ] as const;
+
+/** Games shown in the create-deck / create-pack pickers for this user. */
+const visibleGames = (isAdmin: boolean) =>
+  GAMES.filter(g => isAdmin || !('adminOnly' in g && g.adminOnly));
 
 type GameSlug = typeof GAMES[number]['id'];
 
@@ -1081,7 +1096,7 @@ export default function AppHome() {
           </p>
 
           <div className="flex flex-col gap-1.5">
-            {GAMES.map(game => (
+            {visibleGames(isAdmin).map(game => (
               <GamePickerItem
                 key={game.id}
                 logoSrc={game.logoSrc}
@@ -1287,7 +1302,7 @@ export default function AppHome() {
           </p>
 
           <div className="flex flex-col gap-1.5">
-            {GAMES.map(game => (
+            {visibleGames(isAdmin).map(game => (
               <GamePickerItem
                 key={game.id}
                 logoSrc={game.logoSrc}

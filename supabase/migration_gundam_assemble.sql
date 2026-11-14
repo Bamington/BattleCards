@@ -4,7 +4,7 @@
 -- Run AFTER migration_card_faces.sql.
 --
 -- Covers:
---   1. public.games             — new row (status 'draft' until cards are in)
+--   1. public.games             — fills in the existing shared catalog row
 --   2. public.token_definitions — HP bar + Activated badge (no artwork needed;
 --                                 uses the bar/badge display styles RYG uses)
 --   3. public.packs             — empty official "Starter Set" pack owned by
@@ -22,25 +22,28 @@
 
 
 -- ── 1. Game ─────────────────────────────────────────────────────────────────
+-- The games table is a catalog shared with Battleplan and already contains a
+-- 'gundam-assemble' row (with empty stat_schema / print sizes), so this
+-- UPDATES that row rather than inserting. battlecards_status stays 'draft'
+-- (admins/testers only) until the pack has cards.
+--
 -- Unit stats used by play mode:
 --   hp       — max HP; the HP bar token is capped by it
 --   vp       — victory points the unit is worth
 --   timeline — starting timeline value
 -- Tactics cards (card_type 'rule') carry no stats.
 
-insert into public.games (name, slug, stat_schema, print_size, bleed_size, status)
-select
-  'Gundam Assemble',
-  'gundam-assemble',
-  '[
+update public.games
+set
+  stat_schema = '[
     {"key": "hp",       "label": "HP",                "type": "number"},
     {"key": "vp",       "label": "VP",                "type": "number"},
     {"key": "timeline", "label": "Starting Timeline", "type": "number"}
   ]'::jsonb,
-  '[63, 88]'::jsonb,
-  '[69, 94]'::jsonb,
-  'draft'
-where not exists (select 1 from public.games where slug = 'gundam-assemble');
+  print_size = '[63, 88]'::jsonb,
+  bleed_size = '[69, 94]'::jsonb
+where slug = 'gundam-assemble'
+  and coalesce(jsonb_array_length(stat_schema), 0) = 0;   -- don't clobber later edits
 
 
 -- ── 2. Tokens ───────────────────────────────────────────────────────────────

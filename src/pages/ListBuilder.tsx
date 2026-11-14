@@ -35,7 +35,7 @@ import HR from '../components/HR';
 import Modal from '../components/Modal';
 import Text from '../components/Text';
 import Tabs from '../components/Tabs';
-import StaticCard, { cardFaceUrl } from '../components/StaticCard';
+import StaticCard, { cardFaceUrl, nativeCardHeight } from '../components/StaticCard';
 import TokenOverlay from '../components/TokenOverlay';
 import TokenMenu from '../components/TokenMenu';
 import { useCardBuilder } from '../hooks/useCardBuilder';
@@ -120,10 +120,7 @@ const ListBuilder = () => {
   const [adding, setAdding] = useState<string | null>(null);
   const [pickerError, setPickerError] = useState<string | null>(null);
 
-  const cardH = useMemo(() => {
-    const [w, h] = game?.print_size ?? [63, 88];
-    return Math.round(CARD_W * (h / w));
-  }, [game]);
+  const cardH = useMemo(() => nativeCardHeight(CARD_W, game?.print_size), [game]);
 
   // ── Load deck, game, cards, tokens ─────────────────────────────────────────
   useEffect(() => {

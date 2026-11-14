@@ -46,6 +46,16 @@ export interface StaticCardProps {
   className?: string;
 }
 
+/** Native card height for a given native width and games.print_size
+ *  ([w_mm, h_mm]). Falls back to a standard 63×88 card when print_size is
+ *  missing or malformed (the shared games catalog stores [] for unset). */
+export const nativeCardHeight = (nativeWidth: number, printSize: unknown): number => {
+  const ok = Array.isArray(printSize) && printSize.length === 2
+    && printSize.every(n => typeof n === 'number' && n > 0);
+  const [w, h] = ok ? (printSize as [number, number]) : [63, 88];
+  return Math.round(nativeWidth * (h / w));
+};
+
 /** Resolve a cards.face_path to a public URL (card-images bucket is public). */
 export const cardFaceUrl = (facePath: string | null | undefined): string | null =>
   facePath ? supabase.storage.from('card-images').getPublicUrl(facePath).data.publicUrl : null;

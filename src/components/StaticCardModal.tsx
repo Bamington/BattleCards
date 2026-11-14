@@ -32,7 +32,7 @@ import Input from './Input';
 import Select from './Select';
 import Button from './Button';
 import Text from './Text';
-import StaticCard, { cardFaceUrl } from './StaticCard';
+import StaticCard, { cardFaceUrl, nativeCardHeight } from './StaticCard';
 import { supabase } from '../lib/supabase';
 import type { Json, StatField } from '../lib/database.types';
 
@@ -132,8 +132,7 @@ const StaticCardModal = ({
     }
   };
 
-  const [w, h] = printSize ?? [63, 88];
-  const nativeH = Math.round(NATIVE_W * (h / w));
+  const nativeH = nativeCardHeight(NATIVE_W, printSize);
   const previewUrl = filePreview ?? cardFaceUrl(card?.face_path);
 
   const save = async (addAnother: boolean) => {

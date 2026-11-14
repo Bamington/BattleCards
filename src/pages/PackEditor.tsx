@@ -58,7 +58,7 @@ import KillTeamCardForm from '../components/KillTeamCardForm';
 import StarcraftCardForm from '../components/StarcraftCardForm';
 import UploadPhotoModal from '../components/UploadPhotoModal';
 import StaticCardModal, { type StaticCardType } from '../components/StaticCardModal';
-import StaticCard, { cardFaceUrl } from '../components/StaticCard';
+import StaticCard, { cardFaceUrl, nativeCardHeight } from '../components/StaticCard';
 import { GAME_PAGES } from './DeckPage';
 import AddCircle from '../icons/AddCircle';
 import UserRounded from '../icons/UserRounded';
@@ -709,10 +709,10 @@ export default function PackEditor() {
   // List Builder games have no custom builder page: their cards are static
   // images (face_path) created via StaticCardModal.
   const isListGame = pack ? !GAME_PAGES[pack.game.slug] : false;
-  const listCardDims = useMemo<[number, number]>(() => {
-    const [w, h] = (pack?.game as { print_size?: [number, number] } | undefined)?.print_size ?? [63, 88];
-    return [750, Math.round(750 * (h / w))];
-  }, [pack]);
+  const listCardDims = useMemo<[number, number]>(
+    () => [750, nativeCardHeight(750, (pack?.game as { print_size?: unknown } | undefined)?.print_size)],
+    [pack],
+  );
 
   /** Add/edit handlers: static-card modal for list games, existing flows otherwise. */
   const openAddCard = (cardType: StaticCardType, fallback: () => void) =>
