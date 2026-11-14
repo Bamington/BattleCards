@@ -45,6 +45,7 @@ import DeckListItem from '../components/DeckListItem';
 import PackListItem, { type PackBadge } from '../components/PackListItem';
 import BlogEntryPreview from '../components/BlogEntryPreview';
 import Modal from '../components/Modal';
+import Markdown from 'react-markdown';
 import GamePickerItem from '../components/GamePickerItem';
 import Input from '../components/Input';
 import HR from '../components/HR';
@@ -165,18 +166,55 @@ type GameSlug = typeof GAMES[number]['id'];
 /** Returns the UI assets for a game slug, or undefined if unknown. */
 const gameAssets = (slug: string) => GAMES.find(g => g.id === slug);
 
-// ── Placeholder news post ─────────────────────────────────────────────────────
+// ── News & Updates ────────────────────────────────────────────────────────────
+// Release notes live in the `updates` table shared with the other apps
+// (Battleplan, BattleBench); each row lists the apps it belongs to.
 
-const PLACEHOLDER_POST = {
-  title: 'Example Release Note',
-  body: "This is a placeholder release note. It has a maximum of 3 lines, after which the text will be truncated. But don't worry, there's a button to view the full update!",
-};
+interface UpdatePost {
+  id:           string;
+  title:        string;
+  body:         string;
+  version:      string | null;
+  published_at: string | null;
+}
+
+/** Plain-text excerpt of a Markdown body for the 3-line preview. */
+const markdownToPreview = (md: string): string =>
+  md
+    .replace(/^#{1,6}\s+/gm, '')            // headings
+    .replace(/!\[[^\]]*\]\([^)]*\)/g, '')   // images
+    .replace(/\[([^\]]+)\]\([^)]*\)/g, '$1') // links → text
+    .replace(/[*_`~]/g, '')                  // emphasis / code marks
+    .replace(/^\s*[-+]\s+/gm, '')            // list bullets
+    .replace(/\s+/g, ' ')
+    .trim();
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function AppHome() {
   const navigate = useNavigate();
   const { isAdmin } = useIsAdmin();
+
+  // ── News & Updates ─────────────────────────────────────────────────────────
+  const [latestUpdate,  setLatestUpdate]  = useState<UpdatePost | null>(null);
+  const [updateLoaded,  setUpdateLoaded]  = useState(false);
+  const [readingUpdate, setReadingUpdate] = useState(false);
+
+  useEffect(() => {
+    (async () => {
+      // Filter on published explicitly: admins can read drafts via RLS.
+      const { data } = await supabase
+        .from('updates')
+        .select('id, title, body, version, published_at')
+        .eq('published', true)
+        .eq('visible', true)
+        .contains('apps', ['battlecards'])
+        .order('published_at', { ascending: false, nullsFirst: false })
+        .limit(1);
+      setLatestUpdate(((data ?? []) as UpdatePost[])[0] ?? null);
+      setUpdateLoaded(true);
+    })();
+  }, []);
 
   // ── Deck list state ────────────────────────────────────────────────────────
   const [decks,      setDecks]      = useState<DeckWithCards[]>([]);
@@ -989,11 +1027,15 @@ export default function AppHome() {
                   Find out what's happening with Battlecards.
                 </p>
 
-                <BlogEntryPreview
-                  title={PLACEHOLDER_POST.title}
-                  body={PLACEHOLDER_POST.body}
-                  onRead={() => {}}
-                />
+                {latestUpdate ? (
+                  <BlogEntryPreview
+                    title={latestUpdate.title}
+                    body={markdownToPreview(latestUpdate.body)}
+                    onRead={() => setReadingUpdate(true)}
+                  />
+                ) : updateLoaded ? (
+                  <p className="font-body text-sm text-gray-500 text-center">No updates yet.</p>
+                ) : null}
 
               </div>
             </div>
@@ -1009,6 +1051,38 @@ export default function AppHome() {
         </div>
 
       </div>
+
+      {/* ── Full update (News & Updates "Read Update") ──────────────────── */}
+      <Modal open={readingUpdate && latestUpdate !== null} onClose={() => setReadingUpdate(false)} className="max-w-xl w-full">
+        {latestUpdate && (
+          <div className="flex flex-col max-h-[85vh]">
+            <div className="px-5 pt-5 pb-3 border-b border-gray-700">
+              <h2 className="font-heading text-[22px] leading-7 text-white">{latestUpdate.title}</h2>
+              <p className="font-body text-xs text-gray-400 mt-1">
+                {[
+                  latestUpdate.version && `Version ${latestUpdate.version}`,
+                  latestUpdate.published_at && new Date(latestUpdate.published_at).toLocaleDateString('en-GB'),
+                ].filter(Boolean).join(' · ')}
+              </p>
+            </div>
+            <div
+              className={[
+                'overflow-y-auto px-5 py-4 font-body text-sm text-gray-300 space-y-3',
+                '[&_h1]:font-heading [&_h1]:text-lg [&_h1]:text-white',
+                '[&_h2]:font-heading [&_h2]:text-lg [&_h2]:text-white',
+                '[&_h3]:font-heading [&_h3]:text-base [&_h3]:text-white [&_h3]:pt-2',
+                '[&_strong]:text-white [&_ul]:list-disc [&_ul]:pl-5 [&_ul]:space-y-2',
+                '[&_ol]:list-decimal [&_ol]:pl-5 [&_a]:text-blue-400 [&_a]:underline',
+              ].join(' ')}
+            >
+              <Markdown>{latestUpdate.body}</Markdown>
+            </div>
+            <div className="flex justify-end px-5 py-3 border-t border-gray-700">
+              <Button size="sm" onClick={() => setReadingUpdate(false)}>Close</Button>
+            </div>
+          </div>
+        )}
+      </Modal>
 
       {/* ── Duplicating progress modal ───────────────────────────────────── */}
       {/* Non-dismissible: stays up for the whole clone (which can be slow for
