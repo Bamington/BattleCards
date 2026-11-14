@@ -448,6 +448,11 @@ export interface Card {
   sort_order:     number | null
   /** null = default layout; 'portraitFramed' = show portrait frame overlay */
   portrait_style: string | null
+  /** Static card face image path (card-images bucket, packs/{pack_id}/...).
+   *  Generic card chrome shared by reference: never copied or deleted with the
+   *  card. Separate from card_images, which holds the user's own photos.
+   *  When set, the card renders as this image instead of the game's layout. */
+  face_path:      string | null
   is_template:    boolean
   /** Set when this row IS a pack source card (template living inside a pack). */
   pack_id:              string | null
