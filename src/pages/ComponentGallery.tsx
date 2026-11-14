@@ -42,6 +42,7 @@ import StarcraftPhaseFrame from '../components/StarcraftPhaseFrame';
 import HaloFlashpointRuleCard from '../components/HaloFlashpointRuleCard';
 import KillTeamCard from '../components/KillTeamCard';
 import KillTeamRuleCard from '../components/KillTeamRuleCard';
+import StaticCard from '../components/StaticCard';
 import AddonInfoModal from '../components/AddonInfoModal';
 import Card3DWrapper from '../components/Card3DWrapper';
 import MultiSelectDropdown from '../components/MultiSelectDropdown';
@@ -433,6 +434,7 @@ const ComponentGallery = () => {
         <SidebarItem href="#nav-sc-phase-frame" icon={<Shield className="w-5 h-5" />}          label="SC Phase Frame" />
         <SidebarItem href="#nav-kill-team-card" icon={<Shield className="w-5 h-5" />}          label="KT Card" />
         <SidebarItem href="#nav-kill-team-rule-card" icon={<Shield className="w-5 h-5" />}     label="KT Rule Card" />
+        <SidebarItem href="#nav-static-card" icon={<Shield className="w-5 h-5" />}             label="Static Card" />
         <SidebarItem href="#nav-addon-info-modal" icon={<Shield className="w-5 h-5" />}        label="Addon Info Modal" />
         <SidebarItem href="#nav-multi-select" icon={<CheckCircle className="w-5 h-5" />}        label="Multi-Select" />
         <SidebarItem href="#nav-vr"           icon={<MinusCircle className="w-5 h-5" />}        label="VR"           />
@@ -2571,6 +2573,38 @@ const ComponentGallery = () => {
             </div>
           </div>
 
+        </div>
+      </GallerySection>
+
+      {/* ── Static Card ──────────────────────────────────────────── */}
+      <GallerySection id="nav-static-card" title="Static Card / Default">
+        <p className="font-body text-sm text-gray-500 dark:text-gray-400 mb-6">
+          Image-only card for List Builder games — renders a static card face at native size (750 × 1050 shown at 250px wide).
+          Children layer above the face (tokens, photo overlay).
+        </p>
+        <div className="flex flex-wrap gap-8 items-start">
+          {([
+            { label: 'Face loaded',            faceUrl: heroImage,               dimmed: false, overlay: false },
+            { label: 'No face (placeholder)',  faceUrl: null,                    dimmed: false, overlay: false },
+            { label: 'Broken image URL',       faceUrl: '/does-not-exist.png',   dimmed: false, overlay: false },
+            { label: 'Dimmed',                 faceUrl: heroImage,               dimmed: true,  overlay: false },
+            { label: 'With overlay layer',     faceUrl: heroImage,               dimmed: false, overlay: true  },
+          ] as const).map(v => (
+            <div key={v.label} className="flex flex-col gap-2 items-center">
+              <p className="font-body text-xs text-gray-400 dark:text-gray-500">{v.label}</p>
+              <div className="relative overflow-hidden shrink-0" style={{ width: 250, height: Math.round(1050 * (250 / 750)) }}>
+                <div style={{ transform: `scale(${250 / 750})`, transformOrigin: 'top left', position: 'absolute', top: 0, left: 0 }}>
+                  <StaticCard faceUrl={v.faceUrl} name="RX-78-2 Gundam" width={750} height={1050} dimmed={v.dimmed}>
+                    {v.overlay && (
+                      <div style={{ position: 'absolute', top: 40, right: 40 }}>
+                        <Badge color="purple" size="lg">Overlay</Badge>
+                      </div>
+                    )}
+                  </StaticCard>
+                </div>
+              </div>
+            </div>
+          ))}
         </div>
       </GallerySection>
 
