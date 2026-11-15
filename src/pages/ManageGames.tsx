@@ -13,6 +13,8 @@ import MenuDots from '../icons/MenuDots';
 import Pen2 from '../icons/Pen2';
 import TrashBinMinimalistic from '../icons/TrashBinMinimalistic';
 import Select from '../components/Select';
+import Input from '../components/Input';
+import Magnifer from '../icons/Magnifer';
 import { GAME_PAGES } from './DeckPage';
 import type { Game, AccessLevel } from '../lib/database.types';
 
@@ -53,6 +55,12 @@ export default function ManageGames() {
   const [editSimple, setEditSimple]   = useState<AccessLevel>('off');
   const [editCustom, setEditCustom]   = useState<AccessLevel>('off');
   const [showAll, setShowAll]         = useState(false);
+  const [query, setQuery]             = useState('');
+  const q = query.trim().toLowerCase();
+  const searching = q.length > 0;
+  const visibleGames = searching
+    ? games.filter(g => g.name.toLowerCase().includes(q) || g.slug.toLowerCase().includes(q))
+    : games.filter(g => showAll || isEnabled(g));
   const [saving, setSaving]           = useState(false);
   const [editError, setEditError]     = useState<string | null>(null);
 
@@ -162,15 +170,27 @@ export default function ManageGames() {
             )}
           </div>
 
+          {/* Search — matches name or slug across ALL games (the catalog is
+              shared, so finding a game to enable is the common case). */}
+          <Input
+            leftIcon={<Magnifer className="w-4 h-4" />}
+            placeholder="Search games by name or slug"
+            value={query}
+            onChange={e => setQuery(e.target.value)}
+            aria-label="Search games"
+          />
+
           {/* The games catalog is shared with other apps — default to enabled ones. */}
-          <div className="flex items-center gap-3">
-            <Button size="xs" variant={showAll ? 'outline' : 'filled'} color="secondary" onClick={() => setShowAll(false)}>
-              Enabled in BattleCards
-            </Button>
-            <Button size="xs" variant={showAll ? 'filled' : 'outline'} color="secondary" onClick={() => setShowAll(true)}>
-              All games
-            </Button>
-          </div>
+          {!searching && (
+            <div className="flex items-center gap-3">
+              <Button size="xs" variant={showAll ? 'outline' : 'filled'} color="secondary" onClick={() => setShowAll(false)}>
+                Enabled in BattleCards
+              </Button>
+              <Button size="xs" variant={showAll ? 'filled' : 'outline'} color="secondary" onClick={() => setShowAll(true)}>
+                All games
+              </Button>
+            </div>
+          )}
 
           {/* List */}
           <div className="flex flex-col divide-y divide-gray-800 border border-gray-800 rounded-xl overflow-hidden">
@@ -186,16 +206,21 @@ export default function ManageGames() {
               </div>
             )}
 
-            {!loading && !error && games.length === 0 && (
+            {!loading && !error && visibleGames.length === 0 && (
               <div className="px-5 py-8 text-center font-body text-sm text-gray-500">
-                No games found.
+                {searching ? `No games match “${query.trim()}”.` : 'No games found.'}
               </div>
             )}
 
-            {!loading && !error && games.filter(g => showAll || isEnabled(g)).map(g => (
+            {!loading && !error && visibleGames.map(g => (
               <div
                 key={g.id}
-                className="flex items-center gap-4 px-5 py-3.5 bg-gray-900 hover:bg-gray-800 transition-colors"
+                role="button"
+                tabIndex={0}
+                aria-label={`Edit ${g.name}`}
+                onClick={() => openEdit(g)}
+                onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openEdit(g); } }}
+                className="flex items-center gap-4 px-5 py-3.5 bg-gray-900 hover:bg-gray-800 transition-colors cursor-pointer focus:outline-none focus-visible:bg-gray-800"
               >
                 {/* Game name + slug */}
                 <div className="flex-1 min-w-0 flex flex-col">
