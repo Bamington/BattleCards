@@ -94,15 +94,15 @@ const RYG: OverlayZoneConfig = {
   bar:    { x: 6,    y: 1286, width: 878, height: 80, gap: 12, orientation: 'horizontal' },
 };
 
-/** Gundam Assemble static cards (List Builder, 750px-wide portrait).
- *  Tokens sit above the card and the bar beneath it so the printed card face
- *  stays readable. Tune once real card scans are in place. */
+/** Gundam Assemble unit cards (List Builder): 150×105 mm landscape, rendered
+ *  750×525 px. Toggles sit above the card, the HP bar and badges beneath it,
+ *  so the printed card face stays fully readable. */
 const GUNDAM_ASSEMBLE: OverlayZoneConfig = {
-  other:  { x: 20,  y: -70,  gap: 57 },
-  shield: { x: 400, y: -70,  gap: 57 },
-  damage: { x: 560, y: 140,  offset: 30 },
-  badge:  { x: 6,   y: 1160, gap: 10 },
-  bar:    { x: 6,   y: 1066, width: 738, height: 70, gap: 12, orientation: 'horizontal' },
+  other:  { x: 20,  y: -70, gap: 57 },
+  shield: { x: 400, y: -70, gap: 57 },
+  damage: { x: 640, y: 120, offset: 30 },
+  bar:    { x: 6,   y: 541, width: 738, height: 70, gap: 12, orientation: 'horizontal' },
+  badge:  { x: 6,   y: 625, gap: 10 },
 };
 
 export const TOKEN_OVERLAY_CONFIG: Record<string, OverlayZoneConfig> = {
