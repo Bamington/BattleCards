@@ -297,6 +297,10 @@ export type AccessLevel = 'off' | 'admin' | 'beta' | 'everyone'
 /** How a deck is built: static faces (ListBuilder) or the custom builder. */
 export type CardMode = 'simple' | 'custom'
 
+/** Per-card-type overrides of a game's print/bleed size, keyed by card_type. */
+export type CardTypeSizes = Record<string, { print: [number, number]; bleed: [number, number] }>
+
+
 export interface Game {
   id:          string
   name:        string
@@ -312,6 +316,8 @@ export interface Game {
   print_size:  [number, number]
   /** [width_mm, height_mm] â€” card dimensions for printing (with bleed) */
   bleed_size:  [number, number]
+  /** Per-card-type size overrides (e.g. smaller portrait tactics cards). */
+  card_type_sizes?: CardTypeSizes
   created_at:  string
 }
 

@@ -33,7 +33,7 @@ import type {
 import { cardFaceUrl } from '../components/StaticCard';
 import { GAME_PAGES, deckUrl } from './DeckPage';
 import type { RygWeapon, RygArmor, RygItem, RygSpell } from '../components/RygCard';
-import type { BloodBowlStats, HaloFlashpointStats, KillTeamStats, RygSeptStats, RygDestinyStats, RygGodStats } from '../lib/database.types';
+import type { CardTypeSizes, BloodBowlStats, HaloFlashpointStats, KillTeamStats, RygSeptStats, RygDestinyStats, RygGodStats } from '../lib/database.types';
 
 // ── Keyword display helper (duplicated from builders — small pure fn) ────────
 
@@ -108,6 +108,7 @@ const PrintDeck = () => {
   const [gameSlug, setGameSlug] = useState<PrintGameSlug | null>(null);
   /** The game's actual slug ('list' games keep theirs here for the back link). */
   const [realSlug, setRealSlug] = useState<string | null>(null);
+  const [staticSizes, setStaticSizes] = useState<CardTypeSizes>({});
   const [staticCards, setStaticCards] = useState<(PrintableStaticCard & { cardType: string })[]>([]);
   const [paperSize, setPaperSize] = useState<PaperSize>('a4');
   const [excludedIds, setExcludedIds] = useState<Set<string>>(new Set());
@@ -144,7 +145,7 @@ const PrintDeck = () => {
       // 1. Fetch deck with game info
       const { data: deck, error: deckErr } = await supabase
         .from('decks')
-        .select('name, game_id, card_mode, games(slug, print_size, bleed_size)')
+        .select('name, game_id, card_mode, games(slug, print_size, bleed_size, card_type_sizes)')
         .eq('id', deckId)
         .single();
 
@@ -159,6 +160,7 @@ const PrintDeck = () => {
         setRealSlug(slug);
         setPrintSize(resolvePrintDim(game?.print_size, LIST_PRINT_FALLBACK.print, 'print_size', slug));
         setBleedSize(resolvePrintDim(game?.bleed_size, LIST_PRINT_FALLBACK.bleed, 'bleed_size', slug));
+        setStaticSizes((game?.card_type_sizes ?? {}) as CardTypeSizes);
         setGameSlug('list');
         await loadStaticCards(deckId);
         setLoading(false);
@@ -912,6 +914,7 @@ const PrintDeck = () => {
           rygSeptCard={rygSeptCard ?? undefined}
           rygGodCard={rygGodCard ?? undefined}
           staticCards={staticCards}
+          staticSizes={staticSizes}
         />
       </div>
     </div>
