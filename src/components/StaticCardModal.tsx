@@ -34,7 +34,8 @@ import Button from './Button';
 import Text from './Text';
 import StaticCard, { cardFaceUrl, nativeCardHeight } from './StaticCard';
 import { supabase } from '../lib/supabase';
-import type { Json, StatField } from '../lib/database.types';
+import type { CardTypeSizes, Json, StatField } from '../lib/database.types';
+import { printSizeFor } from '../lib/cardSizes';
 
 export type StaticCardType = 'operative' | 'rule';
 
@@ -55,6 +56,8 @@ export interface StaticCardModalProps {
   statSchema:      StatField[];
   /** [w_mm, h_mm] — sets the preview aspect ratio. */
   printSize?:      [number, number] | null;
+  /** Per-card-type size overrides (games.card_type_sizes), e.g. portrait tactics. */
+  cardTypeSizes?:  CardTypeSizes | null;
   /** Card type preselected in create mode. */
   defaultCardType?: StaticCardType;
   /** Existing card → edit mode. */
@@ -73,7 +76,7 @@ const NATIVE_W  = 750;
 const MAX_FILE_SIZE = 30 * 1024 * 1024;
 
 const StaticCardModal = ({
-  open, onClose, packId, gameId, statSchema, printSize,
+  open, onClose, packId, gameId, statSchema, printSize, cardTypeSizes,
   defaultCardType = 'operative', card, onSaved,
 }: StaticCardModalProps) => {
   const numberFields = statSchema.filter(f => f.type === 'number');
@@ -132,7 +135,7 @@ const StaticCardModal = ({
     }
   };
 
-  const nativeH = nativeCardHeight(NATIVE_W, printSize);
+  const nativeH = nativeCardHeight(NATIVE_W, printSizeFor({ print_size: printSize, card_type_sizes: cardTypeSizes }, cardType));
   const previewUrl = filePreview ?? cardFaceUrl(card?.face_path);
 
   const save = async (addAnother: boolean) => {

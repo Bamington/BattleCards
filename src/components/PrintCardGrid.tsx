@@ -20,6 +20,7 @@ import RygCard, { type RygWeapon, type RygArmor, type RygItem, type RygSpell } f
 import SeptCard from './SeptCard';
 import GodCard from './GodCard';
 import StaticCard, { nativeCardHeight } from './StaticCard';
+import type { CardTypeSizes } from '../lib/database.types';
 
 // Print background assets — each is sized to the BLEED area (includes the
 // 3mm margin on each edge that the trimmer cuts away).
@@ -160,6 +161,8 @@ export interface PrintableStaticCard {
   name: string;
   /** Public URL of the card face, or null (prints the name placeholder). */
   faceUrl: string | null;
+  /** card_type — picks a per-type size from `staticSizes` when one exists. */
+  cardType?: string;
 }
 
 export type PaperSize = 'a4' | 'letter';
@@ -189,6 +192,8 @@ export interface PrintCardGridProps {
   rygGodCard?: PrintableRygGod | null;
   /** List Builder games: cards printed from their static faces. */
   staticCards?: PrintableStaticCard[];
+  /** Per-card-type print/bleed overrides for static cards (games.card_type_sizes). */
+  staticSizes?: CardTypeSizes;
 }
 
 // ── Constants ────────────────────────────────────────────────────────────────
@@ -371,6 +376,7 @@ const PrintCardGrid = ({
   rygSeptCard = null,
   rygGodCard = null,
   staticCards = [],
+  staticSizes = {},
 }: PrintCardGridProps) => {
   const paper = PAPER[paperSize];
   const pageW = (paper.w - MARGIN_MM * 2) * MM;
@@ -447,7 +453,12 @@ const PrintCardGrid = ({
   // rule cards are 70×120 mm portrait while operatives are 127×89 landscape).
   const groupsByKey = new Map<string, { profile: PrintProfile; items: PrintItem[] }>();
   for (const item of items) {
-    const profile = profileForItem(item.type, defaultBg, printSize, bleedSize);
+    // Static cards can override the game size per card type (e.g. portrait
+    // tactics cards); each distinct size gets its own pages via profile.key.
+    const typeSize = item.type === 'static'
+      ? staticSizes[(item.data as PrintableStaticCard).cardType ?? '']
+      : undefined;
+    const profile = profileForItem(item.type, defaultBg, typeSize?.print ?? printSize, typeSize?.bleed ?? bleedSize);
     let group = groupsByKey.get(profile.key);
     if (!group) {
       group = { profile, items: [] };

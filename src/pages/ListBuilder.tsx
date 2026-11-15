@@ -15,7 +15,8 @@
  * definitions for the game, numeric card.stats resolve stat-linked limits
  * (e.g. HP), and token state is ephemeral (per page session).
  *
- * Card native size is derived from games.print_size (750px wide).
+ * Card native size comes from the game's print size for that card type
+ * (games.card_type_sizes override games.print_size), at 5 px per mm.
  */
 
 import { useEffect, useMemo, useState, useCallback } from 'react';
@@ -35,7 +36,8 @@ import HR from '../components/HR';
 import Modal from '../components/Modal';
 import Text from '../components/Text';
 import Tabs from '../components/Tabs';
-import StaticCard, { cardFaceUrl, nativeCardHeight } from '../components/StaticCard';
+import StaticCard, { cardFaceUrl } from '../components/StaticCard';
+import { nativeDimsFor } from '../lib/cardSizes';
 import TokenOverlay from '../components/TokenOverlay';
 import TokenMenu from '../components/TokenMenu';
 import { useCardBuilder } from '../hooks/useCardBuilder';
@@ -45,7 +47,7 @@ import Pen2 from '../icons/Pen2';
 import Play from '../icons/Play';
 import AltArrowDown from '../icons/AltArrowDown';
 import { supabase } from '../lib/supabase';
-import type { CardType, Json, TokenDefinition } from '../lib/database.types';
+import type { CardType, CardTypeSizes, Json, TokenDefinition } from '../lib/database.types';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -63,9 +65,9 @@ interface GameInfo {
   name:       string;
   slug:       string;
   print_size: [number, number] | null;
+  card_type_sizes: CardTypeSizes | null;
 }
 
-const CARD_W = 750;
 const PICKER_W = 150;
 
 /** Human label for a card_type in this generic page. */
@@ -120,7 +122,9 @@ const ListBuilder = () => {
   const [adding, setAdding] = useState<string | null>(null);
   const [pickerError, setPickerError] = useState<string | null>(null);
 
-  const cardH = useMemo(() => nativeCardHeight(CARD_W, game?.print_size), [game]);
+  /** Native px size of a card, by its type. */
+  const dimsOf = useCallback((c: { card_type: string }) => nativeDimsFor(game, c.card_type), [game]);
+  const unitDims = useMemo(() => nativeDimsFor(game, 'operative'), [game]);
 
   // ── Load deck, game, cards, tokens ─────────────────────────────────────────
   useEffect(() => {
@@ -128,7 +132,7 @@ const ListBuilder = () => {
     (async () => {
       const { data: deck, error } = await supabase
         .from('decks')
-        .select('id, name, game:games(id, name, slug, print_size)')
+        .select('id, name, game:games(id, name, slug, print_size, card_type_sizes)')
         .eq('id', deckId)
         .single();
       if (error || !deck) { setLoadError('Deck not found.'); setLoading(false); return; }
@@ -298,8 +302,9 @@ const ListBuilder = () => {
   );
 
   const renderCard = (card: ListCard, interactive: boolean) => (
-    <StaticCard faceUrl={cardFaceUrl(card.face_path)} name={card.name} width={CARD_W} height={cardH}>
-      {interactive && playTokens && (
+    <StaticCard faceUrl={cardFaceUrl(card.face_path)} name={card.name} width={dimsOf(card).w} height={dimsOf(card).h}>
+      {/* Tokens track units only — tactics/rule cards are reference cards. */}
+      {interactive && playTokens && card.card_type === 'operative' && (
         <TokenOverlay
           gameSlug={slug}
           tokenDefinitions={tokenDefinitions}
@@ -325,9 +330,9 @@ const ListBuilder = () => {
             className="flex flex-col items-center gap-2 rounded-lg p-1 hover:bg-gray-800 transition-colors disabled:cursor-wait"
             title={`Add ${c.name}`}
           >
-            <div className="relative overflow-hidden shrink-0" style={{ width: PICKER_W, height: Math.round(cardH * (PICKER_W / CARD_W)) }}>
-              <div style={{ transform: `scale(${PICKER_W / CARD_W})`, transformOrigin: 'top left', position: 'absolute', top: 0, left: 0 }}>
-                <StaticCard faceUrl={cardFaceUrl(c.face_path)} name={c.name} width={CARD_W} height={cardH} dimmed={adding === c.id} />
+            <div className="relative overflow-hidden shrink-0" style={{ width: PICKER_W, height: Math.round(dimsOf(c).h * (PICKER_W / dimsOf(c).w)) }}>
+              <div style={{ transform: `scale(${PICKER_W / dimsOf(c).w})`, transformOrigin: 'top left', position: 'absolute', top: 0, left: 0 }}>
+                <StaticCard faceUrl={cardFaceUrl(c.face_path)} name={c.name} width={dimsOf(c).w} height={dimsOf(c).h} dimmed={adding === c.id} />
               </div>
               {count > 0 && (
                 <div className="absolute top-1 right-1">
@@ -462,9 +467,10 @@ const ListBuilder = () => {
               items={cards}
               activeId={activeCard?.id ?? ''}
               onActiveChange={setActiveCardId}
-              cardWidth={CARD_W}
-              cardHeight={cardH}
-              layoutDeps={[appMode, cardListOpen, isMobile, isShortHeight, mobilePanelOpen, cardH]}
+              cardWidth={unitDims.w}
+              cardHeight={unitDims.h}
+              getItemDimensions={c => ({ width: dimsOf(c).w, height: dimsOf(c).h })}
+              layoutDeps={[appMode, cardListOpen, isMobile, isShortHeight, mobilePanelOpen, unitDims.w, unitDims.h]}
               initialZoom={isShortHeight ? 1.0 : 0.7}
               className={`w-full ${mobilePanelOpen ? 'flex-none' : 'flex-1 min-h-0'}`}
               bottomLeftSlot={
@@ -481,7 +487,7 @@ const ListBuilder = () => {
                 ) : null
               }
               bottomRightSlot={
-                playTokens && activeCard ? (
+                playTokens && activeCard?.card_type === 'operative' ? (
                   <TokenMenu
                     tokenDefinitions={tokenDefinitions}
                     card={{ stats: numericStats(activeCard.stats), unitKeywords: [] }}

@@ -58,7 +58,8 @@ import KillTeamCardForm from '../components/KillTeamCardForm';
 import StarcraftCardForm from '../components/StarcraftCardForm';
 import UploadPhotoModal from '../components/UploadPhotoModal';
 import StaticCardModal, { type StaticCardType } from '../components/StaticCardModal';
-import StaticCard, { cardFaceUrl, nativeCardHeight } from '../components/StaticCard';
+import StaticCard, { cardFaceUrl } from '../components/StaticCard';
+import { nativeDimsFor as staticNativeDims, type GameSizeInfo } from '../lib/cardSizes';
 import { GAME_PAGES } from './DeckPage';
 import { useGameCapabilities } from '../hooks/useGameCapabilities';
 import AddCircle from '../icons/AddCircle';
@@ -716,10 +717,11 @@ export default function PackEditor() {
   const isListGame = pack
     ? !GAME_PAGES[pack.game.slug] || Boolean(packCap?.simple && !packCap?.custom)
     : false;
-  const listCardDims = useMemo<[number, number]>(
-    () => [750, nativeCardHeight(750, (pack?.game as { print_size?: unknown } | undefined)?.print_size)],
-    [pack],
-  );
+  /** Native px size of a static card in this pack's game, by card type. */
+  const listCardDims = useMemo<[number, number]>(() => {
+    const d = staticNativeDims(pack?.game as GameSizeInfo | undefined, previewCard?.card_type ?? 'operative');
+    return [d.w, d.h];
+  }, [pack, previewCard]);
 
   /** Add/edit handlers: static-card modal for list games, existing flows otherwise. */
   const openAddCard = (cardType: StaticCardType, fallback: () => void) =>
@@ -1396,6 +1398,7 @@ export default function PackEditor() {
           gameId={pack.game_id}
           statSchema={pack.game.stat_schema ?? []}
           printSize={(pack.game as { print_size?: [number, number] }).print_size ?? null}
+          cardTypeSizes={(pack.game as GameSizeInfo).card_type_sizes ?? null}
           defaultCardType={staticCardCtx?.cardType ?? 'operative'}
           card={staticCardCtx?.card ?? null}
           onSaved={loadAll}
