@@ -13,8 +13,7 @@
 -- There is no custom builder page for this game, so decks open in the
 -- generic ListBuilder (src/pages/DeckPage.tsx falls back to it).
 --
--- Card size: 63×88 mm (standard card). VERIFY against a physical card and
--- update print_size / bleed_size if different.
+-- Card size: official unit cards are 150×105 mm (landscape), 3 mm bleed.
 --
 -- Cards are NOT seeded here: each needs its official card face uploaded to
 -- card-images/packs/{pack_id}/… first. See the template at the bottom.
@@ -40,8 +39,8 @@ set
     {"key": "vp",       "label": "VP",                "type": "number"},
     {"key": "timeline", "label": "Starting Timeline", "type": "number"}
   ]'::jsonb,
-  print_size = '[63, 88]'::jsonb,
-  bleed_size = '[69, 94]'::jsonb
+  print_size = '[150, 105]'::jsonb,
+  bleed_size = '[156, 111]'::jsonb
 where slug = 'gundam-assemble'
   and coalesce(jsonb_array_length(stat_schema), 0) = 0;   -- don't clobber later edits
 
